@@ -1,0 +1,31 @@
+{% extends "admin.html" %}
+
+{% block admin %}
+<h1>The Link {{ link.code }}</h1>
+<table>
+    <tr>
+        <td>Beschreibung:</td>
+        <td>{{ link.title }}</td>
+    </tr>
+    <tr>
+        <td>Code:</td>
+        <td>{{ link.code }}</td>
+    </tr>
+    <tr>
+        <td>Kurzlink:</td>
+        <td><a href="https://fhs.li/{{ link.code }}">https://fhs.li/{{ link.code }}</a></td>
+    </tr>
+    <tr>
+        <td>Ziel:</td>
+        <td>{{ link.target }}</td>
+    </tr>
+    <tr>
+        <td>QR-Code</td>
+        <td>{{ qr | safe }}</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+{% endblock %}
