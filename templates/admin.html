@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/admin.css">
+{% endblock %}
+
+
+{% block content %}
+<div class="admin">
+    <nav>
+        <ol>
+            <li><a href="/admin/index/">Liste</a></li>
+            <li><a href="/admin/submit/">Hinzufügen</a></li>
+            <li><a href="/admin/signup/">Einladen</a></li>
+            <li style="float:right"><a href="/admin/logout/">Abmelden</a></li>
+        </ol>
+    </nav>
+    <div class="center">
+        <h1>Herzlich willkommen {{ name }}!</h1>
+        {% block admin %}
+        {% endblock %}
+    </div>
+</div>
+{% endblock %}

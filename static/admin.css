@@ -1,0 +1,48 @@
+
+
+form {
+    width: 100%;
+}
+.center {
+  width: 800px;
+  height: 600px;
+  margin-left: -400px;
+  margin-top: -300px;
+
+}
+
+
+nav ol {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #333;
+    width:100%;
+  }
+
+nav li a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+  
+nav li {
+    float: left;
+  }
+nav li a:hover {
+    background-color: #111;
+  }
+
+nav li {
+    border-right: 1px solid #bbb;
+  }
+  
+nav li:last-child {
+    border-right: none;
+  }
+svg {
+  width: 100px;
+}
