@@ -49,8 +49,8 @@ pub(crate) async fn index(
         Ok(HttpResponse::Ok().body(rendered))
     } else {
         Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/login/")
-            .body("Redirect to /login/"))
+            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+            .body("Redirect to /admin/login/"))
     }
 }
 
@@ -84,8 +84,8 @@ pub(crate) async fn view_link(
         Ok(HttpResponse::Ok().body(rendered))
     } else {
         Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/login/")
-            .body("Redirect to /login/"))
+            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+            .body("Redirect to /admin/login/"))
     }
 }
 
@@ -102,8 +102,8 @@ pub(crate) async fn signup(
         Ok(HttpResponse::Ok().body(rendered))
     } else {
         Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/login/")
-            .body("Redirect to /login/"))
+            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+            .body("Redirect to /admin/login/"))
     }
 }
 
@@ -129,8 +129,8 @@ pub(crate) async fn process_signup(
         Ok(HttpResponse::Ok().body(format!("Successfully saved user: {}", data.username)))
     } else {
         Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/login/")
-            .body("Redirect to /login/"))
+            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+            .body("Redirect to /admin/login/"))
     }
 }
 
@@ -143,8 +143,8 @@ pub(crate) async fn login(
 
     if let Some(_id) = id.identity() {
         return Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/index/")
-            .body("Redirect to /index/"));
+            .set_header(actix_web::http::header::LOCATION, "/admin/index/")
+            .body("Redirect to /admin/index/"));
     }
 
     let rendered = tera.render("login.html", &data)?;
@@ -178,25 +178,25 @@ pub(crate) async fn process_login(
                 id.remember(session_token);
 
                 Ok(HttpResponse::TemporaryRedirect()
-                    .set_header(actix_web::http::header::LOCATION, "/index/")
-                    .body("Redirect to /index/"))
+                    .set_header(actix_web::http::header::LOCATION, "/admin/index/")
+                    .body("Redirect to /admin/index/"))
             } else {
                 Ok(HttpResponse::TemporaryRedirect()
-                    .set_header(actix_web::http::header::LOCATION, "/login/")
-                    .body("Redirect to /login/"))
+                    .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+                    .body("Redirect to /admin/login/"))
             }
         }
         Err(_e) => Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/login/")
-            .body("Redirect to /login/")),
+            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+            .body("Redirect to /admin/login/")),
     }
 }
 
 pub(crate) async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
     id.forget();
     Ok(HttpResponse::TemporaryRedirect()
-        .set_header(actix_web::http::header::LOCATION, "/login/")
-        .body("Redirect to /login/"))
+        .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+        .body("Redirect to /admin/login/"))
 }
 
 pub(crate) async fn redirect(
@@ -241,8 +241,8 @@ pub(crate) async fn submission(
         return Ok(HttpResponse::Ok().body(rendered));
     }
     Ok(HttpResponse::TemporaryRedirect()
-        .set_header(actix_web::http::header::LOCATION, "/login/")
-        .body("Redirect to /login/"))
+        .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+        .body("Redirect to /admin/login/"))
 }
 
 pub(crate) async fn process_submission(
@@ -266,16 +266,16 @@ pub(crate) async fn process_submission(
                     .execute(&connection)?;
 
                 return Ok(HttpResponse::TemporaryRedirect()
-                    .set_header(actix_web::http::header::LOCATION, "/index/")
-                    .body("Redirect to /index/"));
+                    .set_header(actix_web::http::header::LOCATION, "/admin/index/")
+                    .body("Redirect to /admin/index/"));
             }
             Err(_e) => Ok(HttpResponse::TemporaryRedirect()
-                .set_header(actix_web::http::header::LOCATION, "/login/")
-                .body("Redirect to /login/")),
+                .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+                .body("Redirect to /admin/login/")),
         }
     } else {
         Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/login/")
-            .body("Redirect to /login/"))
+            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
+            .body("Redirect to /admin/login/"))
     }
 }
