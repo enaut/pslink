@@ -1,6 +1,11 @@
+use std::time::SystemTime;
+
 use actix_identity::Identity;
 
-use actix_web::{web, HttpResponse};
+use actix_web::{
+    http::header::{CacheControl, CacheDirective, Expires},
+    web, HttpResponse,
+};
 use qrcodegen::{QrCode, QrCodeEcc};
 
 use crate::ServerError;
@@ -29,6 +34,18 @@ fn establish_connection() -> Result<SqliteConnection, ServerError> {
     }
 }
 
+fn redirect_builder(target: &str) -> HttpResponse {
+    HttpResponse::TemporaryRedirect()
+        .set(CacheControl(vec![
+            CacheDirective::NoCache,
+            CacheDirective::NoStore,
+            CacheDirective::MustRevalidate,
+        ]))
+        .set(Expires(SystemTime::now().into()))
+        .set_header(actix_web::http::header::LOCATION, target.clone())
+        .body(format!("Redirect to {}", target.clone()))
+}
+
 /// Show the list of all available links if a user is authenticated
 pub(crate) async fn index(
     tera: web::Data<Tera>,
@@ -48,9 +65,7 @@ pub(crate) async fn index(
         let rendered = tera.render("index.html", &data)?;
         Ok(HttpResponse::Ok().body(rendered))
     } else {
-        Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-            .body("Redirect to /admin/login/"))
+        Ok(redirect_builder("/admin/login/"))
     }
 }
 
@@ -83,9 +98,7 @@ pub(crate) async fn view_link(
         let rendered = tera.render("view_link.html", &data)?;
         Ok(HttpResponse::Ok().body(rendered))
     } else {
-        Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-            .body("Redirect to /admin/login/"))
+        Ok(redirect_builder("/admin/login/"))
     }
 }
 
@@ -101,9 +114,7 @@ pub(crate) async fn signup(
         let rendered = tera.render("signup.html", &data)?;
         Ok(HttpResponse::Ok().body(rendered))
     } else {
-        Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-            .body("Redirect to /admin/login/"))
+        Ok(redirect_builder("/admin/login/"))
     }
 }
 
@@ -128,9 +139,7 @@ pub(crate) async fn process_signup(
         println!("{:?}", data);
         Ok(HttpResponse::Ok().body(format!("Successfully saved user: {}", data.username)))
     } else {
-        Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-            .body("Redirect to /admin/login/"))
+        Ok(redirect_builder("/admin/login/"))
     }
 }
 
@@ -142,9 +151,7 @@ pub(crate) async fn login(
     data.insert("title", "Login");
 
     if let Some(_id) = id.identity() {
-        return Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/admin/index/")
-            .body("Redirect to /admin/index/"));
+        return Ok(redirect_builder("/admin/index/"));
     }
 
     let rendered = tera.render("login.html", &data)?;
@@ -177,26 +184,18 @@ pub(crate) async fn process_login(
                 let session_token = u.username;
                 id.remember(session_token);
 
-                Ok(HttpResponse::TemporaryRedirect()
-                    .set_header(actix_web::http::header::LOCATION, "/admin/index/")
-                    .body("Redirect to /admin/index/"))
+                Ok(redirect_builder("/admin/index/"))
             } else {
-                Ok(HttpResponse::TemporaryRedirect()
-                    .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-                    .body("Redirect to /admin/login/"))
+                Ok(redirect_builder("/admin/login/"))
             }
         }
-        Err(_e) => Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-            .body("Redirect to /admin/login/")),
+        Err(_e) => Ok(redirect_builder("/admin/login/")),
     }
 }
 
 pub(crate) async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
     id.forget();
-    Ok(HttpResponse::TemporaryRedirect()
-        .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-        .body("Redirect to /admin/login/"))
+    Ok(redirect_builder("/admin/login/"))
 }
 
 pub(crate) async fn redirect(
@@ -208,9 +207,7 @@ pub(crate) async fn redirect(
 
     let link = links.filter(code.eq(&data.0)).first::<Link>(&connection);
     match link {
-        Ok(link) => Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, link.target.clone())
-            .body(format!("Redirect to {}", link.target))),
+        Ok(link) => Ok(redirect_builder(&link.target)),
         Err(NotFound) => {
             let mut data = Context::new();
             data.insert("title", "Wurde gelöscht");
@@ -222,10 +219,9 @@ pub(crate) async fn redirect(
 }
 
 pub(crate) async fn redirect_fhs() -> Result<HttpResponse, ServerError> {
-    Ok(HttpResponse::TemporaryRedirect().set_header(
-        actix_web::http::header::LOCATION,
+    Ok(redirect_builder(
         "https://www.freie-hochschule-stuttgart.de",
-    ).body("If you are not redirected automatically go to https://www.freie-hochschule-stuttgart.de"))
+    ))
 }
 
 pub(crate) async fn submission(
@@ -240,9 +236,7 @@ pub(crate) async fn submission(
         let rendered = tera.render("submission.html", &data)?;
         return Ok(HttpResponse::Ok().body(rendered));
     }
-    Ok(HttpResponse::TemporaryRedirect()
-        .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-        .body("Redirect to /admin/login/"))
+    Ok(redirect_builder("/admin/login/"))
 }
 
 pub(crate) async fn process_submission(
@@ -265,17 +259,11 @@ pub(crate) async fn process_submission(
                     .values(&new_post)
                     .execute(&connection)?;
 
-                return Ok(HttpResponse::TemporaryRedirect()
-                    .set_header(actix_web::http::header::LOCATION, "/admin/index/")
-                    .body("Redirect to /admin/index/"));
+                return Ok(redirect_builder("/admin/index/"));
             }
-            Err(_e) => Ok(HttpResponse::TemporaryRedirect()
-                .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-                .body("Redirect to /admin/login/")),
+            Err(_e) => Ok(redirect_builder("/admin/login/")),
         }
     } else {
-        Ok(HttpResponse::TemporaryRedirect()
-            .set_header(actix_web::http::header::LOCATION, "/admin/login/")
-            .body("Redirect to /admin/login/"))
+        Ok(redirect_builder("/admin/login/"))
     }
 }
