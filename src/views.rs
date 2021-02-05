@@ -35,7 +35,7 @@ fn establish_connection() -> Result<SqliteConnection, ServerError> {
 }
 
 fn redirect_builder(target: &str) -> HttpResponse {
-    HttpResponse::TemporaryRedirect()
+    HttpResponse::SeeOther()
         .set(CacheControl(vec![
             CacheDirective::NoCache,
             CacheDirective::NoStore,
