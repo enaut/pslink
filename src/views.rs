@@ -83,7 +83,11 @@ pub(crate) async fn view_link(
             .filter(code.eq(&link_id.0))
             .first::<Link>(&connection)?;
 
-        let qr = QrCode::new(&format!("http://fhs.li/{}", &link_id.0)).unwrap();
+        let qr = QrCode::with_error_correction_level(
+            &format!("http://fhs.li/{}", &link_id),
+            qrcode::EcLevel::L,
+        )
+        .unwrap();
         let svg = qr
             .render()
             .min_dimensions(200, 200)
@@ -115,7 +119,11 @@ pub(crate) async fn download_png(
         use super::schema::links::dsl::{code, links};
         let connection = establish_connection()?;
         if let Ok(_link) = links.filter(code.eq(&link_id.0)).first::<Link>(&connection) {
-            let qr = QrCode::new(&format!("http://fhs.li/{}", &link_id)).unwrap();
+            let qr = QrCode::with_error_correction_level(
+                &format!("http://fhs.li/{}", &link_id),
+                qrcode::EcLevel::L,
+            )
+            .unwrap();
             let png = qr.render::<Luma<u8>>().quiet_zone(false).build();
             let mut temporary_data = std::io::Cursor::new(Vec::new());
             DynamicImage::ImageLuma8(png)
