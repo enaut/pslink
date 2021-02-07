@@ -126,6 +126,10 @@ async fn main() -> std::io::Result<()> {
                         web::scope("/view")
                             .route("/{redirect_id}", web::get().to(views::view_link)),
                     )
+                    .service(
+                        web::scope("/download")
+                            .route("/png/{redirect_id}", web::get().to(views::download_png)),
+                    )
                     // login to the admin area
                     .route("/login/", web::get().to(views::login))
                     .route("/login/", web::post().to(views::process_login)),

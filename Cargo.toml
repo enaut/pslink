@@ -20,7 +20,8 @@ chrono = { version = "0.4", features = ["serde"] }
 argonautica = "0.2"
 env_logger = "0.8"
 log = "0.4"
-qrcodegen = "1.6"
+qrcode = "0.12"
+image = "0.23"
 
 [build-dependencies]
 actix-web-static-files = "3"
