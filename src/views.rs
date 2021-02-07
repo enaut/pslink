@@ -2,21 +2,22 @@ use std::time::SystemTime;
 
 use actix_identity::Identity;
 
+use crate::ServerError;
 use actix_web::{
-    http::header::{CacheControl, CacheDirective, Expires},
+    http::header::{CacheControl, CacheDirective, ContentType, Expires},
     web, HttpResponse,
 };
-use qrcodegen::{QrCode, QrCodeEcc};
-
-use crate::ServerError;
-
-use super::forms::LinkForm;
-use super::models::{Link, LoginUser, NewLink, NewUser, User};
 use argonautica::Verifier;
 use diesel::sqlite::SqliteConnection;
 use diesel::{prelude::*, result::Error::NotFound};
 use dotenv::dotenv;
+use image::{DynamicImage, ImageOutputFormat, Luma};
+use qrcode::render::svg;
+use qrcode::QrCode;
 use tera::{Context, Tera};
+
+use super::forms::LinkForm;
+use super::models::{Link, LoginUser, NewLink, NewUser, User};
 
 fn establish_connection() -> Result<SqliteConnection, ServerError> {
     dotenv().ok();
@@ -82,9 +83,13 @@ pub(crate) async fn view_link(
             .filter(code.eq(&link_id.0))
             .first::<Link>(&connection)?;
 
-        let qr =
-            QrCode::encode_text(&format!("http://fhs.li/{}", &link_id.0), QrCodeEcc::Low).unwrap();
-        let svg = qr.to_svg_string(4);
+        let qr = QrCode::new(&format!("http://fhs.li/{}", &link_id.0)).unwrap();
+        let svg = qr
+            .render()
+            .min_dimensions(200, 200)
+            .dark_color(svg::Color("#000000"))
+            .light_color(svg::Color("#ffffff"))
+            .build();
 
         let mut data = Context::new();
         data.insert("name", &id);
@@ -97,6 +102,30 @@ pub(crate) async fn view_link(
 
         let rendered = tera.render("view_link.html", &data)?;
         Ok(HttpResponse::Ok().body(rendered))
+    } else {
+        Ok(redirect_builder("/admin/login/"))
+    }
+}
+
+pub(crate) async fn download_png(
+    id: Identity,
+    link_id: web::Path<String>,
+) -> Result<HttpResponse, ServerError> {
+    if let Some(_id) = id.identity() {
+        use super::schema::links::dsl::{code, links};
+        let connection = establish_connection()?;
+        if let Ok(_link) = links.filter(code.eq(&link_id.0)).first::<Link>(&connection) {
+            let qr = QrCode::new(&format!("http://fhs.li/{}", &link_id)).unwrap();
+            let png = qr.render::<Luma<u8>>().quiet_zone(false).build();
+            let mut temporary_data = std::io::Cursor::new(Vec::new());
+            DynamicImage::ImageLuma8(png)
+                .write_to(&mut temporary_data, ImageOutputFormat::Png)
+                .unwrap();
+            let image_data = temporary_data.into_inner();
+            Ok(HttpResponse::Ok().set(ContentType::png()).body(image_data))
+        } else {
+            Ok(redirect_builder("/admin/index/"))
+        }
     } else {
         Ok(redirect_builder("/admin/login/"))
     }

@@ -1,7 +1,7 @@
 {% extends "admin.html" %}
 
 {% block admin %}
-<h1>The Link {{ link.code }}</h1>
+<h1>{{ link.title }}</h1>
 <table>
     <tr>
         <td>Beschreibung:</td>
@@ -21,7 +21,12 @@
     </tr>
     <tr>
         <td>QR-Code</td>
-        <td>{{ qr | safe }}</td>
+        <td><a href="/admin/download/png/{{ link.code }}" download="{{ link.title | slugify }}.png">
+                {{ qr | trim_start_matches(pat=
+                '.*?>')
+                | safe }}
+            </a>
+        </td>
     </tr>
     <tr>
         <td></td>
