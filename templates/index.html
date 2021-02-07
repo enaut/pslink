@@ -1,12 +1,19 @@
 {% extends "admin.html" %}
 
 {% block admin %}
-{% for links_user in links_per_users %}
-{% set l = links_user[0] %}
-{% set u = links_user[1] %}
-<div>
-    <a href="/admin/view/{{l.code}}"><span>{{l.code}}:</span>{{ l.target }}</a>
-    <small>{{ u.username }}</small>
-</div>
-{% endfor %}
+<table>
+    {% for links_user in links_per_users %}
+    {% set l = links_user[0] %}
+    {% set u = links_user[1] %}
+    <a href="/admin/view/{{l.code}}">
+        <tr>
+            <td><span>{{l.code}}:</span></td>
+            <td>{{ l.target }}</td>
+            <td>
+                <small>{{ u.username }}</small>
+            </td>
+        </tr>
+    </a>
+    {% endfor %}
+</table>
 {% endblock %}
