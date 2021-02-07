@@ -46,3 +46,8 @@ nav li:last-child {
 svg {
   width: 100px;
 }
+
+div.welcome {
+  text-align: right;
+  font-size: 24pt;
+}
