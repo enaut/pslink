@@ -5,15 +5,21 @@
     {% for links_user in links_per_users %}
     {% set l = links_user[0] %}
     {% set u = links_user[1] %}
-    <a href="/admin/view/{{l.code}}">
-        <tr>
-            <td><span>{{l.code}}:</span></td>
-            <td>{{ l.target }}</td>
-            <td>
-                <small>{{ u.username }}</small>
-            </td>
-        </tr>
-    </a>
+    <tr>
+        <td>
+            <a href="/admin/view/{{l.code}}"><span>{{l.code}}:</span>
+            </a>
+        </td>
+        <td>
+            <a href="/admin/view/{{l.code}}">{{ l.target }}
+            </a>
+        </td>
+        <td>
+
+            <a href="/admin/view/{{l.code}}"><small>{{ u.username }}</small>
+            </a>
+        </td>
+    </tr>
     {% endfor %}
 </table>
 {% endblock %}
