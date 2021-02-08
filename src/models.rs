@@ -1,7 +1,7 @@
 use crate::{forms::LinkForm, ServerError};
 
 use super::schema::{links, users};
-use argonautica::{Hasher, Verifier};
+use argonautica::Hasher;
 use diesel::{Insertable, Queryable};
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
