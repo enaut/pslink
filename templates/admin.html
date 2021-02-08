@@ -2,6 +2,8 @@
 
 {% block head %}
 <link rel="stylesheet" href="/static/admin.css">
+{% block head2 %}
+{% endblock %}
 {% endblock %}
 
 
@@ -13,10 +15,12 @@
             <li><a href="/admin/submit/">Hinzufügen</a></li>
             <li><a href="/admin/signup/">Einladen</a></li>
             <li style="float:right"><a href="/admin/logout/">Abmelden</a></li>
+            <li style="float:right">
+                <div class="willkommen">Herzlich willkommen {{ name }}</div>
+            </li>
         </ol>
     </nav>
     <div class="center">
-        <div class="welcome">Herzlich willkommen {{ name }}!</div>
         {% block admin %}
         {% endblock %}
     </div>
