@@ -1,7 +1,7 @@
 use crate::{forms::LinkForm, ServerError};
 
 use super::schema::{links, users};
-use argonautica::Hasher;
+use argonautica::{Hasher, Verifier};
 use diesel::{Insertable, Queryable};
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
@@ -28,21 +28,27 @@ impl NewUser {
         email: String,
         password: String,
     ) -> Result<Self, ServerError> {
+        let hash = Self::hash_password(password)?;
         dotenv().ok();
-
-        let secret = std::env::var("SECRET_KEY")?;
-
-        let hash = Hasher::default()
-            .with_password(password)
-            .with_secret_key(secret)
-            .hash()
-            .unwrap();
 
         Ok(NewUser {
             username,
             email,
             password: hash,
         })
+    }
+
+    pub(crate) fn hash_password(password: String) -> Result<String, ServerError> {
+        dotenv().ok();
+
+        let secret = std::env::var("SECRET_KEY")?;
+
+        let hash = Hasher::default()
+            .with_password(&password)
+            .with_secret_key(&secret)
+            .hash()?;
+
+        Ok(hash)
     }
 }
 

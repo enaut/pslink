@@ -1,19 +1,16 @@
 use std::time::SystemTime;
 
-use actix_identity::Identity;
-
 use crate::ServerError;
+use actix_identity::Identity;
 use actix_web::{
     http::header::{CacheControl, CacheDirective, ContentType, Expires},
     web, HttpResponse,
 };
 use argonautica::Verifier;
-use diesel::sqlite::SqliteConnection;
-use diesel::{prelude::*, result::Error::NotFound};
+use diesel::{prelude::*, result::Error::NotFound, sqlite::SqliteConnection};
 use dotenv::dotenv;
 use image::{DynamicImage, ImageOutputFormat, Luma};
-use qrcode::render::svg;
-use qrcode::QrCode;
+use qrcode::{render::svg, QrCode};
 use tera::{Context, Tera};
 
 use super::forms::LinkForm;
@@ -75,7 +72,6 @@ pub(crate) async fn view_link(
     id: Identity,
     link_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    println!("Viewing link!");
     use super::schema::links::dsl::{code, links};
     if let Some(id) = id.identity() {
         let connection = establish_connection()?;
@@ -106,6 +102,104 @@ pub(crate) async fn view_link(
 
         let rendered = tera.render("view_link.html", &data)?;
         Ok(HttpResponse::Ok().body(rendered))
+    } else {
+        Ok(redirect_builder("/admin/login/"))
+    }
+}
+
+pub(crate) async fn view_profile(
+    tera: web::Data<Tera>,
+    identity: Identity,
+    user_id: web::Path<String>,
+) -> Result<HttpResponse, ServerError> {
+    use super::schema::users::dsl::{id, users};
+    println!("Viewing Profile!");
+    if let Some(identity) = identity.identity() {
+        let connection = establish_connection()?;
+        if let Ok(uid) = user_id.parse::<i32>() {
+            let user = users.filter(id.eq(&uid)).first::<User>(&connection)?;
+
+            let mut data = Context::new();
+            data.insert("name", &identity);
+            data.insert(
+                "title",
+                &format!(
+                    "Benutzer {} der Freien Hochschule Stuttgart",
+                    &user.username
+                ),
+            );
+            data.insert("user", &user);
+
+            let rendered = tera.render("view_profile.html", &data)?;
+            Ok(HttpResponse::Ok().body(rendered))
+        } else {
+            Ok(redirect_builder("/admin/index/"))
+        }
+    } else {
+        Ok(redirect_builder("/admin/login/"))
+    }
+}
+
+pub(crate) async fn edit_profile(
+    tera: web::Data<Tera>,
+    identity: Identity,
+    user_id: web::Path<String>,
+) -> Result<HttpResponse, ServerError> {
+    use super::schema::users::dsl::{id, users};
+    println!("Viewing Profile!");
+    if let Some(identity) = identity.identity() {
+        let connection = establish_connection()?;
+        if let Ok(uid) = user_id.parse::<i32>() {
+            let user = users.filter(id.eq(&uid)).first::<User>(&connection)?;
+
+            let mut data = Context::new();
+            data.insert("name", &identity);
+            data.insert(
+                "title",
+                &format!(
+                    "Benutzer {} der Freien Hochschule Stuttgart",
+                    &user.username
+                ),
+            );
+            data.insert("user", &user);
+
+            let rendered = tera.render("edit_profile.html", &data)?;
+            Ok(HttpResponse::Ok().body(rendered))
+        } else {
+            Ok(redirect_builder("/admin/index/"))
+        }
+    } else {
+        Ok(redirect_builder("/admin/login/"))
+    }
+}
+
+pub(crate) async fn process_edit_profile(
+    data: web::Form<NewUser>,
+    id: Identity,
+    user_id: web::Path<String>,
+) -> Result<HttpResponse, ServerError> {
+    if let Some(_id) = id.identity() {
+        use super::schema::users::dsl::{email, id, password, username, users};
+
+        if let Ok(uid) = user_id.parse::<i32>() {
+            println!("Updating userinfo: ");
+            let connection = establish_connection()?;
+            diesel::update(users.filter(id.eq(uid)))
+                .set((
+                    username.eq(data.username.clone()),
+                    email.eq(data.email.clone()),
+                ))
+                .execute(&connection)?;
+            if data.password.len() > 3 {
+                let hash = NewUser::hash_password(data.password.clone())?;
+                diesel::update(users.filter(id.eq(uid)))
+                    .set((password.eq(hash),))
+                    .execute(&connection)?;
+            }
+            Ok(HttpResponse::Ok().body(format!("Successfully saved user: {}", data.username)))
+        } else {
+            Ok(redirect_builder("/admin/index/"))
+        }
     } else {
         Ok(redirect_builder("/admin/login/"))
     }
@@ -210,23 +304,25 @@ pub(crate) async fn process_login(
         Ok(u) => {
             dotenv().ok();
             let secret = std::env::var("SECRET_KEY")?;
-
             let valid = Verifier::default()
-                .with_hash(u.password)
-                .with_password(data.password.clone())
-                .with_secret_key(secret)
+                .with_hash(&u.password)
+                .with_password(&data.password)
+                .with_secret_key(&secret)
                 .verify()?;
 
             if valid {
+                println!("Login of user: {}", &u.username);
                 let session_token = u.username;
                 id.remember(session_token);
-
                 Ok(redirect_builder("/admin/index/"))
             } else {
                 Ok(redirect_builder("/admin/login/"))
             }
         }
-        Err(_e) => Ok(redirect_builder("/admin/login/")),
+        Err(e) => {
+            println!("Failed to login: {}", e);
+            Ok(redirect_builder("/admin/login/"))
+        }
     }
 }
 
