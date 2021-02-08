@@ -113,7 +113,7 @@ pub(crate) async fn view_profile(
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
     use super::schema::users::dsl::{id, users};
-    println!("Viewing Profile!");
+    info!("Viewing Profile!");
     if let Some(identity) = identity.identity() {
         let connection = establish_connection()?;
         if let Ok(uid) = user_id.parse::<i32>() {
@@ -146,7 +146,7 @@ pub(crate) async fn edit_profile(
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
     use super::schema::users::dsl::{id, users};
-    println!("Viewing Profile!");
+    info!("Editing Profile!");
     if let Some(identity) = identity.identity() {
         let connection = establish_connection()?;
         if let Ok(uid) = user_id.parse::<i32>() {
@@ -182,7 +182,7 @@ pub(crate) async fn process_edit_profile(
         use super::schema::users::dsl::{email, id, password, username, users};
 
         if let Ok(uid) = user_id.parse::<i32>() {
-            println!("Updating userinfo: ");
+            info!("Updating userinfo: ");
             let connection = establish_connection()?;
             diesel::update(users.filter(id.eq(uid)))
                 .set((
@@ -267,7 +267,6 @@ pub(crate) async fn process_signup(
             .values(&new_user)
             .execute(&connection)?;
 
-        println!("{:?}", data);
         Ok(HttpResponse::Ok().body(format!("Successfully saved user: {}", data.username)))
     } else {
         Ok(redirect_builder("/admin/login/"))
@@ -311,7 +310,7 @@ pub(crate) async fn process_login(
                 .verify()?;
 
             if valid {
-                println!("Login of user: {}", &u.username);
+                info!("Log-in of user: {}", &u.username);
                 let session_token = u.username;
                 id.remember(session_token);
                 Ok(redirect_builder("/admin/index/"))
@@ -320,7 +319,7 @@ pub(crate) async fn process_login(
             }
         }
         Err(e) => {
-            println!("Failed to login: {}", e);
+            info!("Failed to login: {}", e);
             Ok(redirect_builder("/admin/login/"))
         }
     }

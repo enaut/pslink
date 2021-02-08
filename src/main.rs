@@ -90,7 +90,7 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
     env_logger::init();
 
-    println!("Running on: http://127.0.0.1:8156");
+    println!("Running on: http://127.0.0.1:8156/admin/login/");
     HttpServer::new(|| {
         let tera = Tera::new("templates/**/*").expect("failed to initialize the templates");
         let generated = generate();
