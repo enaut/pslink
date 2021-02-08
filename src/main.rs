@@ -118,8 +118,8 @@ async fn main() -> std::io::Result<()> {
                     // logout
                     .route("/logout/", web::to(views::logout))
                     // submit a new url for shortening
-                    .route("/submit/", web::get().to(views::submission))
-                    .route("/submit/", web::post().to(views::process_submission))
+                    .route("/submit/", web::get().to(views::create_link))
+                    .route("/submit/", web::post().to(views::process_link_creation))
                     // view an existing url
                     .service(
                         web::scope("/view")
@@ -136,7 +136,11 @@ async fn main() -> std::io::Result<()> {
                         web::scope("/edit")
                             .service(
                                 web::scope("/link")
-                                    .route("/{redirect_id}", web::get().to(views::view_link)),
+                                    .route("/{redirect_id}", web::get().to(views::edit_link))
+                                    .route(
+                                        "/{redirect_id}",
+                                        web::post().to(views::process_link_edit),
+                                    ),
                             )
                             .service(
                                 web::scope("/profile")

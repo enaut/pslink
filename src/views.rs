@@ -356,7 +356,7 @@ pub(crate) async fn redirect_fhs() -> Result<HttpResponse, ServerError> {
     ))
 }
 
-pub(crate) async fn submission(
+pub(crate) async fn create_link(
     tera: web::Data<Tera>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
@@ -371,7 +371,7 @@ pub(crate) async fn submission(
     Ok(redirect_builder("/admin/login/"))
 }
 
-pub(crate) async fn process_submission(
+pub(crate) async fn process_link_creation(
     data: web::Form<LinkForm>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
@@ -398,4 +398,51 @@ pub(crate) async fn process_submission(
     } else {
         Ok(redirect_builder("/admin/login/"))
     }
+}
+
+pub(crate) async fn edit_link(
+    tera: web::Data<Tera>,
+    id: Identity,
+    link_id: web::Path<String>,
+) -> Result<HttpResponse, ServerError> {
+    if let Some(id) = id.identity() {
+        use super::schema::links::dsl::{code, links};
+        let connection = establish_connection()?;
+        let link: Link = links
+            .filter(code.eq(&link_id.0))
+            .first::<Link>(&connection)?;
+        let mut data = Context::new();
+        data.insert("title", "Submit a Post");
+        data.insert("link", &link);
+
+        data.insert("name", &id);
+        let rendered = tera.render("edit_link.html", &data)?;
+        return Ok(HttpResponse::Ok().body(rendered));
+    }
+    Ok(redirect_builder("/admin/login/"))
+}
+pub(crate) async fn process_link_edit(
+    data: web::Form<LinkForm>,
+    id: Identity,
+    link_id: web::Path<String>,
+) -> Result<HttpResponse, ServerError> {
+    if let Some(_id) = id.identity() {
+        use super::schema::links::dsl::{code, links, target, title};
+
+        let connection = establish_connection()?;
+
+        diesel::update(links.filter(code.eq(&link_id.0)))
+            .set((
+                code.eq(&data.code),
+                target.eq(&data.target),
+                title.eq(&data.title),
+            ))
+            .execute(&connection)?;
+
+        return Ok(redirect_builder(&format!(
+            "/admin/view/link/{}",
+            &data.code
+        )));
+    }
+    Ok(redirect_builder("/admin/login/"))
 }
