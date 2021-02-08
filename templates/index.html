@@ -7,16 +7,16 @@
     {% set u = links_user[1] %}
     <tr>
         <td>
-            <a href="/admin/view/{{l.code}}"><span>{{l.code}}:</span>
+            <a href="/admin/view/link/{{l.code}}"><span>{{l.code}}:</span>
             </a>
         </td>
         <td>
-            <a href="/admin/view/{{l.code}}">{{ l.target }}
+            <a href="/admin/view/link/{{l.code}}">{{ l.target }}
             </a>
         </td>
         <td>
 
-            <a href="/admin/view/{{l.code}}"><small>{{ u.username }}</small>
+            <a href="/admin/view/profile/{{u.id}}"><small>{{ u.username }}</small>
             </a>
         </td>
     </tr>

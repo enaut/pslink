@@ -10,7 +10,6 @@ mod views;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpResponse, HttpServer};
-use actix_web_static_files;
 
 use dotenv::dotenv;
 use tera::Tera;
@@ -124,7 +123,29 @@ async fn main() -> std::io::Result<()> {
                     // view an existing url
                     .service(
                         web::scope("/view")
-                            .route("/{redirect_id}", web::get().to(views::view_link)),
+                            .service(
+                                web::scope("/link")
+                                    .route("/{redirect_id}", web::get().to(views::view_link)),
+                            )
+                            .service(
+                                web::scope("/profile")
+                                    .route("/{user_id}", web::get().to(views::view_profile)),
+                            ),
+                    )
+                    .service(
+                        web::scope("/edit")
+                            .service(
+                                web::scope("/link")
+                                    .route("/{redirect_id}", web::get().to(views::view_link)),
+                            )
+                            .service(
+                                web::scope("/profile")
+                                    .route("/{user_id}", web::get().to(views::edit_profile))
+                                    .route(
+                                        "/{user_id}",
+                                        web::post().to(views::process_edit_profile),
+                                    ),
+                            ),
                     )
                     .service(
                         web::scope("/download")
