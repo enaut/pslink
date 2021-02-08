@@ -1,0 +1,20 @@
+{% extends "admin.html" %}
+
+{% block admin %}
+<h1>Link Editieren: {{ link.title }}</h1>
+<form action="" method="POST">
+    <div>
+        <label for="title">Beschreibung:</label>
+        <input type="text" name="title" value="{{ link.title }}">
+    </div>
+    <div>
+        <label for="target">Ziel:</label>
+        <input type="text" name="target" value="{{link.target}}">
+    </div>
+    <div>
+        <label for="code">Code:</label>
+        <input type="text" name="code" value="{{link.code}}">
+    </div>
+    <input type="submit" value="Speichern">
+</form>
+{% endblock %}
