@@ -88,6 +88,13 @@ pub(crate) async fn index_users(
         Ok(redirect_builder("/admin/login/"))
     }
 }
+pub(crate) async fn view_link_fhs(
+    tera: web::Data<Tera>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    view_link(tera, id, web::Path::from("".to_owned())).await
+}
+
 pub(crate) async fn view_link(
     tera: web::Data<Tera>,
     id: Identity,
