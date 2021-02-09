@@ -152,6 +152,12 @@ async fn main() -> std::io::Result<()> {
                             ),
                     )
                     .service(
+                        web::scope("/delete").service(
+                            web::scope("/link")
+                                .route("/{redirect_id}", web::get().to(views::process_link_delete)),
+                        ),
+                    )
+                    .service(
                         web::scope("/download")
                             .route("/png/{redirect_id}", web::get().to(views::download_png)),
                     )
