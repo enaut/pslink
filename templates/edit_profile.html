@@ -1,21 +1,23 @@
 {% extends "admin.html" %}
 
 {% block admin %}
-<h1>Profil von {{user.username}}</h1>
-<form action="" method="POST">
-    <div>
-        <label for="username">Benutzername:</label>
-        <input type="text" name="username" value="{{ user.username }}">
-    </div>
-    <div>
-        <label for="email">E-mail:</label>
-        <input type="email" name="email" value="{{ user.email }}">
-    </div>
-    <div>
-        <label for="password">Passwort:</label>
-        <input type="password" name="password" placeholder="Leer lassen um nichts zu ändern">
-    </div>
-    <input type="submit" value="Speichern">
-</form>
-<h2>&nbsp;</h2>
+<div class="center">
+    <h1>Profil von {{user.username}}</h1>
+    <form action="" method="POST">
+        <div>
+            <label for="username">Benutzername:</label>
+            <input type="text" name="username" value="{{ user.username }}">
+        </div>
+        <div>
+            <label for="email">E-mail:</label>
+            <input type="email" name="email" value="{{ user.email }}">
+        </div>
+        <div>
+            <label for="password">Passwort:</label>
+            <input type="password" name="password" placeholder="Leer lassen um nichts zu ändern">
+        </div>
+        <input type="submit" value="Speichern">
+    </form>
+    <h2>&nbsp;</h2>
+</div>
 {% endblock %}

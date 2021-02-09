@@ -6,37 +6,39 @@
 {% endblock %}
 
 {% block admin %}
-<table class="sortable">
+<div class="scrollable">
+    <table class="sortable">
 
-    <tr>
-        <th>
-            Kürzel
-        </th>
-        <th>
-            Ziellink
-        </th>
-        <th>
-            Benutzername
-        </th>
-    </tr>
-    {% for links_user in links_per_users %}
-    {% set l = links_user[0] %}
-    {% set u = links_user[1] %}
-    <tr>
-        <td>
-            <a href="/admin/view/link/{{l.code}}"><span>{{l.code}}</span>
-            </a>
-        </td>
-        <td>
-            <a href="/admin/view/link/{{l.code}}">{{ l.target }}
-            </a>
-        </td>
-        <td>
+        <tr>
+            <th>
+                Kürzel
+            </th>
+            <th>
+                Ziellink
+            </th>
+            <th>
+                Benutzername
+            </th>
+        </tr>
+        {% for links_user in links_per_users %}
+        {% set l = links_user[0] %}
+        {% set u = links_user[1] %}
+        <tr>
+            <td>
+                <a href="/admin/view/link/{{l.code}}"><span>{{l.code}}</span>
+                </a>
+            </td>
+            <td>
+                <a href="/admin/view/link/{{l.code}}">{{ l.target }}
+                </a>
+            </td>
+            <td>
 
-            <a href="/admin/view/profile/{{u.id}}"><small>{{ u.username }}</small>
-            </a>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+                <a href="/admin/view/profile/{{u.id}}"><small>{{ u.username }}</small>
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
 {% endblock %}
