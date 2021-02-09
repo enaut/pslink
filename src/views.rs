@@ -1,6 +1,5 @@
 use std::time::SystemTime;
 
-use crate::ServerError;
 use actix_identity::Identity;
 use actix_web::{
     http::header::{CacheControl, CacheDirective, ContentType, Expires},
@@ -14,7 +13,8 @@ use qrcode::{render::svg, QrCode};
 use tera::{Context, Tera};
 
 use super::forms::LinkForm;
-use super::models::{Link, LoginUser, NewLink, NewUser, User};
+use super::models::{Count, Link, LoginUser, NewClick, NewLink, NewUser, User};
+use crate::ServerError;
 
 fn establish_connection() -> Result<SqliteConnection, ServerError> {
     dotenv().ok();
@@ -49,11 +49,30 @@ pub(crate) async fn index(
     tera: web::Data<Tera>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    use super::schema::links::dsl::links;
-    use super::schema::users::dsl::users;
+    use super::schema::clicks;
+    use super::schema::links;
+    use super::schema::users;
     if let Some(id) = id.identity() {
         let connection = establish_connection()?;
-        let all_links: Vec<(Link, User)> = links.inner_join(users).load(&connection)?;
+        let query = links::dsl::links
+            .inner_join(users::dsl::users)
+            .left_join(clicks::dsl::clicks)
+            .group_by(links::id)
+            .select((
+                (
+                    links::id,
+                    links::title,
+                    links::target,
+                    links::code,
+                    links::author,
+                    links::created_at,
+                ),
+                (users::id, users::username, users::email, users::password),
+                (diesel::dsl::sql::<diesel::sql_types::Integer>(
+                    "COUNT(clicks.id)",
+                ),),
+            ));
+        let all_links: Vec<(Link, User, Count)> = query.load(&connection)?;
 
         let mut data = Context::new();
         data.insert("name", &id);
@@ -367,7 +386,16 @@ pub(crate) async fn redirect(
 
     let link = links.filter(code.eq(&data.0)).first::<Link>(&connection);
     match link {
-        Ok(link) => Ok(redirect_builder(&link.target)),
+        Ok(link) => {
+            use super::schema::clicks;
+            let new_click = NewClick::new(link.id);
+            let connection = establish_connection()?;
+
+            diesel::insert_into(clicks::table)
+                .values(&new_click)
+                .execute(&connection)?;
+            Ok(redirect_builder(&link.target))
+        }
         Err(NotFound) => {
             let mut data = Context::new();
             data.insert("title", "Wurde gelöscht");

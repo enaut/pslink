@@ -1,6 +1,6 @@
 use crate::{forms::LinkForm, ServerError};
 
-use super::schema::{links, users};
+use super::schema::{clicks, links, users};
 use argonautica::Hasher;
 use diesel::{Insertable, Queryable};
 use dotenv::dotenv;
@@ -88,4 +88,32 @@ impl NewLink {
             created_at: chrono::Local::now().naive_utc(),
         }
     }
+}
+
+#[derive(Serialize, Debug, Queryable)]
+pub struct Click {
+    pub id: i32,
+    pub link: i32,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+#[derive(Serialize, Insertable)]
+#[table_name = "clicks"]
+pub struct NewClick {
+    pub link: i32,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+impl NewClick {
+    pub fn new(link_id: i32) -> Self {
+        Self {
+            link: link_id,
+            created_at: chrono::Local::now().naive_utc(),
+        }
+    }
+}
+
+#[derive(Serialize, Debug, Queryable)]
+pub struct Count {
+    count: i32,
 }

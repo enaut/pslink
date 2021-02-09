@@ -19,10 +19,14 @@
             <th>
                 Benutzername
             </th>
+            <th>
+                Statistik
+            </th>
         </tr>
         {% for links_user in links_per_users %}
         {% set l = links_user[0] %}
         {% set u = links_user[1] %}
+        {% set c = links_user[2] %}
         <tr>
             <td>
                 <a href="/admin/view/link/{{l.code}}"><span>{{l.code}}</span>
@@ -36,6 +40,9 @@
 
                 <a href="/admin/view/profile/{{u.id}}"><small>{{ u.username }}</small>
                 </a>
+            </td>
+            <td>
+                {{ c.count }}
             </td>
         </tr>
         {% endfor %}
