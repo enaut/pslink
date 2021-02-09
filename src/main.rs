@@ -130,7 +130,8 @@ async fn main() -> std::io::Result<()> {
                             .service(
                                 web::scope("/profile")
                                     .route("/{user_id}", web::get().to(views::view_profile)),
-                            ),
+                            )
+                            .route("/users/", web::get().to(views::index_users)),
                     )
                     .service(
                         web::scope("/edit")

@@ -67,6 +67,27 @@ pub(crate) async fn index(
     }
 }
 
+/// Show the list of all available links if a user is authenticated
+pub(crate) async fn index_users(
+    tera: web::Data<Tera>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    use super::schema::users::dsl::users;
+    if let Some(id) = id.identity() {
+        let connection = establish_connection()?;
+        let all_users: Vec<User> = users.load(&connection)?;
+
+        let mut data = Context::new();
+        data.insert("name", &id);
+        data.insert("title", "Benutzer der Freien Hochschule Stuttgart");
+        data.insert("users", &all_users);
+
+        let rendered = tera.render("index_users.html", &data)?;
+        Ok(HttpResponse::Ok().body(rendered))
+    } else {
+        Ok(redirect_builder("/admin/login/"))
+    }
+}
 pub(crate) async fn view_link(
     tera: web::Data<Tera>,
     id: Identity,
