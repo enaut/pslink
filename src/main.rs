@@ -125,7 +125,8 @@ async fn main() -> std::io::Result<()> {
                         web::scope("/view")
                             .service(
                                 web::scope("/link")
-                                    .route("/{redirect_id}", web::get().to(views::view_link)),
+                                    .route("/{redirect_id}", web::get().to(views::view_link))
+                                    .route("/", web::get().to(views::view_link_fhs)),
                             )
                             .service(
                                 web::scope("/profile")
