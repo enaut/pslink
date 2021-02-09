@@ -66,17 +66,28 @@ svg {
 }
 
 div.actions {
-  width: 400px;
-  height: 400px;
+  margin-left:5px;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  width:100%;
   align-items: center;
-  padding: 30px;
+  padding: 10px;
   color: #333;
+  flex-flow: row wrap;
+  justify-content: center;
 }
 
-a.button {
+div.danger {
+  background-color: rgb(235, 127, 77);
+  font-size: smaller;
+  border: 2px solid crimson;
+}
+
+div.danger h3 {
+  width:100%;
+}
+
+a.button, div.actions input {
+  width: 150px;
   display:block;
   padding: 15px;
   text-align: center;

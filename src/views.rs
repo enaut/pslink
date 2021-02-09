@@ -446,3 +446,16 @@ pub(crate) async fn process_link_edit(
     }
     Ok(redirect_builder("/admin/login/"))
 }
+
+pub(crate) async fn process_link_delete(
+    id: Identity,
+    link_id: web::Path<String>,
+) -> Result<HttpResponse, ServerError> {
+    if let Some(_id) = id.identity() {
+        use super::schema::links::dsl::{code, links};
+        let connection = establish_connection()?;
+        diesel::delete(links.filter(code.eq(&link_id.0))).execute(&connection)?;
+        return Ok(redirect_builder("/admin/index/"));
+    }
+    Ok(redirect_builder("/admin/login/"))
+}
