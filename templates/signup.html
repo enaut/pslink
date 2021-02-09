@@ -1,20 +1,22 @@
 {% extends "admin.html" %}
 
 {% block admin %}
-<form action="" method="POST">
-    <div>
-        <label for="username">Benutzername:</label>
-        <input type="text" name="username">
-    </div>
-    <div>
-        <label for="email">E-mail:</label>
-        <input type="email" name="email">
-    </div>
-    <div>
-        <label for="password">Passwort:</label>
-        <input type="password" name="password">
-    </div>
-    <input type="submit" value="Einladen">
-</form>
-<h2>&nbsp;</h2>
+<div class="center">
+    <form action="" method="POST">
+        <div>
+            <label for="username">Benutzername:</label>
+            <input type="text" name="username">
+        </div>
+        <div>
+            <label for="email">E-mail:</label>
+            <input type="email" name="email">
+        </div>
+        <div>
+            <label for="password">Passwort:</label>
+            <input type="password" name="password">
+        </div>
+        <input type="submit" value="Einladen">
+    </form>
+    <h2>&nbsp;</h2>
+</div>
 {% endblock %}

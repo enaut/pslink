@@ -6,35 +6,37 @@
 {% endblock %}
 
 {% block admin %}
-<table class="sortable">
+<div class="scrollable">
+    <table class="sortable">
 
-    <tr>
-        <th>
-            Kürzel
-        </th>
-        <th>
-            Ziellink
-        </th>
-        <th>
-            Benutzername
-        </th>
-    </tr>
-    {% for user in users %}
-    <tr>
-        <td>
-            <a href="/admin/view/profile/{{user.id}}"><span>{{user.id}}</span>
-            </a>
-        </td>
-        <td>
-            <a href="/admin/view/profile/{{user.id}}">{{ user.email }}
-            </a>
-        </td>
-        <td>
+        <tr>
+            <th>
+                Kürzel
+            </th>
+            <th>
+                Ziellink
+            </th>
+            <th>
+                Benutzername
+            </th>
+        </tr>
+        {% for user in users %}
+        <tr>
+            <td>
+                <a href="/admin/view/profile/{{user.id}}"><span>{{user.id}}</span>
+                </a>
+            </td>
+            <td>
+                <a href="/admin/view/profile/{{user.id}}">{{ user.email }}
+                </a>
+            </td>
+            <td>
 
-            <a href="/admin/view/profile/{{user.id}}"><small>{{ user.username }}</small>
-            </a>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+                <a href="/admin/view/profile/{{user.id}}"><small>{{ user.username }}</small>
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
 {% endblock %}

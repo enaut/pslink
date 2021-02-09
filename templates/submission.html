@@ -1,19 +1,21 @@
 {% extends "admin.html" %}
 
 {% block admin %}
-<form action="" method="POST">
-    <div>
-        <label for="title">Beschreibung:</label>
-        <input type="text" name="title">
-    </div>
-    <div>
-        <label for="target">Ziel:</label>
-        <input type="text" name="target">
-    </div>
-    <div>
-        <label for="code">Code:</label>
-        <input type="text" name="code">
-    </div>
-    <input type="submit" value="Submit">
-</form>
+<div class="center">
+    <form action="" method="POST">
+        <div>
+            <label for="title">Beschreibung:</label>
+            <input type="text" name="title">
+        </div>
+        <div>
+            <label for="target">Ziel:</label>
+            <input type="text" name="target">
+        </div>
+        <div>
+            <label for="code">Code:</label>
+            <input type="text" name="code">
+        </div>
+        <input type="submit" value="Submit">
+    </form>
+</div>
 {% endblock %}

@@ -1,35 +1,37 @@
 {% extends "admin.html" %}
 
 {% block admin %}
-<h1>{{ link.title }}</h1>
-<table>
-    <tr>
-        <td>Beschreibung:</td>
-        <td>{{ link.title }}</td>
-    </tr>
-    <tr>
-        <td>Code:</td>
-        <td>{{ link.code }}</td>
-    </tr>
-    <tr>
-        <td>Kurzlink:</td>
-        <td><a href="https://fhs.li/{{ link.code }}">https://fhs.li/{{ link.code }}</a></td>
-    </tr>
-    <tr>
-        <td>Ziel:</td>
-        <td>{{ link.target }}</td>
-    </tr>
-    <tr>
-        <td>QR-Code</td>
-        <td><a href="/admin/download/png/{{ link.code }}" download="{{ link.title | slugify }}.png">
-                {{ qr | trim_start_matches(pat=
-                '.*?>')
-                | safe }}
-            </a>
-        </td>
-    </tr>
-</table>
-<div class="actions">
-    <a class="button" href="/admin/edit/link/{{ link.code }}">Editieren</a>
+<div class="center">
+    <h1>{{ link.title }}</h1>
+    <table>
+        <tr>
+            <td>Beschreibung:</td>
+            <td>{{ link.title }}</td>
+        </tr>
+        <tr>
+            <td>Code:</td>
+            <td>{{ link.code }}</td>
+        </tr>
+        <tr>
+            <td>Kurzlink:</td>
+            <td><a href="https://fhs.li/{{ link.code }}">https://fhs.li/{{ link.code }}</a></td>
+        </tr>
+        <tr>
+            <td>Ziel:</td>
+            <td>{{ link.target }}</td>
+        </tr>
+        <tr>
+            <td>QR-Code</td>
+            <td><a href="/admin/download/png/{{ link.code }}" download="{{ link.title | slugify }}.png">
+                    {{ qr | trim_start_matches(pat=
+                    '.*?>')
+                    | safe }}
+                </a>
+            </td>
+        </tr>
+    </table>
+    <div class="actions">
+        <a class="button" href="/admin/edit/link/{{ link.code }}">Editieren</a>
+    </div>
 </div>
 {% endblock %}
