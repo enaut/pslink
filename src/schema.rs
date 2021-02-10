@@ -29,4 +29,8 @@ table! {
 joinable!(clicks -> links (link));
 joinable!(links -> users (author));
 
-allow_tables_to_appear_in_same_query!(clicks, links, users,);
+allow_tables_to_appear_in_same_query!(
+    clicks,
+    links,
+    users,
+);

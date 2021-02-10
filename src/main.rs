@@ -10,8 +10,10 @@ mod views;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpResponse, HttpServer};
+use diesel::prelude::*;
 
 use dotenv::dotenv;
+use models::NewUser;
 use tera::Tera;
 
 #[derive(Debug)]
@@ -89,6 +91,44 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     env_logger::init();
+
+    let connection = views::establish_connection().expect("Failed to connect to database!");
+    let num_users: i64 = schema::users::dsl::users
+        .select(diesel::dsl::count_star())
+        .first(&connection)
+        .expect("Failed to count the users");
+
+    if num_users < 1 {
+        // It is ok to use expect in this block since it is only run on the start. And if something fails it is probably something major.
+        use schema::users;
+        use std::io::{self, BufRead, Write};
+        warn!("No usere available Creating one!");
+        let sin = io::stdin();
+
+        print!("Please enter the Username of the admin: ");
+        io::stdout().flush().unwrap();
+        let username = sin.lock().lines().next().unwrap().unwrap();
+
+        print!("Please enter the emailadress for {}: ", username);
+        io::stdout().flush().unwrap();
+        let email = sin.lock().lines().next().unwrap().unwrap();
+
+        print!("Please enter the password for {}: ", username);
+        io::stdout().flush().unwrap();
+        let password = sin.lock().lines().next().unwrap().unwrap();
+        println!(
+            "Creating {} ({}) with password {}",
+            &username, &email, &password
+        );
+
+        let new_admin =
+            NewUser::new(username, email, password).expect("Invalid Input failed to create User");
+
+        diesel::insert_into(users::table)
+            .values(&new_admin)
+            .execute(&connection)
+            .expect("Failed to create the user!");
+    }
 
     println!("Running on: http://127.0.0.1:8156/admin/login/");
     HttpServer::new(|| {

@@ -16,7 +16,7 @@ use super::forms::LinkForm;
 use super::models::{Count, Link, LoginUser, NewClick, NewLink, NewUser, User};
 use crate::ServerError;
 
-fn establish_connection() -> Result<SqliteConnection, ServerError> {
+pub(super) fn establish_connection() -> Result<SqliteConnection, ServerError> {
     dotenv().ok();
 
     let database_url = std::env::var("DATABASE_URL")?;
