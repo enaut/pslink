@@ -14,7 +14,8 @@
         </tr>
         <tr>
             <td>Kurzlink:</td>
-            <td><a href="https://fhs.li/{{ link.code }}">https://fhs.li/{{ link.code }}</a></td>
+            <td><a href="{{ protocol }}://{{ host }}/{{ link.code }}">{{ protocol }}://{{ host }}/{{ link.code }}</a>
+            </td>
         </tr>
         <tr>
             <td>Ziel:</td>
@@ -30,8 +31,10 @@
             </td>
         </tr>
     </table>
+    {% if user.role == 2 or user.id == link.author %}
     <div class="actions">
         <a class="button" href="/admin/edit/link/{{ link.code }}">Editieren</a>
     </div>
+    {% endif %}
 </div>
 {% endblock %}

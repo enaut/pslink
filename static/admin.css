@@ -87,9 +87,10 @@ div.danger h3 {
 }
 
 a.button, div.actions input {
-  width: 150px;
+  width: 250px;
   display:block;
   padding: 15px;
+  margin-left: 15px;
   text-align: center;
   border-radius: 1px;
   border: 1px solid rgb(90, 90, 90);

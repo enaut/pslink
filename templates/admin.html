@@ -11,13 +11,13 @@
 <div class="admin">
     <nav>
         <ol>
-            <li><a href="/admin/index/">Liste</a></li>
-            <li><a href="/admin/submit/">Hinzufügen</a></li>
-            <li><a href="/admin/signup/">Einladen</a></li>
-            <li><a href="/admin/view/users/">Benutzer</a></li>
+            <li><a href="/admin/index/">Link Liste</a></li>
+            <li><a href="/admin/submit/">Link Hinzufügen</a></li>
+            {% if user.role == 2 %}<li><a href="/admin/signup/">Einladen</a></li>
+            <li><a href="/admin/view/users/">Benutzer</a></li>{% endif %}
             <li style="float:right"><a href="/admin/logout/">Abmelden</a></li>
             <li style="float:right">
-                <div class="willkommen">Herzlich willkommen {{ name }}</div>
+                <div class="willkommen">Herzlich willkommen {{ user.username }}</div>
             </li>
         </ol>
     </nav>

@@ -4,6 +4,7 @@ extern crate diesel;
 extern crate log;
 mod forms;
 pub mod models;
+mod queries;
 pub mod schema;
 mod views;
 
@@ -14,14 +15,16 @@ use diesel::prelude::*;
 
 use dotenv::dotenv;
 use models::NewUser;
+use qrcode::types::QrError;
 use tera::Tera;
 
 #[derive(Debug)]
 pub enum ServerError {
     Argonautic,
-    Diesel,
+    Diesel(diesel::result::Error),
     Environment,
     Template(tera::Error),
+    Qr(QrError),
     User(String),
 }
 
@@ -34,25 +37,26 @@ impl std::fmt::Display for ServerError {
 impl actix_web::error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            ServerError::Argonautic => {
-                HttpResponse::InternalServerError().json("Argonautica Error.")
+            Self::Argonautic => HttpResponse::InternalServerError().json("Argonautica Error."),
+            Self::Diesel(e) => {
+                HttpResponse::InternalServerError().json(format!("Diesel Error.{}", e))
             }
-            ServerError::Diesel => HttpResponse::InternalServerError().json("Diesel Error."),
-            ServerError::Environment => {
-                HttpResponse::InternalServerError().json("Environment Error.")
-            }
-            ServerError::Template(e) => {
+            Self::Environment => HttpResponse::InternalServerError().json("Environment Error."),
+            Self::Template(e) => {
                 HttpResponse::InternalServerError().json(format!("Template Error. {:?}", e))
             }
-            ServerError::User(data) => HttpResponse::InternalServerError().json(data),
+            Self::Qr(e) => {
+                HttpResponse::InternalServerError().json(format!("Qr Code Error. {:?}", e))
+            }
+            Self::User(data) => HttpResponse::InternalServerError().json(data),
         }
     }
 }
 
 impl From<std::env::VarError> for ServerError {
-    fn from(e: std::env::VarError) -> ServerError {
+    fn from(e: std::env::VarError) -> Self {
         error!("Environment error {:?}", e);
-        ServerError::Environment
+        Self::Environment
     }
 }
 
@@ -63,25 +67,28 @@ impl From<std::env::VarError> for ServerError {
 } */
 
 impl From<diesel::result::Error> for ServerError {
-    fn from(err: diesel::result::Error) -> ServerError {
+    fn from(err: diesel::result::Error) -> Self {
         error!("Database error {:?}", err);
-        match err {
-            diesel::result::Error::NotFound => ServerError::User("Username not found.".to_string()),
-            _ => ServerError::Diesel,
-        }
+        Self::Diesel(err)
     }
 }
 
 impl From<argonautica::Error> for ServerError {
-    fn from(e: argonautica::Error) -> ServerError {
+    fn from(e: argonautica::Error) -> Self {
         error!("Authentication error {:?}", e);
-        ServerError::Argonautic
+        Self::Argonautic
     }
 }
 impl From<tera::Error> for ServerError {
-    fn from(e: tera::Error) -> ServerError {
+    fn from(e: tera::Error) -> Self {
         error!("Template error {:?}", e);
-        ServerError::Template(e)
+        Self::Template(e)
+    }
+}
+impl From<QrError> for ServerError {
+    fn from(e: QrError) -> Self {
+        error!("Template error {:?}", e);
+        Self::Qr(e)
     }
 }
 
@@ -92,7 +99,7 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
     env_logger::init();
 
-    let connection = views::establish_connection().expect("Failed to connect to database!");
+    let connection = queries::establish_connection().expect("Failed to connect to database!");
     let num_users: i64 = schema::users::dsl::users
         .select(diesel::dsl::count_star())
         .first(&connection)
@@ -191,7 +198,8 @@ async fn main() -> std::io::Result<()> {
                                         "/{user_id}",
                                         web::post().to(views::process_edit_profile),
                                     ),
-                            ),
+                            )
+                            .route("/set_admin/{user_id}", web::get().to(views::toggle_admin)),
                     )
                     .service(
                         web::scope("/delete").service(
