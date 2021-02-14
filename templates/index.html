@@ -24,9 +24,9 @@
             </th>
         </tr>
         {% for links_user in links_per_users %}
-        {% set l = links_user[0] %}
-        {% set u = links_user[1] %}
-        {% set c = links_user[2] %}
+        {% set l = links_user.link %}
+        {% set u = links_user.user %}
+        {% set c = links_user.clicks %}
         <tr>
             <td>
                 <a href="/admin/view/link/{{l.code}}"><span>{{l.code}}</span>
@@ -37,9 +37,12 @@
                 </a>
             </td>
             <td>
-
+                {% if user.role == 2 or user.id == u.id %}
                 <a href="/admin/view/profile/{{u.id}}"><small>{{ u.username }}</small>
                 </a>
+                {% else %}
+                <small>{{ u.username }}</small>
+                {% endif %}
             </td>
             <td>
                 {{ c.count }}

@@ -2,16 +2,17 @@ use crate::{forms::LinkForm, ServerError};
 
 use super::schema::{clicks, links, users};
 use argonautica::Hasher;
-use diesel::{Insertable, Queryable};
+use diesel::{Identifiable, Insertable, Queryable};
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 
-#[derive(Queryable, Serialize)]
+#[derive(Identifiable, Queryable, PartialEq, Serialize, Clone, Debug)]
 pub struct User {
     pub id: i32,
     pub username: String,
     pub email: String,
     pub password: String,
+    pub role: i32,
 }
 
 #[derive(Debug, Deserialize, Insertable)]

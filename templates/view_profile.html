@@ -2,24 +2,34 @@
 
 {% block admin %}
 <div class="center">
-    <h1>Profil von {{user.username}}</h1>
+    <h1>Profil von {{viewed_user.username}}</h1>
     <form action="" method="POST">
         <div>
             <label for="username">Benutzername:</label>
-            <input type="text" name="username" value="{{ user.username }}" readonly>
+            <input type="text" name="username" value="{{ viewed_user.username }}" readonly>
         </div>
         <div>
             <label for="email">E-mail:</label>
-            <input type="email" name="email" value="{{ user.email }}" readonly>
+            <input type="email" name="email" value="{{ viewed_user.email }}" readonly>
         </div>
+        {% if user.role == 2 or user.id == viewed_user.id %}
         <div>
             <label for="password">Passwort:</label>
             <input type="password" name="password" value="verschlüsselt" readonly>
         </div>
+        {% endif %}
     </form>
+    {% if user.role == 2 or user.id == viewed_user.id %}
     <div class="actions">
-        <a class="button" href="/admin/edit/profile/{{ user.id }}">Editieren</a>
+        <a class="button" href="/admin/edit/profile/{{ viewed_user.id }}">Editieren</a>
+        {% if user.role == 2 and viewed_user.role == 1 %}
+        <a class="button" href="/admin/edit/set_admin/{{ viewed_user.id }}">Zum Admin machen</a>
+        {% endif %}
+        {% if user.role == 2 and viewed_user.role == 2 %}
+        <a class="button" href="/admin/edit/set_admin/{{ viewed_user.id }}">Zum Normalo machen</a>
+        {% endif %}
     </div>
+    {% endif %}
     <h2>&nbsp;</h2>
 </div>
 {% endblock %}

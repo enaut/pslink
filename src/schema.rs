@@ -23,6 +23,7 @@ table! {
         username -> Text,
         email -> Text,
         password -> Text,
+        role -> Integer,
     }
 }
 
