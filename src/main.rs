@@ -1,20 +1,34 @@
 #[macro_use]
 extern crate diesel;
 #[macro_use]
-extern crate log;
+extern crate diesel_migrations;
+#[allow(unused_imports)]
+#[macro_use(
+    slog_o,
+    slog_info,
+    slog_warn,
+    slog_error,
+    slog_log,
+    slog_record,
+    slog_record_static,
+    slog_b,
+    slog_kv
+)]
+extern crate slog;
+extern crate slog_async;
+
+mod cli;
 mod forms;
 pub mod models;
 mod queries;
 pub mod schema;
 mod views;
 
-use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::middleware::Logger;
-use actix_web::{web, App, HttpResponse, HttpServer};
-use diesel::prelude::*;
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 
-use dotenv::dotenv;
-use models::NewUser;
+use actix_identity::{CookieIdentityPolicy, IdentityService};
+use actix_web::{web, App, HttpResponse, HttpServer};
+
 use qrcode::types::QrError;
 use tera::Tera;
 
@@ -22,31 +36,46 @@ use tera::Tera;
 pub enum ServerError {
     Argonautic,
     Diesel(diesel::result::Error),
+    Migration(diesel_migrations::RunMigrationsError),
     Environment,
     Template(tera::Error),
     Qr(QrError),
+    Io(std::io::Error),
     User(String),
 }
 
 impl std::fmt::Display for ServerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Test")
+        match self {
+            Self::Argonautic => write!(f, "Argonautica Error"),
+            Self::Diesel(e) => write!(f, "Diesel Error: {}", e),
+            Self::Environment => write!(f, "Environment Error"),
+            Self::Template(e) => write!(f, "Template Error: {:?}", e),
+            Self::Qr(e) => write!(f, "Qr Code Error: {:?}", e),
+            Self::Io(e) => write!(f, "IO Error: {:?}", e),
+            Self::Migration(e) => write!(f, "Migration Error: {:?}", e),
+            Self::User(data) => write!(f, "{}", data),
+        }
     }
 }
 
 impl actix_web::error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            Self::Argonautic => HttpResponse::InternalServerError().json("Argonautica Error."),
+            Self::Argonautic => HttpResponse::InternalServerError().json("Argonautica Error"),
             Self::Diesel(e) => {
-                HttpResponse::InternalServerError().json(format!("Diesel Error.{}", e))
+                HttpResponse::InternalServerError().json(format!("Diesel Error: {:?}", e))
             }
-            Self::Environment => HttpResponse::InternalServerError().json("Environment Error."),
+            Self::Environment => HttpResponse::InternalServerError().json("Environment Error"),
             Self::Template(e) => {
-                HttpResponse::InternalServerError().json(format!("Template Error. {:?}", e))
+                HttpResponse::InternalServerError().json(format!("Template Error: {:?}", e))
             }
             Self::Qr(e) => {
-                HttpResponse::InternalServerError().json(format!("Qr Code Error. {:?}", e))
+                HttpResponse::InternalServerError().json(format!("Qr Code Error: {:?}", e))
+            }
+            Self::Io(e) => HttpResponse::InternalServerError().json(format!("IO Error: {:?}", e)),
+            Self::Migration(e) => {
+                HttpResponse::InternalServerError().json(format!("Migration Error: {:?}", e))
             }
             Self::User(data) => HttpResponse::InternalServerError().json(data),
         }
@@ -55,94 +84,127 @@ impl actix_web::error::ResponseError for ServerError {
 
 impl From<std::env::VarError> for ServerError {
     fn from(e: std::env::VarError) -> Self {
-        error!("Environment error {:?}", e);
+        eprintln!("Environment error {:?}", e);
         Self::Environment
     }
 }
 
-/* impl From<r2d2::Error> for ServerError {
-    fn from(_: r2d2::Error) -> ServerError {
-        ServerError::R2D2Error
+impl From<diesel_migrations::RunMigrationsError> for ServerError {
+    fn from(e: diesel_migrations::RunMigrationsError) -> Self {
+        Self::Migration(e)
     }
-} */
+}
 
 impl From<diesel::result::Error> for ServerError {
     fn from(err: diesel::result::Error) -> Self {
-        error!("Database error {:?}", err);
+        eprintln!("Database error {:?}", err);
         Self::Diesel(err)
     }
 }
 
 impl From<argonautica::Error> for ServerError {
     fn from(e: argonautica::Error) -> Self {
-        error!("Authentication error {:?}", e);
+        eprintln!("Authentication error {:?}", e);
         Self::Argonautic
     }
 }
 impl From<tera::Error> for ServerError {
     fn from(e: tera::Error) -> Self {
-        error!("Template error {:?}", e);
+        eprintln!("Template error {:?}", e);
         Self::Template(e)
     }
 }
 impl From<QrError> for ServerError {
     fn from(e: QrError) -> Self {
-        error!("Template error {:?}", e);
+        eprintln!("Template error {:?}", e);
         Self::Qr(e)
+    }
+}
+impl From<std::io::Error> for ServerError {
+    fn from(e: std::io::Error) -> Self {
+        eprintln!("IO error {:?}", e);
+        Self::Io(e)
+    }
+}
+
+#[derive(Debug, Clone)]
+enum Protocol {
+    Http,
+    Https,
+}
+
+impl Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Http => f.write_str("http"),
+            Self::Https => f.write_str("https"),
+        }
+    }
+}
+
+impl FromStr for Protocol {
+    type Err = ServerError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "http" => Ok(Self::Http),
+            "https" => Ok(Self::Https),
+            _ => Err(ServerError::User("Failed to parse Protocol".to_owned())),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ServerConfig {
+    secret: String,
+    db: PathBuf,
+    public_url: String,
+    internal_ip: String,
+    port: u32,
+    protocol: Protocol,
+    log: slog::Logger,
+}
+
+impl ServerConfig {
+    pub fn to_env_strings(&self) -> Vec<String> {
+        vec![
+            format!("PSLINK_DATABASE=\"{}\"\n", self.db.display()),
+            format!("PSLINK_PORT={}\n", self.port),
+            format!("PSLINK_PUBLIC_URL=\"{}\"\n", self.public_url),
+            format!("PSLINK_IP=\"{}\"\n", self.internal_ip),
+            format!("PSLINK_PROTOCOL=\"{}\"\n", self.protocol),
+            concat!(
+                "# The SECRET_KEY variable is used for password encryption.\n",
+                "# If it is changed all existing passwords are invalid.\n"
+            )
+            .to_owned(),
+            format!("PSLINK_SECRET=\"{}\"\n", self.secret),
+        ]
     }
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+embed_migrations!("migrations/");
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    dotenv().ok();
-    env_logger::init();
+#[allow(clippy::future_not_send)]
+async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
+    let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
 
-    let connection = queries::establish_connection().expect("Failed to connect to database!");
-    let num_users: i64 = schema::users::dsl::users
-        .select(diesel::dsl::count_star())
-        .first(&connection)
-        .expect("Failed to count the users");
+    slog_info!(
+        server_config.log,
+        "Running on: {}://{}/admin/login/",
+        &server_config.protocol,
+        host_port
+    );
 
-    if num_users < 1 {
-        // It is ok to use expect in this block since it is only run on the start. And if something fails it is probably something major.
-        use schema::users;
-        use std::io::{self, BufRead, Write};
-        warn!("No usere available Creating one!");
-        let sin = io::stdin();
-
-        print!("Please enter the Username of the admin: ");
-        io::stdout().flush().unwrap();
-        let username = sin.lock().lines().next().unwrap().unwrap();
-
-        print!("Please enter the emailadress for {}: ", username);
-        io::stdout().flush().unwrap();
-        let email = sin.lock().lines().next().unwrap().unwrap();
-
-        print!("Please enter the password for {}: ", username);
-        io::stdout().flush().unwrap();
-        let password = sin.lock().lines().next().unwrap().unwrap();
-        println!(
-            "Creating {} ({}) with password {}",
-            &username, &email, &password
-        );
-
-        let new_admin =
-            NewUser::new(username, email, password).expect("Invalid Input failed to create User");
-
-        diesel::insert_into(users::table)
-            .values(&new_admin)
-            .execute(&connection)
-            .expect("Failed to create the user!");
-    }
-
-    println!("Running on: http://127.0.0.1:8156/admin/login/");
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         let tera = Tera::new("templates/**/*").expect("failed to initialize the templates");
         let generated = generate();
         App::new()
-            .wrap(Logger::default())
+            .data(server_config.clone())
+            .wrap(actix_slog::StructuredLogger::new(
+                server_config.log.new(slog_o!("log_type" => "access")),
+            ))
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&[0; 32])
                     .name("auth-cookie")
@@ -218,7 +280,23 @@ async fn main() -> std::io::Result<()> {
             // redirect to the url hidden behind the code
             .route("/{redirect_id}", web::get().to(views::redirect))
     })
-    .bind("127.0.0.1:8156")?
+    .bind(host_port)?
     .run()
     .await
+}
+
+#[actix_web::main]
+async fn main() -> Result<(), std::io::Error> {
+    match cli::setup() {
+        Ok(Some(server_config)) => webservice(server_config).await,
+        Ok(None) => {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::process::exit(0);
+        }
+        Err(e) => {
+            eprintln!("\nError: {}", e);
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::process::exit(1);
+        }
+    }
 }

@@ -1,27 +1,39 @@
 [package]
-name = "slink"
+name = "pslink"
 version = "0.1.0"
+description = "A simple webservice that allows registered users to create short links including qr-codes.\nAnyone can visit the shortened links. This is an ideal setup for small busines or for publishing papers."
 authors = ["Dietrich <dietrich@teilgedanken.de>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+keywords = ["url", "link", "webpage", "actix"]
+categories = ["os", "os::linux-apis", "parser-implementations", "command-line-utilities"]
+readme = "README.md"
+repository = "https://git.teilgedanken.de/dietrich/Pslink"
 build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 actix-web = "3"
-actix-web-static-files = "3"
+actix-web-static-files = { git = "https://github.com/enaut/actix-web-static-files.git", branch = "enaut-must_use" }
+actix-slog = "0.2"
 tera = "1.6"
 serde = "1.0"
 diesel = { version = "1.4", features = ["sqlite", "chrono"] }
 diesel_codegen = { version = "0.16.1", features = ["sqlite"] }
+diesel_migrations = "1.4"
 dotenv = "0.10.1"
 actix-identity = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 argonautica = "0.2"
-env_logger = "0.8"
-log = "0.4"
+slog = "2"
+slog-term = "2"
+slog-async = "2"
 qrcode = "0.12"
 image = "0.23"
+rand="0.8"
+rpassword = "5.0"
+clap = "2.33"
 
 [build-dependencies]
-actix-web-static-files = "3"
+actix-web-static-files = { git = "https://github.com/enaut/actix-web-static-files.git", branch = "enaut-must_use" }

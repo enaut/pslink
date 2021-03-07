@@ -1,4 +1,4 @@
-use crate::{forms::LinkForm, ServerError};
+use crate::{forms::LinkForm, ServerConfig, ServerError};
 
 use super::schema::{clicks, links, users};
 use argonautica::Hasher;
@@ -27,26 +27,29 @@ impl NewUser {
     pub(crate) fn new(
         username: String,
         email: String,
-        password: String,
+        password: &str,
+        config: &ServerConfig,
     ) -> Result<Self, ServerError> {
-        let hash = Self::hash_password(password)?;
-        dotenv().ok();
+        let hash = Self::hash_password(password, config)?;
 
-        Ok(NewUser {
+        Ok(Self {
             username,
             email,
             password: hash,
         })
     }
 
-    pub(crate) fn hash_password(password: String) -> Result<String, ServerError> {
+    pub(crate) fn hash_password(
+        password: &str,
+        config: &ServerConfig,
+    ) -> Result<String, ServerError> {
         dotenv().ok();
 
-        let secret = std::env::var("SECRET_KEY")?;
+        let secret = &config.secret;
 
         let hash = Hasher::default()
-            .with_password(&password)
-            .with_secret_key(&secret)
+            .with_password(password)
+            .with_secret_key(secret)
             .hash()?;
 
         Ok(hash)
@@ -106,6 +109,7 @@ pub struct NewClick {
 }
 
 impl NewClick {
+    #[must_use]
     pub fn new(link_id: i32) -> Self {
         Self {
             link: link_id,
