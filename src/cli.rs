@@ -255,9 +255,10 @@ pub(crate) fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
     }
 }
 
+/// Interactively create a new admin user.
 fn create_admin(config: &ServerConfig) -> Result<(), ServerError> {
     use schema::users;
-    use schema::users::dsl::{id, role};
+    use schema::users::dsl::{email, role, username};
     slog_info!(&config.log, "Creating an admin user.");
     let sin = io::stdin();
 
@@ -272,7 +273,7 @@ fn create_admin(config: &ServerConfig) -> Result<(), ServerError> {
 
     print!("Please enter the emailadress for {}: ", new_username);
     io::stdout().flush().unwrap();
-    let email = sin.lock().lines().next().unwrap().unwrap();
+    let new_email = sin.lock().lines().next().unwrap().unwrap();
 
     print!("Please enter the password for {}: ", new_username);
     io::stdout().flush().unwrap();
@@ -281,17 +282,21 @@ fn create_admin(config: &ServerConfig) -> Result<(), ServerError> {
         &config.log,
         "Creating {} ({}) with given password ",
         &new_username,
-        &email
+        &new_email
     );
 
-    let new_admin = NewUser::new(new_username, email, &password, config)?;
+    let new_admin = NewUser::new(new_username.clone(), new_email.clone(), &password, config)?;
 
     diesel::insert_into(users::table)
         .values(&new_admin)
         .execute(&connection)?;
 
-    // Add admin rights to the first user (which should be the only one)
-    diesel::update(users::dsl::users.filter(id.eq(&1)))
+    let created_user = users::table
+        .filter(username.eq(new_username))
+        .filter(email.eq(new_email));
+
+    // Add admin rights to the user identified by (username, email) this should be unique according to sqlite constraints
+    diesel::update(created_user)
         .set((role.eq(2),))
         .execute(&connection)?;
     slog_info!(&config.log, "Admin user created: {}", &new_admin.username);

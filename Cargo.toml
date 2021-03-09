@@ -11,6 +11,7 @@ readme = "README.md"
 repository = "https://git.teilgedanken.de/dietrich/Pslink"
 build = "build.rs"
 
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -22,7 +23,7 @@ serde = "1.0"
 diesel = { version = "1.4", features = ["sqlite", "chrono"] }
 diesel_codegen = { version = "0.16.1", features = ["sqlite"] }
 diesel_migrations = "1.4"
-libsqlite3-sys = { version = "*", features = ["bundled"] }
+libsqlite3-sys = { version = "0.8", features = ["bundled"] }
 dotenv = "0.10.1"
 actix-identity = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
