@@ -301,7 +301,8 @@ fn create_admin(config: &ServerConfig) -> Result<(), ServerError> {
 fn apply_migrations(config: &ServerConfig) -> Result<(), ServerError> {
     slog_info!(
         config.log,
-        "Creating a database file and running the migrations:"
+        "Creating a database file and running the migrations in the file {}:",
+        &config.db.display()
     );
     let connection = queries::establish_connection(&config.db)?;
     crate::embedded_migrations::run_with_output(&connection, &mut std::io::stdout())?;
