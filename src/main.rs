@@ -238,6 +238,12 @@ async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
         &server_config.protocol,
         host_port
     );
+    slog_info!(
+        server_config.log,
+        "If the public url is set up correctly it should be accessible via: {}://{}/admin/login/",
+        &server_config.protocol,
+        &server_config.public_url
+    );
 
     HttpServer::new(move || {
         let tera = build_tera(); //Tera::new("templates/**/*").expect("failed to initialize the templates");
