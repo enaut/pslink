@@ -22,6 +22,7 @@ serde = "1.0"
 diesel = { version = "1.4", features = ["sqlite", "chrono"] }
 diesel_codegen = { version = "0.16.1", features = ["sqlite"] }
 diesel_migrations = "1.4"
+libsqlite3-sys = { version = "*", features = ["bundled"] }
 dotenv = "0.10.1"
 actix-identity = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
@@ -37,3 +38,8 @@ clap = "2.33"
 
 [build-dependencies]
 actix-web-static-files = { git = "https://github.com/enaut/actix-web-static-files.git", branch = "enaut-must_use" }
+
+# optimize for size at cost of compilation speed.
+[profile.release]
+#lto = true
+#codegen-units = 1

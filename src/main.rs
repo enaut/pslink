@@ -186,6 +186,48 @@ impl ServerConfig {
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 embed_migrations!("migrations/");
 
+fn build_tera() -> Tera {
+    let mut tera = Tera::default();
+
+    tera.add_raw_templates(vec![
+        ("admin.html", include_str!("../templates/admin.html")),
+        ("base.html", include_str!("../templates/base.html")),
+        (
+            "edit_link.html",
+            include_str!("../templates/edit_link.html"),
+        ),
+        (
+            "edit_profile.html",
+            include_str!("../templates/edit_profile.html"),
+        ),
+        (
+            "index_users.html",
+            include_str!("../templates/index_users.html"),
+        ),
+        ("index.html", include_str!("../templates/index.html")),
+        ("login.html", include_str!("../templates/login.html")),
+        (
+            "not_found.html",
+            include_str!("../templates/not_found.html"),
+        ),
+        ("signup.html", include_str!("../templates/signup.html")),
+        (
+            "submission.html",
+            include_str!("../templates/submission.html"),
+        ),
+        (
+            "view_link.html",
+            include_str!("../templates/view_link.html"),
+        ),
+        (
+            "view_profile.html",
+            include_str!("../templates/view_profile.html"),
+        ),
+    ])
+    .expect("failed to parse templates");
+    tera
+}
+
 #[allow(clippy::future_not_send)]
 async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
     let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
@@ -198,7 +240,7 @@ async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
     );
 
     HttpServer::new(move || {
-        let tera = Tera::new("templates/**/*").expect("failed to initialize the templates");
+        let tera = build_tera(); //Tera::new("templates/**/*").expect("failed to initialize the templates");
         let generated = generate();
         App::new()
             .data(server_config.clone())

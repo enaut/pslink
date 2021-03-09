@@ -1301,6 +1301,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "gcc"
+version = "0.3.55"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f5f3913fa0bfe7ee1fd8248b6b9f42a5af4b9d65ec2dd2c3c26132b950ecfc2"
+
+[[package]]
 name = "generic-array"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1676,6 +1682,7 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "370090ad578ba845a3ad4f383ceb3deba7abd51ab1915ad1f2c982cc6035e31c"
 dependencies = [
+ "gcc",
  "pkg-config",
  "vcpkg",
 ]
@@ -2183,6 +2190,7 @@ dependencies = [
  "diesel_migrations",
  "dotenv",
  "image",
+ "libsqlite3-sys",
  "qrcode",
  "rand 0.8.3",
  "rpassword",
