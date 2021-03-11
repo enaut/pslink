@@ -36,7 +36,7 @@ pub(crate) async fn index(
     if let Ok(links) = queries::list_all_allowed(&id, &config) {
         let mut data = Context::new();
         data.insert("user", &links.user);
-        data.insert("title", "Links der Freien Hochschule Stuttgart");
+        data.insert("title", &format!("Links der {}", &config.brand_name,));
         data.insert("links_per_users", &links.list);
         let rendered = tera.render("index.html", &data)?;
         Ok(HttpResponse::Ok().body(rendered))
@@ -54,7 +54,7 @@ pub(crate) async fn index_users(
     if let Ok(users) = queries::list_users(&id, &config) {
         let mut data = Context::new();
         data.insert("user", &users.user);
-        data.insert("title", "Benutzer der Freien Hochschule Stuttgart");
+        data.insert("title", &format!("Benutzer der {}", &config.brand_name,));
         data.insert("users", &users.list);
 
         let rendered = tera.render("index_users.html", &data)?;
@@ -63,7 +63,7 @@ pub(crate) async fn index_users(
         Ok(redirect_builder("/admin/login"))
     }
 }
-pub(crate) async fn view_link_fhs(
+pub(crate) async fn view_link_empty(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -96,7 +96,7 @@ pub(crate) async fn view_link(
         data.insert("user", &link.user);
         data.insert(
             "title",
-            &format!("Links {} der Freien Hochschule Stuttgart", &link.item.code),
+            &format!("Links {} der {}", &link.item.code, &config.brand_name,),
         );
         data.insert("link", &link.item);
         data.insert("qr", &svg);
@@ -123,8 +123,8 @@ pub(crate) async fn view_profile(
         data.insert(
             "title",
             &format!(
-                "Benutzer {} der Freien Hochschule Stuttgart",
-                &query.item.username
+                "Benutzer {} der {}",
+                &query.item.username, &config.brand_name,
             ),
         );
         data.insert("viewed_user", &query.item);
@@ -150,8 +150,8 @@ pub(crate) async fn edit_profile(
         data.insert(
             "title",
             &format!(
-                "Benutzer {} der Freien Hochschule Stuttgart",
-                &query.user.username
+                "Benutzer {} der {}",
+                &query.user.username, &config.brand_name,
             ),
         );
         data.insert("user", &query.user);
@@ -330,10 +330,10 @@ pub(crate) async fn redirect(
     }
 }
 
-pub(crate) async fn redirect_fhs() -> Result<HttpResponse, ServerError> {
-    Ok(redirect_builder(
-        "https://www.freie-hochschule-stuttgart.de",
-    ))
+pub(crate) async fn redirect_empty(
+    config: web::Data<crate::ServerConfig>,
+) -> Result<HttpResponse, ServerError> {
+    Ok(redirect_builder(&config.empty_forward_url))
 }
 
 pub(crate) async fn create_link(

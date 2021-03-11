@@ -163,6 +163,8 @@ pub(crate) struct ServerConfig {
     port: u32,
     protocol: Protocol,
     log: slog::Logger,
+    empty_forward_url: String,
+    brand_name: String,
 }
 
 impl ServerConfig {
@@ -171,6 +173,8 @@ impl ServerConfig {
             format!("PSLINK_DATABASE=\"{}\"\n", self.db.display()),
             format!("PSLINK_PORT={}\n", self.port),
             format!("PSLINK_PUBLIC_URL=\"{}\"\n", self.public_url),
+            format!("PSLINK_EMPTY_FORWARD_URL=\"{}\"\n", self.empty_forward_url),
+            format!("PSLINK_BRAND_NAME=\"{}\"\n", self.brand_name),
             format!("PSLINK_IP=\"{}\"\n", self.internal_ip),
             format!("PSLINK_PROTOCOL=\"{}\"\n", self.protocol),
             concat!(
@@ -262,8 +266,8 @@ async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
             .service(actix_web_static_files::ResourceFiles::new(
                 "/static", generated,
             ))
-            // directly go to the main page of Freie-Hochschule-Stuttgart
-            .route("/", web::get().to(views::redirect_fhs))
+            // directly go to the main page set the target with the environment variable.
+            .route("/", web::get().to(views::redirect_empty))
             // admin block
             .service(
                 web::scope("/admin")
@@ -283,7 +287,7 @@ async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
                             .service(
                                 web::scope("/link")
                                     .route("/{redirect_id}", web::get().to(views::view_link))
-                                    .route("/", web::get().to(views::view_link_fhs)),
+                                    .route("/", web::get().to(views::view_link_empty)),
                             )
                             .service(
                                 web::scope("/profile")
