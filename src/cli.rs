@@ -14,6 +14,7 @@ use crate::{queries, schema};
 
 use slog::{Drain, Logger};
 
+#[allow(clippy::clippy::too_many_lines)]
 fn generate_cli() -> App<'static, 'static> {
     app_from_crate!()
         .arg(
@@ -40,6 +41,24 @@ fn generate_cli() -> App<'static, 'static> {
                 .help("The host url or the page that will be part of the short urls.")
                 .env("PSLINK_PUBLIC_URL")
                 .default_value("localhost:8080")
+                .global(true),
+        )
+        .arg(
+            Arg::with_name("empty_forward_url")
+                .long("empty-url")
+                .short("e")
+                .help("The the url that / will redirect to. Usually your homepage.")
+                .env("PSLINK_EMPTY_FORWARD_URL")
+                .default_value("https://github.com/enaut/pslink")
+                .global(true),
+        )
+        .arg(
+            Arg::with_name("brand_name")
+                .long("brand-name")
+                .short("b")
+                .help("The Brandname that will apper in various places.")
+                .env("PSLINK_BRAND_NAME")
+                .default_value("Pslink")
                 .global(true),
         )
         .arg(
@@ -148,6 +167,14 @@ fn parse_args_to_config(config: &ArgMatches, log: &Logger) -> ServerConfig {
         .value_of("public_url")
         .expect("Failed to read the host value")
         .to_owned();
+    let empty_forward_url = config
+        .value_of("empty_forward_url")
+        .expect("Failed to read the empty_forward_url value")
+        .to_owned();
+    let brand_name = config
+        .value_of("brand_name")
+        .expect("Failed to read the brand_name value")
+        .to_owned();
     let internal_ip = config
         .value_of("internal_ip")
         .expect("Failed to read the host value")
@@ -173,6 +200,8 @@ fn parse_args_to_config(config: &ArgMatches, log: &Logger) -> ServerConfig {
         port,
         protocol,
         log,
+        empty_forward_url,
+        brand_name,
     }
 }
 
