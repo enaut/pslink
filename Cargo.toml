@@ -5,8 +5,8 @@ description = "A simple webservice that allows registered users to create short 
 authors = ["Dietrich <dietrich@teilgedanken.de>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
-keywords = ["url", "link", "webpage", "actix"]
-categories = ["os", "os::linux-apis", "parser-implementations", "command-line-utilities"]
+keywords = ["url", "link", "webpage", "actix", "web"]
+categories = ["web-programming", "network-programming", "web-programming.categories.http-server", "command-line-utilities"]
 readme = "README.md"
 repository = "https://git.teilgedanken.de/dietrich/Pslink"
 build = "build.rs"
@@ -42,5 +42,5 @@ actix-web-static-files = { git = "https://github.com/enaut/actix-web-static-file
 
 # optimize for size at cost of compilation speed.
 [profile.release]
-#lto = true
-#codegen-units = 1
+lto = true
+codegen-units = 1
