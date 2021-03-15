@@ -1,6 +1,6 @@
 [package]
 name = "pslink"
-version = "0.2.1"
+version = "0.2.2"
 description = "A simple webservice that allows registered users to create short links including qr-codes.\nAnyone can visit the shortened links. This is an ideal setup for small busines or for publishing papers."
 authors = ["Dietrich <dietrich@teilgedanken.de>"]
 edition = "2018"
@@ -21,9 +21,9 @@ actix-slog = "0.2"
 tera = "1.6"
 serde = "1.0"
 diesel = { version = "1.4", features = ["sqlite", "chrono"] }
-diesel_codegen = { version = "0.16.1", features = ["sqlite"] }
+#diesel_codegen = { version = "0.16.1", features = ["sqlite"] }
 diesel_migrations = "1.4"
-libsqlite3-sys = { version = "0.8", features = ["bundled"] }
+#libsqlite3-sys = { version = "0.8", features = ["bundled"] }
 dotenv = "0.10.1"
 actix-identity = "0.3"
 chrono = { version = "0.4", features = ["serde"] }

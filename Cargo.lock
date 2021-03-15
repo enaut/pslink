@@ -922,16 +922,6 @@ checksum = "850878694b7933ca4c9569d30a34b55031b9b139ee1fc7b94a527c4ef960d690"
 
 [[package]]
 name = "diesel"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "304226fa7a3982b0405f6bb95dd9c10c3e2000709f194038a60ec2c277150951"
-dependencies = [
- "byteorder",
- "libsqlite3-sys",
-]
-
-[[package]]
-name = "diesel"
 version = "1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e2de9deab977a153492a1468d1b1c0662c1cf39e5ea87d0c060ecd59ef18d8c"
@@ -943,21 +933,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diesel_codegen"
-version = "0.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22006237aee4465b49fb3a0248310a0aaefa6f165fc63c5f6e67810c63521c31"
-dependencies = [
- "diesel 0.16.0",
- "diesel_infer_schema",
- "dotenv",
- "quote 0.3.15",
- "serde",
- "serde_json",
- "syn 0.11.11",
-]
-
-[[package]]
 name = "diesel_derives"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -966,15 +941,6 @@ dependencies = [
  "proc-macro2 1.0.24",
  "quote 1.0.8",
  "syn 1.0.60",
-]
-
-[[package]]
-name = "diesel_infer_schema"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf1957ff5cd3b04772e43c162c2f69c2aa918080ff9b020276792d236be8be52"
-dependencies = [
- "diesel 0.16.0",
 ]
 
 [[package]]
@@ -1289,12 +1255,6 @@ checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
 dependencies = [
  "byteorder",
 ]
-
-[[package]]
-name = "gcc"
-version = "0.3.55"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f5f3913fa0bfe7ee1fd8248b6b9f42a5af4b9d65ec2dd2c3c26132b950ecfc2"
 
 [[package]]
 name = "generic-array"
@@ -1666,7 +1626,6 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "370090ad578ba845a3ad4f383ceb3deba7abd51ab1915ad1f2c982cc6035e31c"
 dependencies = [
- "gcc",
  "pkg-config",
  "vcpkg",
 ]
@@ -1743,7 +1702,7 @@ version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b4fc84e4af020b837029e017966f86a1c2d5e83e64b589963d5047525995860"
 dependencies = [
- "diesel 1.4.5",
+ "diesel",
 ]
 
 [[package]]
@@ -2151,7 +2110,7 @@ dependencies = [
 
 [[package]]
 name = "pslink"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "actix-identity",
  "actix-slog",
@@ -2160,12 +2119,10 @@ dependencies = [
  "argonautica",
  "chrono",
  "clap",
- "diesel 1.4.5",
- "diesel_codegen",
+ "diesel",
  "diesel_migrations",
  "dotenv",
  "image",
- "libsqlite3-sys",
  "qrcode",
  "rand 0.8.3",
  "rpassword",
