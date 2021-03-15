@@ -291,11 +291,11 @@ dependencies = [
 [[package]]
 name = "actix-web-static-files"
 version = "3.0.5"
-source = "git+https://github.com/enaut/actix-web-static-files.git?branch=enaut-must_use#d33061edf44bff0e0d1fcdf5e8116a8967a4a974"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b5bced189d398750426bd73719acfa63e2b3707e3804891e82e9cfa189ce9c8"
 dependencies = [
  "actix-service",
  "actix-web",
- "change-detection",
  "derive_more",
  "futures 0.3.12",
  "mime_guess",
@@ -689,16 +689,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "change-detection"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c334929165c9f014ac007721d56fec81eda30496131cc88cb0fc8ff6d0b59b3"
-dependencies = [
- "path-matchers",
- "path-slash",
-]
-
-[[package]]
 name = "checked_int_cast"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -743,7 +733,7 @@ version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ef0c1bcf2e99c649104bd7a7012d8f8802684400e03db0ec0af48583c6fa0e4"
 dependencies = [
- "glob 0.2.11",
+ "glob",
  "libc",
  "libloading",
 ]
@@ -1380,12 +1370,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8be18de09a56b60ed0edf84bc9df007e30040691af7acd1c41874faac5895bfb"
 
 [[package]]
-name = "glob"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
-
-[[package]]
 name = "globset"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1979,15 +1963,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c705f256449c60da65e11ff6626e0c16a0a0b96aaa348de61376b249bc340f41"
 dependencies = [
  "regex 1.4.3",
-]
-
-[[package]]
-name = "path-matchers"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95ebf24bbe8ea30c5d59eec679c6442eb9d58dce349d58db8b8e9219c1690260"
-dependencies = [
- "glob 0.3.0",
 ]
 
 [[package]]
