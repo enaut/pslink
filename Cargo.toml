@@ -1,6 +1,6 @@
 [package]
 name = "pslink"
-version = "0.1.0"
+version = "0.2.0"
 description = "A simple webservice that allows registered users to create short links including qr-codes.\nAnyone can visit the shortened links. This is an ideal setup for small busines or for publishing papers."
 authors = ["Dietrich <dietrich@teilgedanken.de>"]
 edition = "2018"
