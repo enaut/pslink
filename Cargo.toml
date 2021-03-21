@@ -1,6 +1,6 @@
 [package]
 name = "pslink"
-version = "0.2.2"
+version = "0.3.0"
 description = "A simple webservice that allows registered users to create short links including qr-codes.\nAnyone can visit the shortened links. This is an ideal setup for small busines or for publishing papers."
 authors = ["Dietrich <dietrich@teilgedanken.de>"]
 edition = "2018"
@@ -20,11 +20,8 @@ actix-web-static-files = "3.0"
 actix-slog = "0.2"
 tera = "1.6"
 serde = "1.0"
-diesel = { version = "1.4", features = ["sqlite", "chrono"] }
-#diesel_codegen = { version = "0.16.1", features = ["sqlite"] }
-diesel_migrations = "1.4"
-#libsqlite3-sys = { version = "0.8", features = ["bundled"] }
-dotenv = "0.10.1"
+sqlx={version="0.4", features = [ "sqlite", "macros", "runtime-actix-rustls", "chrono", "migrate" ]}
+dotenv = "0.15.0"
 actix-identity = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 argonautica = "0.2"
@@ -43,4 +40,4 @@ actix-web-static-files = "3.0"
 # optimize for size at cost of compilation speed.
 [profile.release]
 lto = true
-codegen-units = 1
+#codegen-units = 1

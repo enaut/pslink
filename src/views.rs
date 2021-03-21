@@ -33,7 +33,7 @@ pub(crate) async fn index(
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    if let Ok(links) = queries::list_all_allowed(&id, &config) {
+    if let Ok(links) = queries::list_all_allowed(&id, &config).await {
         let mut data = Context::new();
         data.insert("user", &links.user);
         data.insert("title", &format!("Links der {}", &config.brand_name,));
@@ -51,7 +51,7 @@ pub(crate) async fn index_users(
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    if let Ok(users) = queries::list_users(&id, &config) {
+    if let Ok(users) = queries::list_users(&id, &config).await {
         let mut data = Context::new();
         data.insert("user", &users.user);
         data.insert("title", &format!("Benutzer der {}", &config.brand_name,));
@@ -77,7 +77,7 @@ pub(crate) async fn view_link(
     id: Identity,
     link_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    if let Ok(link) = queries::get_link(&id, &link_id.0, &config) {
+    if let Ok(link) = queries::get_link(&id, &link_id.0, &config).await {
         let host = config.public_url.to_string();
         let protocol = config.protocol.to_string();
         let qr = QrCode::with_error_correction_level(
@@ -117,7 +117,7 @@ pub(crate) async fn view_profile(
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
     slog_info!(config.log, "Viewing Profile!");
-    if let Ok(query) = queries::get_user(&id, &user_id.0, &config) {
+    if let Ok(query) = queries::get_user(&id, &user_id.0, &config).await {
         let mut data = Context::new();
         data.insert("user", &query.user);
         data.insert(
@@ -144,7 +144,7 @@ pub(crate) async fn edit_profile(
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
     slog_info!(config.log, "Editing Profile!");
-    if let Ok(query) = queries::get_user(&id, &user_id.0, &config) {
+    if let Ok(query) = queries::get_user(&id, &user_id.0, &config).await {
         let mut data = Context::new();
         data.insert("user", &query.user);
         data.insert(
@@ -169,7 +169,7 @@ pub(crate) async fn process_edit_profile(
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    if let Ok(query) = queries::update_user(&id, &user_id.0, &config, &data) {
+    if let Ok(query) = queries::update_user(&id, &user_id.0, &config, &data).await {
         Ok(redirect_builder(&format!(
             "admin/view/profile/{}",
             query.user.username
@@ -184,7 +184,7 @@ pub(crate) async fn download_png(
     config: web::Data<crate::ServerConfig>,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    match queries::get_link(&id, &link_code.0, &config) {
+    match queries::get_link(&id, &link_code.0, &config).await {
         Ok(query) => {
             let qr = QrCode::with_error_correction_level(
                 &format!("http://{}/{}", config.public_url, &query.item.code),
@@ -208,7 +208,7 @@ pub(crate) async fn signup(
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    match queries::authenticate(&id, &config)? {
+    match queries::authenticate(&id, &config).await? {
         queries::Role::Admin { user } => {
             let mut data = Context::new();
             data.insert("title", "Ein Benutzerkonto erstellen");
@@ -229,7 +229,7 @@ pub(crate) async fn process_signup(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     slog_info!(config.log, "Creating a User: {:?}", &data);
-    if let Ok(item) = queries::create_user(&id, &data, &config) {
+    if let Ok(item) = queries::create_user(&id, &data, &config).await {
         Ok(HttpResponse::Ok().body(format!("Successfully saved user: {}", item.item.username)))
     } else {
         Ok(redirect_builder("/admin/login/"))
@@ -241,7 +241,7 @@ pub(crate) async fn toggle_admin(
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    let update = queries::toggle_admin(&id, &data.0, &config)?;
+    let update = queries::toggle_admin(&id, &data.0, &config).await?;
     Ok(redirect_builder(&format!(
         "/admin/view/profile/{}",
         update.item.id
@@ -268,7 +268,7 @@ pub(crate) async fn process_login(
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    let user = queries::get_user_by_name(&data.username, &config);
+    let user = queries::get_user_by_name(&data.username, &config).await;
 
     match user {
         Ok(u) => {
@@ -306,14 +306,14 @@ pub(crate) async fn redirect(
     data: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
     slog_info!(config.log, "Redirecting to {:?}", data);
-    let link = queries::get_link_simple(&data.0, &config);
+    let link = queries::get_link_simple(&data.0, &config).await;
     slog_info!(config.log, "link: {:?}", link);
     match link {
         Ok(link) => {
-            queries::click_link(link.id, &config)?;
+            queries::click_link(link.id, &config).await?;
             Ok(redirect_builder(&link.target))
         }
-        Err(ServerError::Diesel(e)) => {
+        Err(ServerError::Database(e)) => {
             slog_info!(
                 config.log,
                 "Link was not found: http://{}/{} \n {}",
@@ -341,7 +341,7 @@ pub(crate) async fn create_link(
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    match queries::authenticate(&id, &config)? {
+    match queries::authenticate(&id, &config).await? {
         queries::Role::Admin { user } | queries::Role::Regular { user } => {
             let mut data = Context::new();
             data.insert("title", "Einen Kurzlink erstellen");
@@ -361,7 +361,7 @@ pub(crate) async fn process_link_creation(
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    let new_link = queries::create_link(&id, data, &config)?;
+    let new_link = queries::create_link(&id, data, &config).await?;
     Ok(redirect_builder(&format!(
         "/admin/view/link/{}",
         new_link.item.code
@@ -374,7 +374,7 @@ pub(crate) async fn edit_link(
     id: Identity,
     link_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    if let Ok(query) = queries::get_link(&id, &link_id.0, &config) {
+    if let Ok(query) = queries::get_link(&id, &link_id.0, &config).await {
         let mut data = Context::new();
         data.insert("title", "Submit a Post");
         data.insert("link", &query.item);
@@ -391,7 +391,7 @@ pub(crate) async fn process_link_edit(
     id: Identity,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    match queries::update_link(&id, &link_code.0, &data, &config) {
+    match queries::update_link(&id, &link_code.0, data, &config).await {
         Ok(query) => Ok(redirect_builder(&format!(
             "/admin/view/link/{}",
             &query.item.code
@@ -405,6 +405,6 @@ pub(crate) async fn process_link_delete(
     config: web::Data<crate::ServerConfig>,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    queries::delete_link(&id, &link_code.0, &config)?;
+    queries::delete_link(&id, &link_code.0, &config).await?;
     Ok(redirect_builder("/admin/login/"))
 }

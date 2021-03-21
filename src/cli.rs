@@ -2,17 +2,18 @@ use clap::{
     app_from_crate, crate_authors, crate_description, crate_name, crate_version, App, Arg,
     ArgMatches, SubCommand,
 };
-use diesel::prelude::*;
 use dotenv::dotenv;
+use sqlx::{migrate::Migrator, Pool, Sqlite};
 use std::{
     io::{self, BufRead, Write},
     path::PathBuf,
 };
 
-use crate::{models::NewUser, ServerConfig, ServerError};
-use crate::{queries, schema};
+use crate::{models::NewUser, models::User, ServerConfig, ServerError};
 
 use slog::{Drain, Logger};
+
+static MIGRATOR: Migrator = sqlx::migrate!();
 
 #[allow(clippy::clippy::too_many_lines)]
 fn generate_cli() -> App<'static, 'static> {
@@ -120,7 +121,7 @@ fn generate_cli() -> App<'static, 'static> {
         )
 }
 
-fn parse_args_to_config(config: &ArgMatches, log: &Logger) -> ServerConfig {
+async fn parse_args_to_config(config: ArgMatches<'_>, log: Logger) -> ServerConfig {
     let secret = config
         .value_of("secret")
         .expect("Failed to read the secret")
@@ -163,6 +164,9 @@ fn parse_args_to_config(config: &ArgMatches, log: &Logger) -> ServerConfig {
         ))
         .parse::<PathBuf>()
         .expect("Failed to parse Database path.");
+    let db_pool = Pool::<Sqlite>::connect(&db.display().to_string())
+        .await
+        .expect("Error: Failed to connect to database!");
     let public_url = config
         .value_of("public_url")
         .expect("Failed to read the host value")
@@ -195,6 +199,7 @@ fn parse_args_to_config(config: &ArgMatches, log: &Logger) -> ServerConfig {
     crate::ServerConfig {
         secret,
         db,
+        db_pool,
         public_url,
         internal_ip,
         port,
@@ -205,7 +210,7 @@ fn parse_args_to_config(config: &ArgMatches, log: &Logger) -> ServerConfig {
     }
 }
 
-pub(crate) fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
+pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
     dotenv().ok();
 
     let decorator = slog_term::TermDecorator::new().build();
@@ -218,9 +223,33 @@ pub(crate) fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
     slog_info!(log, ".env file setup, logging initialized");
 
     let app = generate_cli();
+
     let config = app.get_matches();
 
-    let server_config: crate::ServerConfig = parse_args_to_config(&config, &log);
+    let db = config
+        .value_of("database")
+        .expect(concat!(
+            "Neither the DATABASE_URL environment variable",
+            " nor the commandline parameters",
+            " contain a valid database location."
+        ))
+        .parse::<PathBuf>()
+        .expect("Failed to parse Database path.");
+    if !db.exists() {
+        let msg = format!(
+            concat!(
+                "Database not found at {}!",
+                " Create a new database with: `pslink migrate-database`",
+                "or adjust the databasepath."
+            ),
+            db.display()
+        );
+        slog_error!(log, "{}", msg);
+        eprintln!("{}", msg);
+        return Ok(None);
+    };
+
+    let server_config: crate::ServerConfig = parse_args_to_config(config.clone(), log).await;
 
     if let Some(_migrate_config) = config.subcommand_matches("generate-env") {
         return match generate_env_file(&server_config) {
@@ -229,45 +258,26 @@ pub(crate) fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
         };
     }
     if let Some(_migrate_config) = config.subcommand_matches("migrate-database") {
-        return match apply_migrations(&server_config) {
+        return match apply_migrations(&server_config).await {
             Ok(_) => Ok(None),
             Err(e) => Err(e),
         };
     }
     if let Some(_create_config) = config.subcommand_matches("create-admin") {
-        return match create_admin(&server_config) {
+        return match create_admin(&server_config).await {
             Ok(_) => Ok(None),
             Err(e) => Err(e),
         };
     }
 
     if let Some(_runserver_config) = config.subcommand_matches("runserver") {
-        let connection = if server_config.db.exists() {
-            queries::establish_connection(&server_config.db)?
-        } else {
-            let msg = format!(
-                concat!(
-                    "Database not found at {}!",
-                    " Create a new database with: `pslink migrate-database`",
-                    "or adjust the databasepath."
-                ),
-                server_config.db.display()
-            );
-            slog_error!(&server_config.log, "{}", msg);
-            eprintln!("{}", msg);
-            return Ok(None);
-        };
-        let num_users: i64 = schema::users::dsl::users
-            .filter(schema::users::dsl::role.eq(2))
-            .select(diesel::dsl::count_star())
-            .first(&connection)
-            .expect("Failed to count the users");
+        let num_users = User::count_admins(&server_config).await?;
 
-        if num_users < 1 {
+        if num_users.number < 1 {
             slog_warn!(
                 &server_config.log,
                 concat!(
-                    "No user created you will not be",
+                    "No admin user created you will not be",
                     " able to do anything as the service is invite only.",
                     " Create a user with `pslink create-admin`"
                 )
@@ -285,13 +295,9 @@ pub(crate) fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
 }
 
 /// Interactively create a new admin user.
-fn create_admin(config: &ServerConfig) -> Result<(), ServerError> {
-    use schema::users;
-    use schema::users::dsl::{email, role, username};
+async fn create_admin(config: &ServerConfig) -> Result<(), ServerError> {
     slog_info!(&config.log, "Creating an admin user.");
     let sin = io::stdin();
-
-    let connection = queries::establish_connection(&config.db)?;
 
     // wait for logging:
     std::thread::sleep(std::time::Duration::from_millis(100));
@@ -316,30 +322,22 @@ fn create_admin(config: &ServerConfig) -> Result<(), ServerError> {
 
     let new_admin = NewUser::new(new_username.clone(), new_email.clone(), &password, config)?;
 
-    diesel::insert_into(users::table)
-        .values(&new_admin)
-        .execute(&connection)?;
+    new_admin.insert_user(config).await?;
+    let created_user = User::get_user_by_name(&new_username, config).await?;
+    created_user.toggle_admin(config).await?;
 
-    let created_user = users::table
-        .filter(username.eq(new_username))
-        .filter(email.eq(new_email));
+    slog_info!(&config.log, "Admin user created: {}", new_username);
 
-    // Add admin rights to the user identified by (username, email) this should be unique according to sqlite constraints
-    diesel::update(created_user)
-        .set((role.eq(2),))
-        .execute(&connection)?;
-    slog_info!(&config.log, "Admin user created: {}", &new_admin.username);
     Ok(())
 }
 
-fn apply_migrations(config: &ServerConfig) -> Result<(), ServerError> {
+async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerError> {
     slog_info!(
         config.log,
         "Creating a database file and running the migrations in the file {}:",
         &config.db.display()
     );
-    let connection = queries::establish_connection(&config.db)?;
-    crate::embedded_migrations::run_with_output(&connection, &mut std::io::stdout())?;
+    MIGRATOR.run(&config.db_pool).await?;
     Ok(())
 }
 
