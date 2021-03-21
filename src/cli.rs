@@ -5,6 +5,7 @@ use clap::{
 use dotenv::dotenv;
 use sqlx::{migrate::Migrator, Pool, Sqlite};
 use std::{
+    fs::File,
     io::{self, BufRead, Write},
     path::PathBuf,
 };
@@ -213,14 +214,16 @@ async fn parse_args_to_config(config: ArgMatches<'_>, log: Logger) -> ServerConf
 pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
     dotenv().ok();
 
+    // initiallize the logger
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
     let drain = slog_async::Async::new(drain).build().fuse();
 
     let log = slog::Logger::root(drain, slog_o!("name" => "Pslink"));
 
+    // Print launch info
     slog_info!(log, "Launching Pslink a 'Private short link generator'");
-    slog_info!(log, ".env file setup, logging initialized");
+    slog_info!(log, "logging initialized");
 
     let app = generate_cli();
 
@@ -236,17 +239,22 @@ pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> 
         .parse::<PathBuf>()
         .expect("Failed to parse Database path.");
     if !db.exists() {
-        let msg = format!(
-            concat!(
-                "Database not found at {}!",
-                " Create a new database with: `pslink migrate-database`",
-                "or adjust the databasepath."
-            ),
-            db.display()
-        );
-        slog_error!(log, "{}", msg);
-        eprintln!("{}", msg);
-        return Ok(None);
+        if config.subcommand_matches("migrate-database").is_none() {
+            let msg = format!(
+                concat!(
+                    "Database not found at {}!",
+                    " Create a new database with: `pslink migrate-database`",
+                    "or adjust the databasepath."
+                ),
+                db.display()
+            );
+            slog_error!(log, "{}", msg);
+            eprintln!("{}", msg);
+            return Ok(None);
+        }
+
+        // create an empty database file the if above makes sure that this file does not exist.
+        File::create(db)?;
     };
 
     let server_config: crate::ServerConfig = parse_args_to_config(config.clone(), log).await;

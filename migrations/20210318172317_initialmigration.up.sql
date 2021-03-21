@@ -8,10 +8,9 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR NOT NULL,
     password VARCHAR NOT NULL,
     role INTEGER DEFAULT 1 NOT NULL,
-    UNIQUE(username, email)
+    UNIQUE(username),
+    UNIQUE(email)
 );
-
-CREATE UNIQUE INDEX ux_username ON users(username);
 
 CREATE TABLE IF NOT EXISTS links (
     id INTEGER PRIMARY KEY NOT NULL,
