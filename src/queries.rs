@@ -1,8 +1,5 @@
-use std::path::Path;
-
 use actix_identity::Identity;
 use actix_web::web;
-use diesel::{prelude::*, sqlite::SqliteConnection};
 use serde::Serialize;
 
 use super::models::{Count, Link, NewUser, User};
@@ -11,23 +8,6 @@ use crate::{
     models::{NewClick, NewLink},
     ServerConfig, ServerError,
 };
-
-/// Create a connection to the database
-pub(super) fn establish_connection(database_url: &Path) -> Result<SqliteConnection, ServerError> {
-    match SqliteConnection::establish(&database_url.display().to_string()) {
-        Ok(c) => Ok(c),
-        Err(e) => {
-            eprintln!(
-                "Error connecting to database: {}, {}",
-                database_url.display(),
-                e
-            );
-            Err(ServerError::User(
-                "Error connecting to Database".to_string(),
-            ))
-        }
-    }
-}
 
 /// The possible roles a user could have.
 #[derive(Debug, Clone)]
@@ -40,7 +20,7 @@ pub enum Role {
 
 impl Role {
     /// Determin if the user is admin or the given user id is his own. This is used for things where users can edit or view their own entries, whereas admins can do so for all entries.
-    const fn admin_or_self(&self, id: i32) -> bool {
+    const fn admin_or_self(&self, id: i64) -> bool {
         match self {
             Self::Admin { .. } => true,
             Self::Regular { user } => user.id == id,
@@ -50,17 +30,12 @@ impl Role {
 }
 
 /// queries the user matching the given [`actix_identity::Identity`] and determins its authentication and permission level. Returns a [`Role`] containing the user if it is authenticated.
-pub(crate) fn authenticate(
+pub(crate) async fn authenticate(
     id: &Identity,
     server_config: &ServerConfig,
 ) -> Result<Role, ServerError> {
     if let Some(username) = id.identity() {
-        use super::schema::users::dsl;
-        let connection = establish_connection(&server_config.db)?;
-
-        let user = dsl::users
-            .filter(dsl::username.eq(&username))
-            .first::<User>(&connection)?;
+        let user = User::get_user_by_name(&username, server_config).await?;
 
         return Ok(match user.role {
             0 => Role::Disabled,
@@ -87,52 +62,58 @@ pub struct FullLink {
 }
 
 /// Returns a List of `FullLink` meaning `Links` enriched by their author and statistics. This returns all links if the user is either Admin or Regular user.
-pub(crate) fn list_all_allowed(
+pub(crate) async fn list_all_allowed(
     id: &Identity,
     server_config: &ServerConfig,
 ) -> Result<List<FullLink>, ServerError> {
-    use super::schema::clicks;
-    use super::schema::links;
-    use super::schema::users;
-
-    // query to select all users could be const but typespecification is too complex. A filter can be added in the match below.
-    let query = links::dsl::links
-        .inner_join(users::dsl::users)
-        .left_join(clicks::dsl::clicks)
-        .group_by(links::id)
-        .select((
-            (
-                links::id,
-                links::title,
-                links::target,
-                links::code,
-                links::author,
-                links::created_at,
-            ),
-            (
-                users::id,
-                users::username,
-                users::email,
-                users::password,
-                users::role,
-            ),
-            (diesel::dsl::sql::<diesel::sql_types::Integer>(
-                "COUNT(clicks.id)",
-            ),),
-        ));
-    match authenticate(id, server_config)? {
+    use crate::sqlx::Row;
+    match authenticate(id, server_config).await? {
         Role::Admin { user } | Role::Regular { user } => {
+            let links = sqlx::query(
+                "select
+                        links.id as lid,
+                        links.title as ltitle,
+                        links.target as ltarget,
+                        links.code as lcode,
+                        links.author as lauthor,
+                        links.created_at as ldate,
+                        users.id as usid,
+                        users.username as usern,
+                        users.email as uemail,
+                        users.role as urole,
+                        count(clicks.id) as counter
+                    from
+                        links
+                        join users on links.author = users.id
+                        left join clicks on links.id = clicks.link
+                    group by
+                        links.id",
+            )
+            .fetch_all(&server_config.db_pool)
+            .await?
+            .into_iter()
+            .map(|v| FullLink {
+                link: Link {
+                    id: v.get("lid"),
+                    title: v.get("ltitle"),
+                    target: v.get("ltarget"),
+                    code: v.get("lcode"),
+                    author: v.get("lauthor"),
+                    created_at: v.get("ldate"),
+                },
+                user: User {
+                    id: v.get("usid"),
+                    username: v.get("usern"),
+                    email: v.get("uemail"),
+                    password: "invalid".to_owned(),
+                    role: v.get("urole"),
+                },
+                clicks: Count {
+                    number: v.get("counter"), /* count is never None */
+                },
+            });
             // show all links
-            let connection = establish_connection(&server_config.db)?;
-            let all_links: Vec<FullLink> = query
-                .load(&connection)?
-                .into_iter()
-                .map(|l: (Link, User, Count)| FullLink {
-                    link: l.0,
-                    user: l.1,
-                    clicks: l.2,
-                })
-                .collect();
+            let all_links: Vec<FullLink> = links.collect();
             Ok(List {
                 user,
                 list: all_links,
@@ -143,15 +124,13 @@ pub(crate) fn list_all_allowed(
 }
 
 /// Only admins can list all users
-pub(crate) fn list_users(
+pub(crate) async fn list_users(
     id: &Identity,
     server_config: &ServerConfig,
 ) -> Result<List<User>, ServerError> {
-    use super::schema::users::dsl::users;
-    match authenticate(id, server_config)? {
+    match authenticate(id, server_config).await? {
         Role::Admin { user } => {
-            let connection = establish_connection(&server_config.db)?;
-            let all_users: Vec<User> = users.load(&connection)?;
+            let all_users: Vec<User> = User::get_all_users(server_config).await?;
             Ok(List {
                 user,
                 list: all_users,
@@ -170,23 +149,19 @@ pub struct Item<T> {
 }
 
 /// Get a user if permissions are accordingly
-pub(crate) fn get_user(
+pub(crate) async fn get_user(
     id: &Identity,
     user_id: &str,
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
-    use super::schema::users;
-    if let Ok(uid) = user_id.parse::<i32>() {
+    if let Ok(uid) = user_id.parse::<i64>() {
         slog_info!(server_config.log, "Getting user {}", uid);
-        let auth = authenticate(id, server_config)?;
+        let auth = authenticate(id, server_config).await?;
         slog_info!(server_config.log, "{:?}", &auth);
         if auth.admin_or_self(uid) {
             match auth {
                 Role::Admin { user } | Role::Regular { user } => {
-                    let connection = establish_connection(&server_config.db)?;
-                    let viewed_user = users::dsl::users
-                        .filter(users::dsl::id.eq(&uid))
-                        .first::<User>(&connection)?;
+                    let viewed_user = User::get_user(uid as i64, server_config).await?;
                     Ok(Item {
                         user,
                         item: viewed_user,
@@ -205,31 +180,23 @@ pub(crate) fn get_user(
 }
 
 /// Get a user **without permission checks** (needed for login)
-pub(crate) fn get_user_by_name(
+pub(crate) async fn get_user_by_name(
     username: &str,
     server_config: &ServerConfig,
 ) -> Result<User, ServerError> {
-    use super::schema::users;
-
-    let connection = establish_connection(&server_config.db)?;
-    let user = users::dsl::users
-        .filter(users::dsl::username.eq(username))
-        .first::<User>(&connection)?;
+    let user = User::get_user_by_name(username, server_config).await?;
     Ok(user)
 }
 
-pub(crate) fn create_user(
+pub(crate) async fn create_user(
     id: &Identity,
     data: &web::Form<NewUser>,
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
     slog_info!(server_config.log, "Creating a User: {:?}", &data);
-    let auth = authenticate(id, server_config)?;
+    let auth = authenticate(id, server_config).await?;
     match auth {
         Role::Admin { user } => {
-            use super::schema::users;
-
-            let connection = establish_connection(&server_config.db)?;
             let new_user = NewUser::new(
                 data.username.clone(),
                 data.email.clone(),
@@ -237,11 +204,10 @@ pub(crate) fn create_user(
                 server_config,
             )?;
 
-            diesel::insert_into(users::table)
-                .values(&new_user)
-                .execute(&connection)?;
+            new_user.insert_user(server_config).await?;
 
-            let new_user = get_user_by_name(&data.username, server_config)?;
+            // querry the new user
+            let new_user = get_user_by_name(&data.username, server_config).await?;
             Ok(Item {
                 user,
                 item: new_user,
@@ -255,37 +221,33 @@ pub(crate) fn create_user(
 /// Take a [`actix_web::web::Form<NewUser>`] and update the corresponding entry in the database.
 /// The password is only updated if a new password of at least 4 characters is provided.
 /// The `user_id` is never changed.
-pub(crate) fn update_user(
+pub(crate) async fn update_user(
     id: &Identity,
     user_id: &str,
     server_config: &ServerConfig,
     data: &web::Form<NewUser>,
 ) -> Result<Item<User>, ServerError> {
-    if let Ok(uid) = user_id.parse::<i32>() {
-        let auth = authenticate(id, server_config)?;
+    if let Ok(uid) = user_id.parse::<i64>() {
+        let auth = authenticate(id, server_config).await?;
+        let unmodified_user = User::get_user(uid, server_config).await?;
         if auth.admin_or_self(uid) {
             match auth {
                 Role::Admin { .. } | Role::Regular { .. } => {
-                    use super::schema::users::dsl::{email, id, password, username, users};
-
                     slog_info!(server_config.log, "Updating userinfo: ");
-                    let connection = establish_connection(&server_config.db)?;
-
-                    // Update username and email - if they have not been changed their values will be replaced by the old ones.
-                    diesel::update(users.filter(id.eq(&uid)))
-                        .set((
-                            username.eq(data.username.clone()),
-                            email.eq(data.email.clone()),
-                        ))
-                        .execute(&connection)?;
-                    // Update the password only if the user entered something.
-                    if data.password.len() > 3 {
-                        let hash = NewUser::hash_password(&data.password, server_config)?;
-                        diesel::update(users.filter(id.eq(&uid)))
-                            .set((password.eq(hash),))
-                            .execute(&connection)?;
-                    }
-                    let changed_user = users.filter(id.eq(&uid)).first::<User>(&connection)?;
+                    let password = if data.password.len() > 3 {
+                        NewUser::hash_password(&data.password, server_config)?
+                    } else {
+                        unmodified_user.password
+                    };
+                    let new_user = User {
+                        id: uid,
+                        username: data.username.clone(),
+                        email: data.email.clone(),
+                        password,
+                        role: unmodified_user.role,
+                    };
+                    new_user.update_user(server_config).await?;
+                    let changed_user = User::get_user(uid, server_config).await?;
                     Ok(Item {
                         user: changed_user.clone(),
                         item: changed_user,
@@ -303,36 +265,30 @@ pub(crate) fn update_user(
     }
 }
 
-pub(crate) fn toggle_admin(
+pub(crate) async fn toggle_admin(
     id: &Identity,
     user_id: &str,
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
-    if let Ok(uid) = user_id.parse::<i32>() {
-        let auth = authenticate(id, server_config)?;
+    if let Ok(uid) = user_id.parse::<i64>() {
+        let auth = authenticate(id, server_config).await?;
         match auth {
             Role::Admin { .. } => {
-                use super::schema::users::dsl::{id, role, users};
-
                 slog_info!(server_config.log, "Changing administrator priviledges: ");
-                let connection = establish_connection(&server_config.db)?;
 
-                let unchanged_user = users.filter(id.eq(&uid)).first::<User>(&connection)?;
+                let unchanged_user = User::get_user(uid, server_config).await?;
 
-                let new_role = 2 - (unchanged_user.role + 1) % 2;
+                let old = unchanged_user.role;
+                unchanged_user.toggle_admin(server_config).await?;
+
+                slog_info!(server_config.log, "Toggling role: old was {}", old);
+
+                let changed_user = User::get_user(uid, server_config).await?;
                 slog_info!(
                     server_config.log,
-                    "Assigning new role: {} - old was {}",
-                    new_role,
-                    unchanged_user.role
+                    "Toggled role: new is {}",
+                    changed_user.role
                 );
-
-                // Update the role eg. admin vs. normal vs. disabled
-                diesel::update(users.filter(id.eq(&uid)))
-                    .set((role.eq(new_role),))
-                    .execute(&connection)?;
-
-                let changed_user = users.filter(id.eq(&uid)).first::<User>(&connection)?;
                 Ok(Item {
                     user: changed_user.clone(),
                     item: changed_user,
@@ -348,18 +304,14 @@ pub(crate) fn toggle_admin(
 }
 
 /// Get one link if permissions are accordingly.
-pub(crate) fn get_link(
+pub(crate) async fn get_link(
     id: &Identity,
     link_code: &str,
     server_config: &ServerConfig,
 ) -> Result<Item<Link>, ServerError> {
-    use super::schema::links::dsl::{code, links};
-    match authenticate(id, server_config)? {
+    match authenticate(id, server_config).await? {
         Role::Admin { user } | Role::Regular { user } => {
-            let connection = establish_connection(&server_config.db)?;
-            let link: Link = links
-                .filter(code.eq(&link_code))
-                .first::<Link>(&connection)?;
+            let link = Link::get_link_by_code(link_code, server_config).await?;
             Ok(Item { user, item: link })
         }
         Role::Disabled | Role::NotAuthenticated => Err(ServerError::User("Not Allowed".to_owned())),
@@ -367,75 +319,72 @@ pub(crate) fn get_link(
 }
 
 /// Get link **without authentication**
-pub(crate) fn get_link_simple(
+pub(crate) async fn get_link_simple(
     link_code: &str,
     server_config: &ServerConfig,
 ) -> Result<Link, ServerError> {
-    use super::schema::links::dsl::{code, links};
     slog_info!(server_config.log, "Getting link for {:?}", link_code);
-    let connection = establish_connection(&server_config.db)?;
-    let link: Link = links
-        .filter(code.eq(&link_code))
-        .first::<Link>(&connection)?;
+
+    let link = Link::get_link_by_code(link_code, server_config).await?;
+    slog_info!(server_config.log, "Foun d link for {:?}", link);
     Ok(link)
 }
 /// Click on a link
-pub(crate) fn click_link(link_id: i32, server_config: &ServerConfig) -> Result<(), ServerError> {
-    use super::schema::clicks;
+pub(crate) async fn click_link(
+    link_id: i64,
+    server_config: &ServerConfig,
+) -> Result<(), ServerError> {
+    slog_info!(server_config.log, "Clicking on {:?}", link_id);
     let new_click = NewClick::new(link_id);
-    let connection = establish_connection(&server_config.db)?;
-
-    diesel::insert_into(clicks::table)
-        .values(&new_click)
-        .execute(&connection)?;
+    new_click.insert_click(server_config).await?;
     Ok(())
 }
 
 /// Click on a link
-pub(crate) fn delete_link(
+pub(crate) async fn delete_link(
     id: &Identity,
     link_code: &str,
     server_config: &ServerConfig,
 ) -> Result<(), ServerError> {
-    use super::schema::links::dsl::{code, links};
-    let connection = establish_connection(&server_config.db)?;
-    let auth = authenticate(id, server_config)?;
-    let link = get_link_simple(link_code, server_config)?;
+    let auth = authenticate(id, server_config).await?;
+    let link = get_link_simple(link_code, server_config).await?;
     if auth.admin_or_self(link.author) {
-        diesel::delete(links.filter(code.eq(&link_code))).execute(&connection)?;
+        Link::delete_link_by_code(link_code, server_config).await?;
         Ok(())
     } else {
         Err(ServerError::User("Permission denied!".to_owned()))
     }
 }
+
 /// Update a link if the user is admin or it is its own link.
-pub(crate) fn update_link(
+pub(crate) async fn update_link(
     id: &Identity,
     link_code: &str,
-    data: &web::Form<LinkForm>,
+    data: web::Form<LinkForm>,
     server_config: &ServerConfig,
 ) -> Result<Item<Link>, ServerError> {
-    use super::schema::links::dsl::{code, links, target, title};
     slog_info!(
         server_config.log,
         "Changing link to: {:?} {:?}",
         &data,
         &link_code
     );
-    let auth = authenticate(id, server_config)?;
+    let auth = authenticate(id, server_config).await?;
     match auth {
         Role::Admin { .. } | Role::Regular { .. } => {
-            let query = get_link(id, link_code, server_config)?;
+            let query = get_link(id, link_code, server_config).await?;
             if auth.admin_or_self(query.item.author) {
-                let connection = establish_connection(&server_config.db)?;
-                diesel::update(links.filter(code.eq(&query.item.code)))
-                    .set((
-                        code.eq(&data.code),
-                        target.eq(&data.target),
-                        title.eq(&data.title),
-                    ))
-                    .execute(&connection)?;
-                get_link(id, &data.code, server_config)
+                let mut link = query.item;
+                let LinkForm {
+                    title,
+                    target,
+                    code,
+                } = data.into_inner();
+                link.code = code.clone();
+                link.target = target;
+                link.title = title;
+                link.update_link(server_config).await?;
+                get_link(id, &code, server_config).await
             } else {
                 Err(ServerError::User("Not Allowed".to_owned()))
             }
@@ -444,23 +393,21 @@ pub(crate) fn update_link(
     }
 }
 
-pub(crate) fn create_link(
+pub(crate) async fn create_link(
     id: &Identity,
     data: web::Form<LinkForm>,
     server_config: &ServerConfig,
 ) -> Result<Item<Link>, ServerError> {
-    let auth = authenticate(id, server_config)?;
+    let auth = authenticate(id, server_config).await?;
     match auth {
         Role::Admin { user } | Role::Regular { user } => {
-            use super::schema::links;
-
-            let connection = establish_connection(&server_config.db)?;
+            let code = data.code.clone();
+            slog_info!(server_config.log, "Creating link for: {}", &code);
             let new_link = NewLink::from_link_form(data.into_inner(), user.id);
+            slog_info!(server_config.log, "Creating link for: {:?}", &new_link);
 
-            diesel::insert_into(links::table)
-                .values(&new_link)
-                .execute(&connection)?;
-            let new_link = get_link_simple(&new_link.code, server_config)?;
+            new_link.insert(server_config).await?;
+            let new_link = get_link_simple(&code, server_config).await?;
             Ok(Item {
                 user,
                 item: new_link,

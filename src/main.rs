@@ -1,7 +1,4 @@
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
+extern crate sqlx;
 #[allow(unused_imports)]
 #[macro_use(
     slog_o,
@@ -21,7 +18,6 @@ mod cli;
 mod forms;
 pub mod models;
 mod queries;
-pub mod schema;
 mod views;
 
 use std::{fmt::Display, path::PathBuf, str::FromStr};
@@ -30,13 +26,14 @@ use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpResponse, HttpServer};
 
 use qrcode::types::QrError;
+use sqlx::{Pool, Sqlite};
 use tera::Tera;
 
 #[derive(Debug)]
 pub enum ServerError {
     Argonautic,
-    Diesel(diesel::result::Error),
-    Migration(diesel_migrations::RunMigrationsError),
+    Database(sqlx::Error),
+    DatabaseMigration(sqlx::migrate::MigrateError),
     Environment,
     Template(tera::Error),
     Qr(QrError),
@@ -48,12 +45,14 @@ impl std::fmt::Display for ServerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Argonautic => write!(f, "Argonautica Error"),
-            Self::Diesel(e) => write!(f, "Diesel Error: {}", e),
+            Self::Database(e) => write!(f, "Database Error: {}", e),
+            Self::DatabaseMigration(e) => {
+                write!(f, "Migration Error: {}", e)
+            }
             Self::Environment => write!(f, "Environment Error"),
             Self::Template(e) => write!(f, "Template Error: {:?}", e),
             Self::Qr(e) => write!(f, "Qr Code Error: {:?}", e),
             Self::Io(e) => write!(f, "IO Error: {:?}", e),
-            Self::Migration(e) => write!(f, "Migration Error: {:?}", e),
             Self::User(data) => write!(f, "{}", data),
         }
     }
@@ -63,8 +62,11 @@ impl actix_web::error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
             Self::Argonautic => HttpResponse::InternalServerError().json("Argonautica Error"),
-            Self::Diesel(e) => {
+            Self::Database(e) => {
                 HttpResponse::InternalServerError().json(format!("Diesel Error: {:?}", e))
+            }
+            Self::DatabaseMigration(_) => {
+                unimplemented!("A migration error should never be rendered")
             }
             Self::Environment => HttpResponse::InternalServerError().json("Environment Error"),
             Self::Template(e) => {
@@ -74,9 +76,6 @@ impl actix_web::error::ResponseError for ServerError {
                 HttpResponse::InternalServerError().json(format!("Qr Code Error: {:?}", e))
             }
             Self::Io(e) => HttpResponse::InternalServerError().json(format!("IO Error: {:?}", e)),
-            Self::Migration(e) => {
-                HttpResponse::InternalServerError().json(format!("Migration Error: {:?}", e))
-            }
             Self::User(data) => HttpResponse::InternalServerError().json(data),
         }
     }
@@ -89,16 +88,16 @@ impl From<std::env::VarError> for ServerError {
     }
 }
 
-impl From<diesel_migrations::RunMigrationsError> for ServerError {
-    fn from(e: diesel_migrations::RunMigrationsError) -> Self {
-        Self::Migration(e)
+impl From<sqlx::Error> for ServerError {
+    fn from(err: sqlx::Error) -> Self {
+        eprintln!("Database error {:?}", err);
+        Self::Database(err)
     }
 }
-
-impl From<diesel::result::Error> for ServerError {
-    fn from(err: diesel::result::Error) -> Self {
+impl From<sqlx::migrate::MigrateError> for ServerError {
+    fn from(err: sqlx::migrate::MigrateError) -> Self {
         eprintln!("Database error {:?}", err);
-        Self::Diesel(err)
+        Self::DatabaseMigration(err)
     }
 }
 
@@ -158,6 +157,7 @@ impl FromStr for Protocol {
 pub(crate) struct ServerConfig {
     secret: String,
     db: PathBuf,
+    db_pool: Pool<Sqlite>,
     public_url: String,
     internal_ip: String,
     port: u32,
@@ -188,8 +188,6 @@ impl ServerConfig {
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
-embed_migrations!("migrations/");
-
 fn build_tera() -> Tera {
     let mut tera = Tera::default();
 
@@ -339,7 +337,7 @@ async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
 
 #[actix_web::main]
 async fn main() -> Result<(), std::io::Error> {
-    match cli::setup() {
+    match cli::setup().await {
         Ok(Some(server_config)) => webservice(server_config).await,
         Ok(None) => {
             std::thread::sleep(std::time::Duration::from_millis(100));
