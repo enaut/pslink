@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["url", "link", "webpage", "actix", "web"]
 categories = ["web-programming", "network-programming", "web-programming::http-server", "command-line-utilities"]
 readme = "README.md"
-repository = "https://git.teilgedanken.de/dietrich/Pslink"
+repository = "https://github.com/enaut/pslink/"
 build = "build.rs"
 
 
