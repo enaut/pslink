@@ -5,6 +5,7 @@ Guide to release:
  - [ ] commit the update
  - [ ] push to github and teilgedanken
  - [ ] create release draft tag: https://github.com/enaut/pslink/releases
+ - [ ] check `git log --pretty=format:'* %s' --abbrev-commit` for changes and selectively include into changelist.
  - [ ] verify everything is ready for publishing using:
  
     ```
