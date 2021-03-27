@@ -157,7 +157,6 @@ pub(crate) async fn get_user(
     if let Ok(uid) = user_id.parse::<i64>() {
         slog_info!(server_config.log, "Getting user {}", uid);
         let auth = authenticate(id, server_config).await?;
-        slog_info!(server_config.log, "{:?}", &auth);
         if auth.admin_or_self(uid) {
             match auth {
                 Role::Admin { user } | Role::Regular { user } => {

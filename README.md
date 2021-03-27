@@ -2,6 +2,8 @@
 
 The target audience of this tool are small entities that need a url shortener. The shortened urls can be publicly resolved but only registered users can create short urls. Every registered user can see all shorted urls but ownly modify its own. Admin users can invite other accounts and edit everything that can be edited (also urls created by other accounts).
 
+So in general this is more a shared short url bookmark webpage than a shorturl service.
+
 ![Screenshot](./doc/img/pslinkscreenshot.png)
 
 The Page comes with a basic commandline interface to setup the environment. If it is built with `cargo build release --target=x86_64-unknown-linux-musl` everything is embedded and it should be portable to any 64bit linux system.
