@@ -20,7 +20,7 @@ actix-web-static-files = "3.0"
 actix-slog = "0.2"
 tera = "1.6"
 serde = "1.0"
-sqlx={version="0.4", features = [ "sqlite", "macros", "runtime-actix-rustls", "chrono", "migrate" ]}
+sqlx={version="0.4", features = [ "sqlite", "macros", "runtime-actix-rustls", "chrono", "migrate", "offline" ]}
 dotenv = "0.15.0"
 actix-identity = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
