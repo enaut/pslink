@@ -2,8 +2,11 @@ list-links = List of existing links
 add-link = Add a new link
 invite-user = Invite a new user
 list-users = List of existing users
-welcome-user = Wellcome {$username}
+welcome-user = Welcome {$username}
 logout = Logout
+login = Login
+
+not-found = This Link has not been found or has been deleted
 
 edit-link-headline = Edit link: {$linktitle}
 edit-link = Edit link

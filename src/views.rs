@@ -3,9 +3,14 @@ use std::time::SystemTime;
 use actix_identity::Identity;
 use actix_web::{
     http::header::{CacheControl, CacheDirective, ContentType, Expires},
-    web, HttpResponse,
+    web, HttpRequest, HttpResponse,
 };
 use argonautica::Verifier;
+use fluent_langneg::{
+    convert_vec_str_to_langids_lossy, negotiate_languages, parse_accepted_languages,
+    NegotiationStrategy,
+};
+use fluent_templates::LanguageIdentifier;
 use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use tera::{Context, Tera};
@@ -25,6 +30,35 @@ fn redirect_builder(target: &str) -> HttpResponse {
         .set(Expires(SystemTime::now().into()))
         .set_header(actix_web::http::header::LOCATION, target)
         .body(format!("Redirect to {}", target))
+}
+
+fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
+    let requested = parse_accepted_languages(
+        request
+            .headers()
+            .get(actix_web::http::header::ACCEPT_LANGUAGE)
+            .ok_or_else(|| ServerError::User("Failed to get Accept_Language".to_owned()))?
+            .to_str()
+            .map_err(|_| {
+                ServerError::User("Failed to convert Accept_language to str".to_owned())
+            })?,
+    );
+    let available = convert_vec_str_to_langids_lossy(&["de", "en"]);
+    let default: LanguageIdentifier = "en"
+        .parse()
+        .map_err(|_| ServerError::User("Failed to parse a langid.".to_owned()))?;
+
+    let supported = negotiate_languages(
+        &requested,
+        &available,
+        Some(&default),
+        NegotiationStrategy::Filtering,
+    );
+    let languagecode = supported
+        .get(0)
+        .map_or("en".to_string(), std::string::ToString::to_string);
+    println!("Detected the language: {}", &languagecode);
+    Ok(languagecode)
 }
 
 /// Show the list of all available links if a user is authenticated
@@ -251,9 +285,14 @@ pub(crate) async fn toggle_admin(
 pub(crate) async fn login(
     tera: web::Data<Tera>,
     id: Identity,
+    config: web::Data<crate::ServerConfig>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
+    let language_code = detect_language(&req)?;
+    slog_info!(config.log, "Detected languagecode: {}", &language_code);
     let mut data = Context::new();
     data.insert("title", "Login");
+    data.insert("language", &language_code);
 
     if let Some(_id) = id.identity() {
         return Ok(redirect_builder("/admin/index/"));
@@ -304,6 +343,7 @@ pub(crate) async fn redirect(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     data: web::Path<String>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
     slog_info!(config.log, "Redirecting to {:?}", data);
     let link = queries::get_link_simple(&data.0, &config).await;
@@ -323,6 +363,8 @@ pub(crate) async fn redirect(
             );
             let mut data = Context::new();
             data.insert("title", "Wurde gel\u{f6}scht");
+            let language = detect_language(&req)?;
+            data.insert("language", &language);
             let rendered = tera.render("not_found.html", &data)?;
             Ok(HttpResponse::NotFound().body(rendered))
         }

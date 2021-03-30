@@ -4,6 +4,9 @@ invite-user = Benutzer einladen
 list-users = Liste der Benutzer
 welcome-user = Herzlich willkommen {$username}
 logout = Abmelden
+login = Login
+
+not-found = Dieser Link existiert nicht, oder wurde gelöscht.
 
 edit-link-headline = Zu editierender Link: {$linktitle}
 edit-link = Link Editieren
