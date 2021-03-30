@@ -25,6 +25,7 @@ use std::{fmt::Display, path::PathBuf, str::FromStr};
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpResponse, HttpServer};
 
+use fluent_templates::{static_loader, FluentLoader};
 use qrcode::types::QrError;
 use sqlx::{Pool, Sqlite};
 use tera::Tera;
@@ -188,8 +189,19 @@ impl ServerConfig {
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+
+static_loader! {
+    static LOCALES = {
+        locales: "./locales",
+        fallback_language: "en",
+    };
+}
+
 fn build_tera() -> Tera {
     let mut tera = Tera::default();
+
+    // Add translation support
+    tera.register_function("fluent", FluentLoader::new(&*LOCALES));
 
     tera.add_raw_templates(vec![
         ("admin.html", include_str!("../templates/admin.html")),

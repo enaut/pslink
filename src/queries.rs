@@ -81,6 +81,7 @@ pub(crate) async fn list_all_allowed(
                         users.username as usern,
                         users.email as uemail,
                         users.role as urole,
+                        users.language as ulang,
                         count(clicks.id) as counter
                     from
                         links
@@ -107,6 +108,7 @@ pub(crate) async fn list_all_allowed(
                     email: v.get("uemail"),
                     password: "invalid".to_owned(),
                     role: v.get("urole"),
+                    language: v.get("ulang"),
                 },
                 clicks: Count {
                     number: v.get("counter"), /* count is never None */
@@ -244,6 +246,7 @@ pub(crate) async fn update_user(
                         email: data.email.clone(),
                         password,
                         role: unmodified_user.role,
+                        language: unmodified_user.language,
                     };
                     new_user.update_user(server_config).await?;
                     let changed_user = User::get_user(uid, server_config).await?;
