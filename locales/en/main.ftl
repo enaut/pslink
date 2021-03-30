@@ -6,9 +6,11 @@ welcome-user = Wellcome {$username}
 logout = Logout
 
 edit-link-headline = Edit link: {$linktitle}
+edit-link = Edit link
 link-description = Description
 link-target = Link target
 link-code = Link code
+shortlink = Shortlink
 
 danger-zone = Danger Zone!
 danger-zone-text = Do not change the code of links that are published. If you do so the published links will become invalid! If you change the target the published links will point to the new target.
@@ -16,12 +18,16 @@ danger-zone-text = Do not change the code of links that are published. If you do
 save-edits = Save edits
 delete-link = Delete this link
 
-edit-user-headline = User Settings of: {$username}
+user-headline = User Settings of: {$username}
+edit-user-headline = Change Settings of: {$username}
 username = Username
 email = Email
 password = Password
 password-placeholder = Leave this empty to keep the current password
 save-user = Save this user
+edit-user = Edit this user
+make-user-admin = Promote to admin
+make-user-regular = Demote to regular
 
 userid = User ID
 statistics = Statistics
