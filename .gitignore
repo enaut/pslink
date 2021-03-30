@@ -1,6 +1,6 @@
 /target
 .env
-links.db
+links.db*
 launch.json
 settings.json
 links.session.sql

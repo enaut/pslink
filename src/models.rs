@@ -11,6 +11,7 @@ pub struct User {
     pub email: String,
     pub password: String,
     pub role: i64,
+    pub language: String,
 }
 
 impl User {
