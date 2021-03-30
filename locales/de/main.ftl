@@ -24,3 +24,4 @@ password-placeholder = Leer lassen um das Passwort nicht zu ändern
 save-user = Benutzer speichern
 
 userid = Benutzernummer
+statistics = Statistik
