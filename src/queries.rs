@@ -305,6 +305,26 @@ pub(crate) async fn toggle_admin(
     }
 }
 
+pub(crate) async fn set_language(
+    id: &Identity,
+    lang_code: &str,
+    server_config: &ServerConfig,
+) -> Result<(), ServerError> {
+    match lang_code {
+        "de" | "en" => match authenticate(id, server_config).await? {
+            Role::Admin { user } | Role::Regular { user } => {
+                user.set_language(server_config, lang_code).await
+            }
+            Role::Disabled | Role::NotAuthenticated => {
+                Err(ServerError::User("Not Allowed".to_owned()))
+            }
+        },
+        _ => Err(ServerError::User(
+            "This language is not supported!".to_owned(),
+        )),
+    }
+}
+
 /// Get one link if permissions are accordingly.
 pub(crate) async fn get_link(
     id: &Identity,

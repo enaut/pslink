@@ -323,7 +323,11 @@ async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
                                         web::post().to(views::process_edit_profile),
                                     ),
                             )
-                            .route("/set_admin/{user_id}", web::get().to(views::toggle_admin)),
+                            .route("/set_admin/{user_id}", web::get().to(views::toggle_admin))
+                            .route(
+                                "/set_language/{language}",
+                                web::get().to(views::set_language),
+                            ),
                     )
                     .service(
                         web::scope("/delete").service(
