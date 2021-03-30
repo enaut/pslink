@@ -282,6 +282,15 @@ pub(crate) async fn toggle_admin(
     )))
 }
 
+pub(crate) async fn set_language(
+    data: web::Path<String>,
+    config: web::Data<crate::ServerConfig>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    queries::set_language(&id, &data.0, &config).await?;
+    Ok(redirect_builder("/admin/index/"))
+}
+
 pub(crate) async fn login(
     tera: web::Data<Tera>,
     id: Identity,
