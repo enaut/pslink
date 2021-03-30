@@ -11,16 +11,20 @@
 
         <tr>
             <th>
-                Kürzel
+                {{ fluent(key="link-code", lang=user.language)
+                }}
             </th>
             <th>
-                Ziellink
+                {{ fluent(key="link-target", lang=user.language)
+                }}
             </th>
             <th>
-                Benutzername
+                {{ fluent(key="username", lang=user.language)
+                }}
             </th>
             <th>
-                Statistik
+                {{ fluent(key="statistics", lang=user.language)
+                }}
             </th>
         </tr>
         {% for links_user in links_per_users %}

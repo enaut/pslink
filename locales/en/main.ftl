@@ -24,3 +24,4 @@ password-placeholder = Leave this empty to keep the current password
 save-user = Save this user
 
 userid = User ID
+statistics = Statistics
