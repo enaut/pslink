@@ -2,26 +2,26 @@
 
 {% block admin %}
 <div class="center">
-    <h1>Link Editieren: {{ link.title }}</h1>
+    <h1>{{ fluent(key="edit-link-headline", lang=user.language, linktitle=link.title) }}</h1>
     <form action="" method="POST">
         <div>
-            <label for="title">Beschreibung:</label>
+            <label for="title">{{ fluent(key="link-description", lang=user.language) }}</label>
             <input type="text" name="title" value="{{ link.title }}">
         </div>
         <div>
-            <label for="target">Ziel:</label>
+            <label for="target">{{ fluent(key="link-target", lang=user.language) }}</label>
             <input type="text" name="target" value="{{link.target}}">
         </div>
         <div>
-            <label for="code">Code:</label>
+            <label for="code">{{ fluent(key="link-code", lang=user.language) }}</label>
             <input type="text" name="code" value="{{link.code}}">
         </div>
         <div class="actions danger">
-            <h2>Achtung!</h2>
-            <h3>Werden schon veröffentlichte Links gelöscht oder editiert sind die Links z.B. aus einem Buch
-                nicht mehr gültig! UNBEDINGT VERMEIDEN!</h3>
-            <input type="submit" value="Speichern">
-            <a class="button" href="/admin/delete/link/{{link.code}}">Delete</a>
+            <h2>{{ fluent(key="danger-zone", lang=user.language) }}</h2>
+            <h3>{{ fluent(key="danger-zone-text", lang=user.language) }}</h3>
+            <input type="submit" value='{{ fluent(key="save-edits", lang=user.language) }}'>
+            <a class="button" href="/admin/delete/link/{{link.code}}">{{ fluent(key="delete-link", lang=user.language)
+                }}</a>
         </div>
     </form>
 </div>
