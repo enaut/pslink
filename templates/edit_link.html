@@ -5,15 +5,15 @@
     <h1>{{ fluent(key="edit-link-headline", lang=user.language, linktitle=link.title) }}</h1>
     <form action="" method="POST">
         <div>
-            <label for="title">{{ fluent(key="link-description", lang=user.language) }}</label>
+            <label for="title">{{ fluent(key="link-description", lang=user.language) }}:</label>
             <input type="text" name="title" value="{{ link.title }}">
         </div>
         <div>
-            <label for="target">{{ fluent(key="link-target", lang=user.language) }}</label>
+            <label for="target">{{ fluent(key="link-target", lang=user.language) }}:</label>
             <input type="text" name="target" value="{{link.target}}">
         </div>
         <div>
-            <label for="code">{{ fluent(key="link-code", lang=user.language) }}</label>
+            <label for="code">{{ fluent(key="link-code", lang=user.language) }}:</label>
             <input type="text" name="code" value="{{link.code}}">
         </div>
         <div class="actions danger">

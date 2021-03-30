@@ -15,3 +15,10 @@ danger-zone-text = Verändern Sie den Code von bereits veröffentlichten Links n
 
 save-edits = Speichere die Veränderungen
 delete-link = Diesen Link löschen
+
+edit-user-headline = Benutzereinstellungen von: {$username}
+username = Benutzername
+email = Email
+password = Passwort
+password-placeholder = Leer lassen um das Passwort nicht zu ändern
+save-user = Benutzer speichern
