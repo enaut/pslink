@@ -4,15 +4,18 @@
 <div class="center">
     <form action="" method="POST">
         <div>
-            <label for="title">Beschreibung:</label>
+            <label for="title">{{ fluent(key="link-description", lang=user.language)
+                }}:</label>
             <input type="text" name="title">
         </div>
         <div>
-            <label for="target">Ziel:</label>
+            <label for="target">{{ fluent(key="link-target", lang=user.language)
+                }}:</label>
             <input type="text" name="target">
         </div>
         <div>
-            <label for="code">Code:</label>
+            <label for="code">{{ fluent(key="link-code", lang=user.language)
+                }}:</label>
             <input type="text" name="code">
         </div>
         <input type="submit" value="Submit">

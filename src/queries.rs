@@ -81,6 +81,7 @@ pub(crate) async fn list_all_allowed(
                         users.username as usern,
                         users.email as uemail,
                         users.role as urole,
+                        users.language as ulang,
                         count(clicks.id) as counter
                     from
                         links
@@ -107,6 +108,7 @@ pub(crate) async fn list_all_allowed(
                     email: v.get("uemail"),
                     password: "invalid".to_owned(),
                     role: v.get("urole"),
+                    language: v.get("ulang"),
                 },
                 clicks: Count {
                     number: v.get("counter"), /* count is never None */
@@ -244,6 +246,7 @@ pub(crate) async fn update_user(
                         email: data.email.clone(),
                         password,
                         role: unmodified_user.role,
+                        language: unmodified_user.language,
                     };
                     new_user.update_user(server_config).await?;
                     let changed_user = User::get_user(uid, server_config).await?;
@@ -299,6 +302,26 @@ pub(crate) async fn toggle_admin(
         }
     } else {
         Err(ServerError::User("Permission denied".to_owned()))
+    }
+}
+
+pub(crate) async fn set_language(
+    id: &Identity,
+    lang_code: &str,
+    server_config: &ServerConfig,
+) -> Result<(), ServerError> {
+    match lang_code {
+        "de" | "en" => match authenticate(id, server_config).await? {
+            Role::Admin { user } | Role::Regular { user } => {
+                user.set_language(server_config, lang_code).await
+            }
+            Role::Disabled | Role::NotAuthenticated => {
+                Err(ServerError::User("Not Allowed".to_owned()))
+            }
+        },
+        _ => Err(ServerError::User(
+            "This language is not supported!".to_owned(),
+        )),
     }
 }
 
