@@ -11,6 +11,7 @@ pub struct User {
     pub email: String,
     pub password: String,
     pub role: i64,
+    pub language: String,
 }
 
 impl User {
@@ -62,6 +63,7 @@ impl User {
         .await?;
         Ok(())
     }
+
     pub(crate) async fn toggle_admin(
         self,
         server_config: &ServerConfig,
@@ -70,6 +72,21 @@ impl User {
         sqlx::query!("UPDATE users SET role = ? where id = ?", new_role, self.id)
             .execute(&server_config.db_pool)
             .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn set_language(
+        self,
+        server_config: &ServerConfig,
+        new_language: &str,
+    ) -> Result<(), ServerError> {
+        sqlx::query!(
+            "UPDATE users SET language = ? where id = ?",
+            new_language,
+            self.id
+        )
+        .execute(&server_config.db_pool)
+        .await?;
         Ok(())
     }
 

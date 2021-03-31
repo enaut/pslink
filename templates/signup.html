@@ -4,18 +4,22 @@
 <div class="center">
     <form action="" method="POST">
         <div>
-            <label for="username">Benutzername:</label>
+            <label for="username">{{ fluent(key="username", lang=user.language)
+                }}:</label>
             <input type="text" name="username">
         </div>
         <div>
-            <label for="email">E-mail:</label>
+            <label for="email">{{ fluent(key="email", lang=user.language)
+                }}:</label>
             <input type="email" name="email">
         </div>
         <div>
-            <label for="password">Passwort:</label>
+            <label for="password">{{ fluent(key="password", lang=user.language)
+                }}:</label>
             <input type="password" name="password">
         </div>
-        <input type="submit" value="Einladen">
+        <input type="submit" value='{{ fluent(key="invite-user", lang=user.language)
+    }}'>
     </form>
     <h2>&nbsp;</h2>
 </div>

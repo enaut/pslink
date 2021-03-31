@@ -11,14 +11,19 @@
 <div class="admin">
     <nav>
         <ol>
-            <li><a href="/admin/index/">Link Liste</a></li>
-            <li><a href="/admin/submit/">Link Hinzufügen</a></li>
-            {% if user.role == 2 %}<li><a href="/admin/signup/">Einladen</a></li>
-            <li><a href="/admin/view/users/">Benutzer</a></li>{% endif %}
-            <li style="float:right"><a href="/admin/logout/">Abmelden</a></li>
-            <li style="float:right">
-                <div class="willkommen">Herzlich willkommen {{ user.username }}</div>
+            <li><a href="/admin/index/">{{ fluent(key="list-links", lang=user.language) }}</a>
             </li>
+            <li><a href="/admin/submit/">{{ fluent(key="add-link", lang=user.language) }}</a></li>
+            {% if user.role == 2 %}<li><a href="/admin/signup/">{{ fluent(key="invite-user", lang=user.language) }}</a>
+            </li>
+            <li><a href="/admin/view/users/">{{ fluent(key="list-users", lang=user.language) }}</a></li>{% endif %}
+            <li style="float:right"><a href="/admin/logout/">{{ fluent(key="logout", lang=user.language) }}</a></li>
+            <li style="float:right">
+                <div class="willkommen">{{ fluent(key="welcome-user", lang=user.language, username=user.username) }}
+                </div>
+            </li>
+            <li style="float:right"><a href="/admin/edit/set_language/en">en</a></li>
+            <li style="float:right"><a href="/admin/edit/set_language/de">de</a></li>
         </ol>
     </nav>
     {% block admin %}

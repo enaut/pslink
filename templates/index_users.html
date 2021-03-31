@@ -11,13 +11,16 @@
 
         <tr>
             <th>
-                Kürzel
+                {{ fluent(key="userid", lang=user.language)
+                }}
             </th>
             <th>
-                Emailadresse
+                {{ fluent(key="email", lang=user.language)
+                }}
             </th>
             <th>
-                Benutzername
+                {{ fluent(key="username", lang=user.language)
+                }}
             </th>
         </tr>
         {% for user in users %}
