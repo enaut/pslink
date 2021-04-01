@@ -10,7 +10,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{models::NewUser, models::User, ServerConfig, ServerError};
+use pslink::{models::NewUser, models::User, ServerConfig, ServerError};
 
 use slog::{Drain, Logger};
 
@@ -192,7 +192,7 @@ async fn parse_args_to_config(config: ArgMatches<'_>, log: Logger) -> ServerConf
     let protocol = config
         .value_of("protocol")
         .expect("Failed to read the protocol value")
-        .parse::<crate::Protocol>()
+        .parse::<pslink::Protocol>()
         .expect("Failed to parse the protocol");
 
     let log = log.new(slog_o!("host" => public_url.clone()));

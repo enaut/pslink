@@ -30,7 +30,10 @@ impl Role {
 }
 
 /// queries the user matching the given [`actix_identity::Identity`] and determins its authentication and permission level. Returns a [`Role`] containing the user if it is authenticated.
-pub(crate) async fn authenticate(
+///
+/// # Errors
+/// Fails only if there are issues using the database.
+pub async fn authenticate(
     id: &Identity,
     server_config: &ServerConfig,
 ) -> Result<Role, ServerError> {
@@ -62,7 +65,10 @@ pub struct FullLink {
 }
 
 /// Returns a List of `FullLink` meaning `Links` enriched by their author and statistics. This returns all links if the user is either Admin or Regular user.
-pub(crate) async fn list_all_allowed(
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails.
+pub async fn list_all_allowed(
     id: &Identity,
     server_config: &ServerConfig,
 ) -> Result<List<FullLink>, ServerError> {
@@ -126,7 +132,10 @@ pub(crate) async fn list_all_allowed(
 }
 
 /// Only admins can list all users
-pub(crate) async fn list_users(
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+pub async fn list_users(
     id: &Identity,
     server_config: &ServerConfig,
 ) -> Result<List<User>, ServerError> {
@@ -151,7 +160,11 @@ pub struct Item<T> {
 }
 
 /// Get a user if permissions are accordingly
-pub(crate) async fn get_user(
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[allow(clippy::clippy::missing_panics_doc)]
+pub async fn get_user(
     id: &Identity,
     user_id: &str,
     server_config: &ServerConfig,
@@ -181,7 +194,10 @@ pub(crate) async fn get_user(
 }
 
 /// Get a user **without permission checks** (needed for login)
-pub(crate) async fn get_user_by_name(
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails.
+pub async fn get_user_by_name(
     username: &str,
     server_config: &ServerConfig,
 ) -> Result<User, ServerError> {
@@ -189,7 +205,11 @@ pub(crate) async fn get_user_by_name(
     Ok(user)
 }
 
-pub(crate) async fn create_user(
+/// Create a new user and save it to the database
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails, this user does not have permissions or the user already exists.
+pub async fn create_user(
     id: &Identity,
     data: &web::Form<NewUser>,
     server_config: &ServerConfig,
@@ -222,7 +242,11 @@ pub(crate) async fn create_user(
 /// Take a [`actix_web::web::Form<NewUser>`] and update the corresponding entry in the database.
 /// The password is only updated if a new password of at least 4 characters is provided.
 /// The `user_id` is never changed.
-pub(crate) async fn update_user(
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails, this user does not have permissions, or the given data is malformed.
+#[allow(clippy::clippy::missing_panics_doc)]
+pub async fn update_user(
     id: &Identity,
     user_id: &str,
     server_config: &ServerConfig,
@@ -266,8 +290,11 @@ pub(crate) async fn update_user(
         Err(ServerError::User("Permission denied".to_owned()))
     }
 }
-
-pub(crate) async fn toggle_admin(
+/// Demote an admin user to a normal user or promote a normal user to admin privileges.
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails, this user does not have permissions or the user does not exist.
+pub async fn toggle_admin(
     id: &Identity,
     user_id: &str,
     server_config: &ServerConfig,
@@ -305,7 +332,11 @@ pub(crate) async fn toggle_admin(
     }
 }
 
-pub(crate) async fn set_language(
+/// Set the language of a given user
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails, this user does not have permissions or the language given is invalid.
+pub async fn set_language(
     id: &Identity,
     lang_code: &str,
     server_config: &ServerConfig,
@@ -326,7 +357,10 @@ pub(crate) async fn set_language(
 }
 
 /// Get one link if permissions are accordingly.
-pub(crate) async fn get_link(
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+pub async fn get_link(
     id: &Identity,
     link_code: &str,
     server_config: &ServerConfig,
@@ -341,7 +375,10 @@ pub(crate) async fn get_link(
 }
 
 /// Get link **without authentication**
-pub(crate) async fn get_link_simple(
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails.
+pub async fn get_link_simple(
     link_code: &str,
     server_config: &ServerConfig,
 ) -> Result<Link, ServerError> {
@@ -351,19 +388,23 @@ pub(crate) async fn get_link_simple(
     slog_info!(server_config.log, "Foun d link for {:?}", link);
     Ok(link)
 }
+
 /// Click on a link
-pub(crate) async fn click_link(
-    link_id: i64,
-    server_config: &ServerConfig,
-) -> Result<(), ServerError> {
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails.
+pub async fn click_link(link_id: i64, server_config: &ServerConfig) -> Result<(), ServerError> {
     slog_info!(server_config.log, "Clicking on {:?}", link_id);
     let new_click = NewClick::new(link_id);
     new_click.insert_click(server_config).await?;
     Ok(())
 }
 
-/// Click on a link
-pub(crate) async fn delete_link(
+/// Delete a link
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+pub async fn delete_link(
     id: &Identity,
     link_code: &str,
     server_config: &ServerConfig,
@@ -379,7 +420,10 @@ pub(crate) async fn delete_link(
 }
 
 /// Update a link if the user is admin or it is its own link.
-pub(crate) async fn update_link(
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+pub async fn update_link(
     id: &Identity,
     link_code: &str,
     data: web::Form<LinkForm>,
@@ -415,7 +459,11 @@ pub(crate) async fn update_link(
     }
 }
 
-pub(crate) async fn create_link(
+/// Create a new link
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+pub async fn create_link(
     id: &Identity,
     data: web::Form<LinkForm>,
     server_config: &ServerConfig,
