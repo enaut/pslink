@@ -15,10 +15,10 @@ use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use tera::{Context, Tera};
 
-use super::forms::LinkForm;
-use super::models::{LoginUser, NewUser};
-use crate::queries;
-use crate::ServerError;
+use pslink::forms::LinkForm;
+use pslink::models::{LoginUser, NewUser};
+use pslink::queries;
+use pslink::ServerError;
 
 fn redirect_builder(target: &str) -> HttpResponse {
     HttpResponse::SeeOther()
@@ -62,7 +62,7 @@ fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
 }
 
 /// Show the list of all available links if a user is authenticated
-pub(crate) async fn index(
+pub async fn index(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -80,7 +80,7 @@ pub(crate) async fn index(
 }
 
 /// Show the list of all available links if a user is authenticated
-pub(crate) async fn index_users(
+pub async fn index_users(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -97,7 +97,7 @@ pub(crate) async fn index_users(
         Ok(redirect_builder("/admin/login"))
     }
 }
-pub(crate) async fn view_link_empty(
+pub async fn view_link_empty(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -105,7 +105,7 @@ pub(crate) async fn view_link_empty(
     view_link(tera, config, id, web::Path::from("".to_owned())).await
 }
 
-pub(crate) async fn view_link(
+pub async fn view_link(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -144,7 +144,7 @@ pub(crate) async fn view_link(
     }
 }
 
-pub(crate) async fn view_profile(
+pub async fn view_profile(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -171,7 +171,7 @@ pub(crate) async fn view_profile(
     }
 }
 
-pub(crate) async fn edit_profile(
+pub async fn edit_profile(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -197,7 +197,7 @@ pub(crate) async fn edit_profile(
     }
 }
 
-pub(crate) async fn process_edit_profile(
+pub async fn process_edit_profile(
     data: web::Form<NewUser>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -213,7 +213,7 @@ pub(crate) async fn process_edit_profile(
     }
 }
 
-pub(crate) async fn download_png(
+pub async fn download_png(
     id: Identity,
     config: web::Data<crate::ServerConfig>,
     link_code: web::Path<String>,
@@ -237,7 +237,7 @@ pub(crate) async fn download_png(
     }
 }
 
-pub(crate) async fn signup(
+pub async fn signup(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -257,7 +257,7 @@ pub(crate) async fn signup(
     }
 }
 
-pub(crate) async fn process_signup(
+pub async fn process_signup(
     data: web::Form<NewUser>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -270,7 +270,7 @@ pub(crate) async fn process_signup(
     }
 }
 
-pub(crate) async fn toggle_admin(
+pub async fn toggle_admin(
     data: web::Path<String>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -282,7 +282,7 @@ pub(crate) async fn toggle_admin(
     )))
 }
 
-pub(crate) async fn set_language(
+pub async fn set_language(
     data: web::Path<String>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -291,7 +291,7 @@ pub(crate) async fn set_language(
     Ok(redirect_builder("/admin/index/"))
 }
 
-pub(crate) async fn login(
+pub async fn login(
     tera: web::Data<Tera>,
     id: Identity,
     config: web::Data<crate::ServerConfig>,
@@ -311,7 +311,7 @@ pub(crate) async fn login(
     Ok(HttpResponse::Ok().body(rendered))
 }
 
-pub(crate) async fn process_login(
+pub async fn process_login(
     data: web::Form<LoginUser>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -343,12 +343,12 @@ pub(crate) async fn process_login(
     }
 }
 
-pub(crate) async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
+pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
     id.forget();
     Ok(redirect_builder("/admin/login/"))
 }
 
-pub(crate) async fn redirect(
+pub async fn redirect(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     data: web::Path<String>,
@@ -381,13 +381,13 @@ pub(crate) async fn redirect(
     }
 }
 
-pub(crate) async fn redirect_empty(
+pub async fn redirect_empty(
     config: web::Data<crate::ServerConfig>,
 ) -> Result<HttpResponse, ServerError> {
     Ok(redirect_builder(&config.empty_forward_url))
 }
 
-pub(crate) async fn create_link(
+pub async fn create_link(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -407,7 +407,7 @@ pub(crate) async fn create_link(
     }
 }
 
-pub(crate) async fn process_link_creation(
+pub async fn process_link_creation(
     data: web::Form<LinkForm>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -419,7 +419,7 @@ pub(crate) async fn process_link_creation(
     )))
 }
 
-pub(crate) async fn edit_link(
+pub async fn edit_link(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -436,7 +436,7 @@ pub(crate) async fn edit_link(
     }
     Ok(redirect_builder("/admin/login/"))
 }
-pub(crate) async fn process_link_edit(
+pub async fn process_link_edit(
     data: web::Form<LinkForm>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
@@ -451,7 +451,7 @@ pub(crate) async fn process_link_edit(
     }
 }
 
-pub(crate) async fn process_link_delete(
+pub async fn process_link_delete(
     id: Identity,
     config: web::Data<crate::ServerConfig>,
     link_code: web::Path<String>,

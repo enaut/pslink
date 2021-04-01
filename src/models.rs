@@ -24,7 +24,12 @@ impl User {
             .await;
         user.map_err(ServerError::Database)
     }
-    pub(crate) async fn get_user_by_name(
+
+    /// get a user by its username
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the user does not exist or the database cannot be acessed.
+    pub async fn get_user_by_name(
         name: &str,
         server_config: &ServerConfig,
     ) -> Result<Self, ServerError> {
@@ -63,11 +68,11 @@ impl User {
         .await?;
         Ok(())
     }
-
-    pub(crate) async fn toggle_admin(
-        self,
-        server_config: &ServerConfig,
-    ) -> Result<(), ServerError> {
+    /// Change an admin user to normal user and a normal user to admin
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed. (the user should exist)
+    pub async fn toggle_admin(self, server_config: &ServerConfig) -> Result<(), ServerError> {
         let new_role = 2 - (self.role + 1) % 2;
         sqlx::query!("UPDATE users SET role = ? where id = ?", new_role, self.id)
             .execute(&server_config.db_pool)
@@ -90,7 +95,13 @@ impl User {
         Ok(())
     }
 
-    pub(crate) async fn count_admins(server_config: &ServerConfig) -> Result<Count, ServerError> {
+    /// Count the admin accounts
+    ///
+    /// this is usefull for determining if any admins exist at all.
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed.
+    pub async fn count_admins(server_config: &ServerConfig) -> Result<Count, ServerError> {
         let num = sqlx::query_as!(Count, "select count(*) as number from users where role = 2")
             .fetch_one(&server_config.db_pool)
             .await?;
@@ -106,7 +117,11 @@ pub struct NewUser {
 }
 
 impl NewUser {
-    pub(crate) fn new(
+    /// Create a new user that can then be inserted in the database
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the password could not be encrypted.
+    pub fn new(
         username: String,
         email: String,
         password: &str,
@@ -136,10 +151,11 @@ impl NewUser {
 
         Ok(hash)
     }
-    pub(crate) async fn insert_user(
-        &self,
-        server_config: &ServerConfig,
-    ) -> Result<(), ServerError> {
+    /// Insert this user into the database
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed.
+    pub async fn insert_user(&self, server_config: &ServerConfig) -> Result<(), ServerError> {
         sqlx::query!(
             "Insert into users (
             username,
