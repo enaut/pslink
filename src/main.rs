@@ -64,7 +64,7 @@ impl actix_web::error::ResponseError for ServerError {
         match self {
             Self::Argonautic => HttpResponse::InternalServerError().json("Argonautica Error"),
             Self::Database(e) => {
-                HttpResponse::InternalServerError().json(format!("Diesel Error: {:?}", e))
+                HttpResponse::InternalServerError().json(format!("Database Error: {:?}", e))
             }
             Self::DatabaseMigration(_) => {
                 unimplemented!("A migration error should never be rendered")
