@@ -24,47 +24,44 @@ use actix_web::HttpResponse;
 
 use qrcode::types::QrError;
 use sqlx::{Pool, Sqlite};
-
-#[derive(Debug)]
+use thiserror::Error;
+#[derive(Error, Debug)]
 pub enum ServerError {
-    Argonautic,
-    Database(sqlx::Error),
-    DatabaseMigration(sqlx::migrate::MigrateError),
-    Environment,
-    Template(tera::Error),
-    Qr(QrError),
-    Io(std::io::Error),
+    #[error("Failed to encrypt the password {0} - aborting!")]
+    Argonautica(argonautica::Error),
+    #[error("The database could not be used: {0}")]
+    Database(#[from] sqlx::Error),
+    #[error("The database could not be migrated: {0}")]
+    DatabaseMigration(#[from] sqlx::migrate::MigrateError),
+    #[error("The environment file could not be read")]
+    Environment(#[from] std::env::VarError),
+    #[error("The templates could not be rendered correctly: {0}")]
+    Template(#[from] tera::Error),
+    #[error("The qr-code could not be generated: {0}")]
+    Qr(#[from] QrError),
+    #[error("Some error happened during input and output: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Error: {0}")]
     User(String),
 }
 
-impl std::fmt::Display for ServerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Argonautic => write!(f, "Argonautica Error"),
-            Self::Database(e) => write!(f, "Database Error: {}", e),
-            Self::DatabaseMigration(e) => {
-                write!(f, "Migration Error: {}", e)
-            }
-            Self::Environment => write!(f, "Environment Error"),
-            Self::Template(e) => write!(f, "Template Error: {:?}", e),
-            Self::Qr(e) => write!(f, "Qr Code Error: {:?}", e),
-            Self::Io(e) => write!(f, "IO Error: {:?}", e),
-            Self::User(data) => write!(f, "{}", data),
-        }
+impl From<argonautica::Error> for ServerError {
+    fn from(e: argonautica::Error) -> Self {
+        Self::Argonautica(e)
     }
 }
 
 impl actix_web::error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            Self::Argonautic => HttpResponse::InternalServerError().json("Argonautica Error"),
+            Self::Argonautica(_) => HttpResponse::InternalServerError().json("Argonautica Error"),
             Self::Database(e) => {
                 HttpResponse::InternalServerError().json(format!("Database Error: {:?}", e))
             }
             Self::DatabaseMigration(_) => {
                 unimplemented!("A migration error should never be rendered")
             }
-            Self::Environment => HttpResponse::InternalServerError().json("Environment Error"),
+            Self::Environment(_) => HttpResponse::InternalServerError().json("Environment Error"),
             Self::Template(e) => {
                 HttpResponse::InternalServerError().json(format!("Template Error: {:?}", e))
             }
@@ -74,51 +71,6 @@ impl actix_web::error::ResponseError for ServerError {
             Self::Io(e) => HttpResponse::InternalServerError().json(format!("IO Error: {:?}", e)),
             Self::User(data) => HttpResponse::InternalServerError().json(data),
         }
-    }
-}
-
-impl From<std::env::VarError> for ServerError {
-    fn from(e: std::env::VarError) -> Self {
-        eprintln!("Environment error {:?}", e);
-        Self::Environment
-    }
-}
-
-impl From<sqlx::Error> for ServerError {
-    fn from(err: sqlx::Error) -> Self {
-        eprintln!("Database error {:?}", err);
-        Self::Database(err)
-    }
-}
-impl From<sqlx::migrate::MigrateError> for ServerError {
-    fn from(err: sqlx::migrate::MigrateError) -> Self {
-        eprintln!("Database error {:?}", err);
-        Self::DatabaseMigration(err)
-    }
-}
-
-impl From<argonautica::Error> for ServerError {
-    fn from(e: argonautica::Error) -> Self {
-        eprintln!("Authentication error {:?}", e);
-        Self::Argonautic
-    }
-}
-impl From<tera::Error> for ServerError {
-    fn from(e: tera::Error) -> Self {
-        eprintln!("Template error {:?}", e);
-        Self::Template(e)
-    }
-}
-impl From<QrError> for ServerError {
-    fn from(e: QrError) -> Self {
-        eprintln!("Template error {:?}", e);
-        Self::Qr(e)
-    }
-}
-impl From<std::io::Error> for ServerError {
-    fn from(e: std::io::Error) -> Self {
-        eprintln!("IO error {:?}", e);
-        Self::Io(e)
     }
 }
 
