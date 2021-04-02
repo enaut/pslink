@@ -151,6 +151,7 @@ impl NewUser {
 
         Ok(hash)
     }
+
     /// Insert this user into the database
     ///
     /// # Errors

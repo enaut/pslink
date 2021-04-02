@@ -96,12 +96,18 @@
           "name": "role",
           "ordinal": 4,
           "type_info": "Int64"
+        },
+        {
+          "name": "language",
+          "ordinal": 5,
+          "type_info": "Text"
         }
       ],
       "parameters": {
         "Right": 1
       },
       "nullable": [
+        false,
         false,
         false,
         false,
@@ -138,12 +144,18 @@
           "name": "role",
           "ordinal": 4,
           "type_info": "Int64"
+        },
+        {
+          "name": "language",
+          "ordinal": 5,
+          "type_info": "Text"
         }
       ],
       "parameters": {
         "Right": 0
       },
       "nullable": [
+        false,
         false,
         false,
         false,
@@ -230,12 +242,18 @@
           "name": "role",
           "ordinal": 4,
           "type_info": "Int64"
+        },
+        {
+          "name": "language",
+          "ordinal": 5,
+          "type_info": "Text"
         }
       ],
       "parameters": {
         "Right": 1
       },
       "nullable": [
+        false,
         false,
         false,
         false,
@@ -260,6 +278,16 @@
       "nullable": [
         false
       ]
+    }
+  },
+  "ba18635aa20b30d92172fa60fa22c6dba7e5cb2f57106e9d13cdab556af80fd3": {
+    "query": "UPDATE users SET language = ? where id = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 2
+      },
+      "nullable": []
     }
   }
 }

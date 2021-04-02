@@ -36,6 +36,7 @@ clap = "2.33"
 fluent-templates = { version = "0.6", features = ["tera"] }
 fluent-langneg = "0.13"
 thiserror = "1.0"
+anyhow = "1.0"
 
 [build-dependencies]
 actix-web-static-files = "3.0"
