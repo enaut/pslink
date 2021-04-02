@@ -16,13 +16,14 @@ extern crate slog_async;
 
 mod cli;
 mod views;
-use pslink::ServerConfig;
 
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpServer};
-
+use anyhow::{Context, Result};
 use fluent_templates::{static_loader, FluentLoader};
 use tera::Tera;
+
+use pslink::{ServerConfig, ServerError};
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
@@ -33,7 +34,7 @@ static_loader! {
     };
 }
 
-fn build_tera() -> Tera {
+fn build_tera() -> Result<Tera> {
     let mut tera = Tera::default();
 
     // Add translation support
@@ -77,12 +78,12 @@ fn build_tera() -> Tera {
             include_str!("../../../templates/view_profile.html"),
         ),
     ])
-    .expect("failed to parse templates");
-    tera
+    .context("Failed to load Templates")?;
+    Ok(tera)
 }
 
 #[allow(clippy::future_not_send)]
-async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
+async fn webservice(server_config: ServerConfig) -> Result<()> {
     let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
 
     slog_info!(
@@ -185,15 +186,21 @@ async fn webservice(server_config: ServerConfig) -> std::io::Result<()> {
             // redirect to the url hidden behind the code
             .route("/{redirect_id}", web::get().to(views::redirect))
     })
-    .bind(host_port)?
+    .bind(host_port)
+    .context("Failed to bind to port")?
     .run()
     .await
+    .context("Failed to run the webservice")
 }
 
 #[actix_web::main]
-async fn main() -> Result<(), std::io::Error> {
+async fn main() -> std::result::Result<(), ServerError> {
     match cli::setup().await {
-        Ok(Some(server_config)) => webservice(server_config).await,
+        Ok(Some(server_config)) => webservice(server_config).await.map_err(|e| {
+            println!("{:?}", e);
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::process::exit(0);
+        }),
         Ok(None) => {
             std::thread::sleep(std::time::Duration::from_millis(100));
             std::process::exit(0);
