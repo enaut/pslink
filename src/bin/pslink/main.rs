@@ -2,6 +2,7 @@ extern crate sqlx;
 #[allow(unused_imports)]
 #[macro_use(
     slog_o,
+    slog_trace,
     slog_info,
     slog_warn,
     slog_error,
@@ -82,25 +83,26 @@ fn build_tera() -> Result<Tera> {
     Ok(tera)
 }
 
-#[allow(clippy::future_not_send)]
+#[allow(clippy::future_not_send, clippy::too_many_lines)]
 async fn webservice(server_config: ServerConfig) -> Result<()> {
     let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
-
+    let cfg = server_config.clone();
     slog_info!(
-        server_config.log,
+        cfg.log,
         "Running on: {}://{}/admin/login/",
         &server_config.protocol,
         host_port
     );
     slog_info!(
-        server_config.log,
+        cfg.log,
         "If the public url is set up correctly it should be accessible via: {}://{}/admin/login/",
         &server_config.protocol,
         &server_config.public_url
     );
+    let tera = build_tera()?;
+    slog_trace!(cfg.log, "The tera templates are ready");
 
     HttpServer::new(move || {
-        let tera = build_tera(); //Tera::new("templates/**/*").expect("failed to initialize the templates");
         let generated = generate();
         App::new()
             .data(server_config.clone())
@@ -112,7 +114,7 @@ async fn webservice(server_config: ServerConfig) -> Result<()> {
                     .name("auth-cookie")
                     .secure(false),
             ))
-            .data(tera)
+            .data(tera.clone())
             .service(actix_web_static_files::ResourceFiles::new(
                 "/static", generated,
             ))
@@ -187,7 +189,11 @@ async fn webservice(server_config: ServerConfig) -> Result<()> {
             .route("/{redirect_id}", web::get().to(views::redirect))
     })
     .bind(host_port)
-    .context("Failed to bind to port")?
+    .context("Failed to bind to port")
+    .map_err(|e| {
+        slog_error!(cfg.log, "Failed to bind to port!");
+        e
+    })?
     .run()
     .await
     .context("Failed to run the webservice")

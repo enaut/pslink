@@ -51,25 +51,86 @@ impl From<argonautica::Error> for ServerError {
     }
 }
 
+impl ServerError {
+    fn render_error(title: &str, content: &str) -> String {
+        format!(
+            "<!DOCTYPE html>
+        <html lang=\"en\">
+        <head>
+            <meta charset=\"utf-8\">
+            <title>{0}</title>
+            <meta name=\"author\" content=\"Franz Dietrich\">
+            <meta http-equiv=\"robots\" content=\"[noindex|nofollow]\">
+            <link rel=\"stylesheet\" href=\"/static/style.css\">
+        </head>
+        <body>
+        <section class=\"centered\">
+        <h1>{0}</h1>
+        <div class=\"container\">
+          {1}
+        </div>
+      </section>
+      </body>
+      </html>",
+            title, content
+        )
+    }
+}
+
 impl actix_web::error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            Self::Argonautica(_) => HttpResponse::InternalServerError().json("Argonautica Error"),
-            Self::Database(e) => {
-                HttpResponse::InternalServerError().json(format!("Database Error: {:?}", e))
+            Self::Argonautica(e) => {
+                eprintln!("Argonautica Error happened: {:?}", e);
+                HttpResponse::InternalServerError()
+                    .body("Failed to encrypt the password - Aborting!")
             }
-            Self::DatabaseMigration(_) => {
+            Self::Database(e) => {
+                eprintln!("Database Error happened: {:?}", e);
+                HttpResponse::InternalServerError().body(&Self::render_error(
+                    "Server Error",
+                    "Database could not be accessed! - It could be that this value already was in the database! If you are the admin look into the logs for a more detailed error.",
+                ))
+            }
+            Self::DatabaseMigration(e) => {
+                eprintln!("Migration Error happened: {:?}", e);
                 unimplemented!("A migration error should never be rendered")
             }
-            Self::Environment(_) => HttpResponse::InternalServerError().json("Environment Error"),
+            Self::Environment(e) => {
+                eprintln!("Environment Error happened: {:?}", e);
+                HttpResponse::InternalServerError().body(&Self::render_error(
+                  "Server Error",
+                  "This Server is not properly configured, if you are the admin look into the installation- or update instructions!",
+              ))
+            }
             Self::Template(e) => {
-                HttpResponse::InternalServerError().json(format!("Template Error: {:?}", e))
+                eprintln!("Template Error happened: {:?}", e);
+                HttpResponse::InternalServerError().body(&Self::render_error(
+                    "Server Error",
+                    "The templates could not be rendered.",
+                ))
             }
             Self::Qr(e) => {
-                HttpResponse::InternalServerError().json(format!("Qr Code Error: {:?}", e))
+                eprintln!("QR Error happened: {:?}", e);
+                HttpResponse::InternalServerError().body(&Self::render_error(
+                    "Server Error",
+                    "Could not generate the QR-code!",
+                ))
             }
-            Self::Io(e) => HttpResponse::InternalServerError().json(format!("IO Error: {:?}", e)),
-            Self::User(data) => HttpResponse::InternalServerError().json(data),
+            Self::Io(e) => {
+                eprintln!("Io Error happened: {:?}", e);
+                HttpResponse::InternalServerError().body(&Self::render_error(
+                    "Server Error",
+                    "Some Files could not be read or written. If you are the admin look into the logfiles for more details.",
+                ))
+            }
+            Self::User(data) => {
+                eprintln!("User Error happened: {:?}", data);
+                HttpResponse::InternalServerError().body(&Self::render_error(
+                    "Server Error",
+                    &format!("An error happened: {}", data),
+                ))
+            }
         }
     }
 }
