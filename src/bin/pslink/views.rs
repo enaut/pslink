@@ -13,6 +13,7 @@ use fluent_langneg::{
 use fluent_templates::LanguageIdentifier;
 use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
+use queries::{authenticate, Role};
 use tera::{Context, Tera};
 
 use pslink::forms::LinkForm;
@@ -57,14 +58,13 @@ fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
     let languagecode = supported
         .get(0)
         .map_or("en".to_string(), std::string::ToString::to_string);
-    println!("Detected the language: {}", &languagecode);
     Ok(languagecode)
 }
 
 /// Show the list of all available links if a user is authenticated
 pub async fn index(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     if let Ok(links) = queries::list_all_allowed(&id, &config).await {
@@ -82,7 +82,7 @@ pub async fn index(
 /// Show the list of all available links if a user is authenticated
 pub async fn index_users(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     if let Ok(users) = queries::list_users(&id, &config).await {
@@ -99,7 +99,7 @@ pub async fn index_users(
 }
 pub async fn view_link_empty(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     view_link(tera, config, id, web::Path::from("".to_owned())).await
@@ -107,7 +107,7 @@ pub async fn view_link_empty(
 
 pub async fn view_link(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
     link_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -146,7 +146,7 @@ pub async fn view_link(
 
 pub async fn view_profile(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -173,7 +173,7 @@ pub async fn view_profile(
 
 pub async fn edit_profile(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -199,7 +199,7 @@ pub async fn edit_profile(
 
 pub async fn process_edit_profile(
     data: web::Form<NewUser>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -215,7 +215,7 @@ pub async fn process_edit_profile(
 
 pub async fn download_png(
     id: Identity,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
     match queries::get_link(&id, &link_code.0, &config).await {
@@ -239,7 +239,7 @@ pub async fn download_png(
 
 pub async fn signup(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     match queries::authenticate(&id, &config).await? {
@@ -259,7 +259,7 @@ pub async fn signup(
 
 pub async fn process_signup(
     data: web::Form<NewUser>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     slog_info!(config.log, "Creating a User: {:?}", &data);
@@ -272,7 +272,7 @@ pub async fn process_signup(
 
 pub async fn toggle_admin(
     data: web::Path<String>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     let update = queries::toggle_admin(&id, &data.0, &config).await?;
@@ -284,7 +284,7 @@ pub async fn toggle_admin(
 
 pub async fn set_language(
     data: web::Path<String>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     queries::set_language(&id, &data.0, &config).await?;
@@ -294,7 +294,7 @@ pub async fn set_language(
 pub async fn login(
     tera: web::Data<Tera>,
     id: Identity,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
     let language_code = detect_language(&req)?;
@@ -303,8 +303,22 @@ pub async fn login(
     data.insert("title", "Login");
     data.insert("language", &language_code);
 
-    if let Some(_id) = id.identity() {
-        return Ok(redirect_builder("/admin/index/"));
+    if id.identity().is_some() {
+        if let Ok(r) = authenticate(&id, &config).await {
+            match r {
+                Role::Admin { user } | Role::Regular { user } => {
+                    slog_trace!(
+                        config.log,
+                        "This user ({}) is already logged in redirecting to /admin/index/",
+                        user.username
+                    );
+                    return Ok(redirect_builder("/admin/index/"));
+                }
+                Role::Disabled | Role::NotAuthenticated => (),
+            }
+        }
+        slog_warn!(config.log, "Invalid user session. The user might be deleted or something tampered with the cookies.");
+        id.forget();
     }
 
     let rendered = tera.render("login.html", &data)?;
@@ -313,7 +327,7 @@ pub async fn login(
 
 pub async fn process_login(
     data: web::Form<LoginUser>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     let user = queries::get_user_by_name(&data.username, &config).await;
@@ -350,7 +364,7 @@ pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
 
 pub async fn redirect(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     data: web::Path<String>,
     req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
@@ -382,14 +396,14 @@ pub async fn redirect(
 }
 
 pub async fn redirect_empty(
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
 ) -> Result<HttpResponse, ServerError> {
     Ok(redirect_builder(&config.empty_forward_url))
 }
 
 pub async fn create_link(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     match queries::authenticate(&id, &config).await? {
@@ -409,7 +423,7 @@ pub async fn create_link(
 
 pub async fn process_link_creation(
     data: web::Form<LinkForm>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     let new_link = queries::create_link(&id, data, &config).await?;
@@ -421,7 +435,7 @@ pub async fn process_link_creation(
 
 pub async fn edit_link(
     tera: web::Data<Tera>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
     link_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -438,7 +452,7 @@ pub async fn edit_link(
 }
 pub async fn process_link_edit(
     data: web::Form<LinkForm>,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     id: Identity,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -453,7 +467,7 @@ pub async fn process_link_edit(
 
 pub async fn process_link_delete(
     id: Identity,
-    config: web::Data<crate::ServerConfig>,
+    config: web::Data<pslink::ServerConfig>,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
     queries::delete_link(&id, &link_code.0, &config).await?;

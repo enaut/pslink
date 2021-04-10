@@ -223,7 +223,7 @@ pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> 
 
     // Print launch info
     slog_info!(log, "Launching Pslink a 'Private short link generator'");
-    slog_info!(log, "logging initialized");
+    slog_trace!(log, "logging initialized");
 
     let app = generate_cli();
 
@@ -239,6 +239,7 @@ pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> 
         .parse::<PathBuf>()
         .expect("Failed to parse Database path.");
     if !db.exists() {
+        slog_trace!(log, "No database file found {}", db.display());
         if config.subcommand_matches("migrate-database").is_none() {
             let msg = format!(
                 concat!(
@@ -252,8 +253,9 @@ pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> 
             eprintln!("{}", msg);
             return Ok(None);
         }
+        slog_trace!(log, "Creating database: {}", db.display());
 
-        // create an empty database file the if above makes sure that this file does not exist.
+        // create an empty database file. The if above makes sure that this file does not exist.
         File::create(db)?;
     };
 
@@ -290,8 +292,10 @@ pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> 
                     " Create a user with `pslink create-admin`"
                 )
             );
+        } else {
+            slog_trace!(&server_config.log, "At least one admin user is found.");
         }
-        slog_info!(
+        slog_trace!(
             &server_config.log,
             "Initialization finished starting the service."
         );
