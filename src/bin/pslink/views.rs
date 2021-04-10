@@ -203,14 +203,11 @@ pub async fn process_edit_profile(
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    if let Ok(query) = queries::update_user(&id, &user_id.0, &config, &data).await {
-        Ok(redirect_builder(&format!(
-            "admin/view/profile/{}",
-            query.user.username
-        )))
-    } else {
-        Ok(redirect_builder("/admin/index/"))
-    }
+    let query = queries::update_user(&id, &user_id.0, &config, &data).await?;
+    Ok(redirect_builder(&format!(
+        "admin/view/profile/{}",
+        query.user.username
+    )))
 }
 
 pub async fn download_png(
@@ -263,10 +260,11 @@ pub async fn process_signup(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     slog_info!(config.log, "Creating a User: {:?}", &data);
-    if let Ok(item) = queries::create_user(&id, &data, &config).await {
-        Ok(HttpResponse::Ok().body(format!("Successfully saved user: {}", item.item.username)))
-    } else {
-        Ok(redirect_builder("/admin/login/"))
+    match queries::create_user(&id, &data, &config).await {
+        Ok(item) => {
+            Ok(HttpResponse::Ok().body(format!("Successfully saved user: {}", item.item.username)))
+        }
+        Err(e) => Err(e),
     }
 }
 
