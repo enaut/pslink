@@ -197,7 +197,7 @@ impl Link {
         let link = sqlx::query_as!(Self, "Select * from links where code = ? ", code)
             .fetch_one(&server_config.db_pool)
             .await;
-        slog_info!(server_config.log, "Found link: {:?}", &link);
+        tracing::info!("Found link: {:?}", &link);
         link.map_err(ServerError::Database)
     }
 

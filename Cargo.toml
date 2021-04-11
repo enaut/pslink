@@ -25,9 +25,11 @@ dotenv = "0.15.0"
 actix-identity = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 argonautica = "0.2"
-slog = { version = "2", features = ["max_level_trace", "release_max_level_info"] }
-slog-term = "2"
-slog-async = "2"
+tracing = { version = "0.1", features = ["log"] }
+tracing-bunyan-formatter = "0.2.0"
+tracing-subscriber = { version = "0.2.12", features = ["registry", "env-filter"] }
+tracing-log = "0.1"
+tracing-actix-web = "0.2.1"
 qrcode = "0.12"
 image = "0.23"
 rand="0.8"
