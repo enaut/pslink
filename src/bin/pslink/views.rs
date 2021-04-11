@@ -15,6 +15,7 @@ use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use queries::{authenticate, Role};
 use tera::{Context, Tera};
+use tracing::{info, trace, warn};
 
 use pslink::forms::LinkForm;
 use pslink::models::{LoginUser, NewUser};
@@ -150,7 +151,7 @@ pub async fn view_profile(
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    slog_info!(config.log, "Viewing Profile!");
+    info!("Viewing Profile!");
     if let Ok(query) = queries::get_user(&id, &user_id.0, &config).await {
         let mut data = Context::new();
         data.insert("user", &query.user);
@@ -177,7 +178,7 @@ pub async fn edit_profile(
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    slog_info!(config.log, "Editing Profile!");
+    info!("Editing Profile!");
     if let Ok(query) = queries::get_user(&id, &user_id.0, &config).await {
         let mut data = Context::new();
         data.insert("user", &query.user);
@@ -259,7 +260,7 @@ pub async fn process_signup(
     config: web::Data<pslink::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    slog_info!(config.log, "Creating a User: {:?}", &data);
+    info!("Creating a User: {:?}", &data);
     match queries::create_user(&id, &data, &config).await {
         Ok(item) => {
             Ok(HttpResponse::Ok().body(format!("Successfully saved user: {}", item.item.username)))
@@ -296,7 +297,7 @@ pub async fn login(
     req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
     let language_code = detect_language(&req)?;
-    slog_info!(config.log, "Detected languagecode: {}", &language_code);
+    info!("Detected languagecode: {}", &language_code);
     let mut data = Context::new();
     data.insert("title", "Login");
     data.insert("language", &language_code);
@@ -305,8 +306,7 @@ pub async fn login(
         if let Ok(r) = authenticate(&id, &config).await {
             match r {
                 Role::Admin { user } | Role::Regular { user } => {
-                    slog_trace!(
-                        config.log,
+                    trace!(
                         "This user ({}) is already logged in redirecting to /admin/index/",
                         user.username
                     );
@@ -315,7 +315,7 @@ pub async fn login(
                 Role::Disabled | Role::NotAuthenticated => (),
             }
         }
-        slog_warn!(config.log, "Invalid user session. The user might be deleted or something tampered with the cookies.");
+        warn!("Invalid user session. The user might be deleted or something tampered with the cookies.");
         id.forget();
     }
 
@@ -340,7 +340,7 @@ pub async fn process_login(
                 .verify()?;
 
             if valid {
-                slog_info!(config.log, "Log-in of user: {}", &u.username);
+                info!("Log-in of user: {}", &u.username);
                 let session_token = u.username;
                 id.remember(session_token);
                 Ok(redirect_builder("/admin/index/"))
@@ -349,7 +349,7 @@ pub async fn process_login(
             }
         }
         Err(e) => {
-            slog_info!(config.log, "Failed to login: {}", e);
+            info!("Failed to login: {}", e);
             Ok(redirect_builder("/admin/login/"))
         }
     }
@@ -366,21 +366,18 @@ pub async fn redirect(
     data: web::Path<String>,
     req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
-    slog_info!(config.log, "Redirecting to {:?}", data);
+    info!("Redirecting to {:?}", data);
     let link = queries::get_link_simple(&data.0, &config).await;
-    slog_info!(config.log, "link: {:?}", link);
+    info!("link: {:?}", link);
     match link {
         Ok(link) => {
             queries::click_link(link.id, &config).await?;
             Ok(redirect_builder(&link.target))
         }
         Err(ServerError::Database(e)) => {
-            slog_info!(
-                config.log,
+            info!(
                 "Link was not found: http://{}/{} \n {}",
-                &config.public_url,
-                &data.0,
-                e
+                &config.public_url, &data.0, e
             );
             let mut data = Context::new();
             data.insert("title", "Wurde gel\u{f6}scht");

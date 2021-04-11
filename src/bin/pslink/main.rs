@@ -1,19 +1,4 @@
 extern crate sqlx;
-#[allow(unused_imports)]
-#[macro_use(
-    slog_o,
-    slog_trace,
-    slog_info,
-    slog_warn,
-    slog_error,
-    slog_log,
-    slog_record,
-    slog_record_static,
-    slog_b,
-    slog_kv
-)]
-extern crate slog;
-extern crate slog_async;
 
 mod cli;
 mod views;
@@ -26,6 +11,33 @@ use tera::Tera;
 
 use pslink::{ServerConfig, ServerError};
 
+use tracing::instrument;
+use tracing::{error, info, trace};
+use tracing::{subscriber::set_global_default, Subscriber};
+use tracing_actix_web::TracingLogger;
+use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_log::LogTracer;
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
+
+/// Compose multiple layers into a `tracing`'s subscriber.
+pub fn get_subscriber(name: String, env_filter: String) -> impl Subscriber + Send + Sync {
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
+    let formatting_layer = BunyanFormattingLayer::new(name, std::io::stdout);
+    Registry::default()
+        .with(env_filter)
+        .with(JsonStorageLayer)
+        .with(formatting_layer)
+}
+
+/// Register a subscriber as global default to process span data.
+///
+/// It should only be called once!
+pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
+    LogTracer::init().expect("Failed to set logger");
+    set_global_default(subscriber).expect("Failed to set subscriber");
+}
+
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 static_loader! {
@@ -35,8 +47,10 @@ static_loader! {
     };
 }
 
+#[instrument]
 fn build_tera() -> Result<Tera> {
     let mut tera = Tera::default();
+    tracing::info!("Tracing activated!");
 
     // Add translation support
     tera.register_function("fluent", FluentLoader::new(&*LOCALES));
@@ -86,29 +100,22 @@ fn build_tera() -> Result<Tera> {
 #[allow(clippy::future_not_send, clippy::too_many_lines)]
 async fn webservice(server_config: ServerConfig) -> Result<()> {
     let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
-    let cfg = server_config.clone();
-    slog_info!(
-        cfg.log,
+    info!(
         "Running on: {}://{}/admin/login/",
-        &server_config.protocol,
-        host_port
+        &server_config.protocol, host_port
     );
-    slog_info!(
-        cfg.log,
+    info!(
         "If the public url is set up correctly it should be accessible via: {}://{}/admin/login/",
-        &server_config.protocol,
-        &server_config.public_url
+        &server_config.protocol, &server_config.public_url
     );
     let tera = build_tera()?;
-    slog_trace!(cfg.log, "The tera templates are ready");
+    trace!("The tera templates are ready");
 
     HttpServer::new(move || {
         let generated = generate();
         App::new()
             .data(server_config.clone())
-            .wrap(actix_slog::StructuredLogger::new(
-                server_config.log.new(slog_o!("log_type" => "access")),
-            ))
+            .wrap(TracingLogger)
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&[0; 32])
                     .name("auth-cookie")
@@ -191,7 +198,7 @@ async fn webservice(server_config: ServerConfig) -> Result<()> {
     .bind(host_port)
     .context("Failed to bind to port")
     .map_err(|e| {
-        slog_error!(cfg.log, "Failed to bind to port!");
+        error!("Failed to bind to port!");
         e
     })?
     .run()
@@ -199,8 +206,12 @@ async fn webservice(server_config: ServerConfig) -> Result<()> {
     .context("Failed to run the webservice")
 }
 
+#[instrument]
 #[actix_web::main]
 async fn main() -> std::result::Result<(), ServerError> {
+    let subscriber = get_subscriber("app".into(), "info".into());
+    init_subscriber(subscriber);
+
     match cli::setup().await {
         Ok(Some(server_config)) => webservice(server_config).await.map_err(|e| {
             println!("{:?}", e);

@@ -1,18 +1,4 @@
 extern crate sqlx;
-#[allow(unused_imports)]
-#[macro_use(
-    slog_o,
-    slog_info,
-    slog_warn,
-    slog_error,
-    slog_log,
-    slog_record,
-    slog_record_static,
-    slog_b,
-    slog_kv
-)]
-extern crate slog;
-extern crate slog_async;
 
 pub mod forms;
 pub mod models;
@@ -171,7 +157,6 @@ pub struct ServerConfig {
     pub internal_ip: String,
     pub port: u32,
     pub protocol: Protocol,
-    pub log: slog::Logger,
     pub empty_forward_url: String,
     pub brand_name: String,
 }
