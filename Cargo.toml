@@ -27,9 +27,11 @@ chrono = { version = "0.4", features = ["serde"] }
 argonautica = "0.2"
 tracing = { version = "0.1", features = ["log"] }
 tracing-bunyan-formatter = "0.2.0"
-tracing-subscriber = { version = "0.2.12", features = ["registry", "env-filter"] }
-tracing-log = "0.1"
+tracing-subscriber = { version = "0.2.17", features = ["registry", "env-filter"] }
 tracing-actix-web = "0.2.1"
+tracing-opentelemetry = "0.12"
+opentelemetry = "0.13"
+opentelemetry-jaeger="0.12"
 qrcode = "0.12"
 image = "0.23"
 rand="0.8"

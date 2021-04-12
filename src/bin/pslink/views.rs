@@ -15,13 +15,14 @@ use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use queries::{authenticate, Role};
 use tera::{Context, Tera};
-use tracing::{info, trace, warn};
+use tracing::{info, instrument, trace, warn};
 
 use pslink::forms::LinkForm;
 use pslink::models::{LoginUser, NewUser};
 use pslink::queries;
 use pslink::ServerError;
 
+#[instrument]
 fn redirect_builder(target: &str) -> HttpResponse {
     HttpResponse::SeeOther()
         .set(CacheControl(vec![
@@ -34,6 +35,7 @@ fn redirect_builder(target: &str) -> HttpResponse {
         .body(format!("Redirect to {}", target))
 }
 
+#[instrument]
 fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
     let requested = parse_accepted_languages(
         request
@@ -63,6 +65,8 @@ fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
 }
 
 /// Show the list of all available links if a user is authenticated
+
+#[instrument(skip(id, tera))]
 pub async fn index(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -81,6 +85,7 @@ pub async fn index(
 }
 
 /// Show the list of all available links if a user is authenticated
+#[instrument(skip(id, tera))]
 pub async fn index_users(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -98,6 +103,8 @@ pub async fn index_users(
         Ok(redirect_builder("/admin/login"))
     }
 }
+
+#[instrument(skip(id, tera))]
 pub async fn view_link_empty(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -106,6 +113,7 @@ pub async fn view_link_empty(
     view_link(tera, config, id, web::Path::from("".to_owned())).await
 }
 
+#[instrument(skip(id, tera))]
 pub async fn view_link(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -145,6 +153,7 @@ pub async fn view_link(
     }
 }
 
+#[instrument(skip(id, tera))]
 pub async fn view_profile(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -172,6 +181,7 @@ pub async fn view_profile(
     }
 }
 
+#[instrument(skip(id, tera))]
 pub async fn edit_profile(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -198,6 +208,7 @@ pub async fn edit_profile(
     }
 }
 
+#[instrument(skip(id))]
 pub async fn process_edit_profile(
     data: web::Form<NewUser>,
     config: web::Data<pslink::ServerConfig>,
@@ -211,6 +222,7 @@ pub async fn process_edit_profile(
     )))
 }
 
+#[instrument(skip(id))]
 pub async fn download_png(
     id: Identity,
     config: web::Data<pslink::ServerConfig>,
@@ -235,6 +247,7 @@ pub async fn download_png(
     }
 }
 
+#[instrument(skip(id, tera))]
 pub async fn signup(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -255,6 +268,7 @@ pub async fn signup(
     }
 }
 
+#[instrument(skip(id))]
 pub async fn process_signup(
     data: web::Form<NewUser>,
     config: web::Data<pslink::ServerConfig>,
@@ -269,6 +283,7 @@ pub async fn process_signup(
     }
 }
 
+#[instrument(skip(id))]
 pub async fn toggle_admin(
     data: web::Path<String>,
     config: web::Data<pslink::ServerConfig>,
@@ -281,6 +296,7 @@ pub async fn toggle_admin(
     )))
 }
 
+#[instrument(skip(id))]
 pub async fn set_language(
     data: web::Path<String>,
     config: web::Data<pslink::ServerConfig>,
@@ -290,6 +306,7 @@ pub async fn set_language(
     Ok(redirect_builder("/admin/index/"))
 }
 
+#[instrument(skip(id))]
 pub async fn login(
     tera: web::Data<Tera>,
     id: Identity,
@@ -323,6 +340,7 @@ pub async fn login(
     Ok(HttpResponse::Ok().body(rendered))
 }
 
+#[instrument(skip(id))]
 pub async fn process_login(
     data: web::Form<LoginUser>,
     config: web::Data<pslink::ServerConfig>,
@@ -355,11 +373,14 @@ pub async fn process_login(
     }
 }
 
+#[instrument(skip(id))]
 pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
+    info!("Logging out the user");
     id.forget();
     Ok(redirect_builder("/admin/login/"))
 }
 
+#[instrument]
 pub async fn redirect(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -390,12 +411,14 @@ pub async fn redirect(
     }
 }
 
+#[instrument]
 pub async fn redirect_empty(
     config: web::Data<pslink::ServerConfig>,
 ) -> Result<HttpResponse, ServerError> {
     Ok(redirect_builder(&config.empty_forward_url))
 }
 
+#[instrument(skip(id))]
 pub async fn create_link(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -416,6 +439,7 @@ pub async fn create_link(
     }
 }
 
+#[instrument(skip(id))]
 pub async fn process_link_creation(
     data: web::Form<LinkForm>,
     config: web::Data<pslink::ServerConfig>,
@@ -428,6 +452,7 @@ pub async fn process_link_creation(
     )))
 }
 
+#[instrument(skip(id))]
 pub async fn edit_link(
     tera: web::Data<Tera>,
     config: web::Data<pslink::ServerConfig>,
@@ -460,6 +485,7 @@ pub async fn process_link_edit(
     }
 }
 
+#[instrument(skip(id))]
 pub async fn process_link_delete(
     id: Identity,
     config: web::Data<pslink::ServerConfig>,

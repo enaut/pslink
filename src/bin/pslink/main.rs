@@ -15,18 +15,29 @@ use tracing::instrument;
 use tracing::{error, info, trace};
 use tracing::{subscriber::set_global_default, Subscriber};
 use tracing_actix_web::TracingLogger;
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
-use tracing_log::LogTracer;
+use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
 /// Compose multiple layers into a `tracing`'s subscriber.
-pub fn get_subscriber(name: String, env_filter: String) -> impl Subscriber + Send + Sync {
+#[must_use]
+pub fn get_subscriber(name: &str, env_filter: &str) -> impl Subscriber + Send + Sync {
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
-    let formatting_layer = BunyanFormattingLayer::new(name, std::io::stdout);
+    // Create a jaeger exporter pipeline for a `trace_demo` service.
+    let tracer = opentelemetry_jaeger::new_pipeline()
+        .with_service_name(name)
+        .install_simple()
+        .expect("Error initializing Jaeger exporter");
+    let formatting_layer = tracing_subscriber::fmt::layer().with_target(false);
+
+    // Create a layer with the configured tracer
+    let otel_layer = OpenTelemetryLayer::new(tracer);
+
+    // Use the tracing subscriber `Registry`, or any other subscriber
+    // that impls `LookupSpan`
     Registry::default()
+        .with(otel_layer)
         .with(env_filter)
-        .with(JsonStorageLayer)
         .with(formatting_layer)
 }
 
@@ -34,7 +45,6 @@ pub fn get_subscriber(name: String, env_filter: String) -> impl Subscriber + Sen
 ///
 /// It should only be called once!
 pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
-    LogTracer::init().expect("Failed to set logger");
     set_global_default(subscriber).expect("Failed to set subscriber");
 }
 
@@ -50,7 +60,6 @@ static_loader! {
 #[instrument]
 fn build_tera() -> Result<Tera> {
     let mut tera = Tera::default();
-    tracing::info!("Tracing activated!");
 
     // Add translation support
     tera.register_function("fluent", FluentLoader::new(&*LOCALES));
@@ -209,7 +218,7 @@ async fn webservice(server_config: ServerConfig) -> Result<()> {
 #[instrument]
 #[actix_web::main]
 async fn main() -> std::result::Result<(), ServerError> {
-    let subscriber = get_subscriber("app".into(), "info".into());
+    let subscriber = get_subscriber("fhs.li", "info");
     init_subscriber(subscriber);
 
     match cli::setup().await {
