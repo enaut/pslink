@@ -327,22 +327,25 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerError> {
 
 fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerError> {
     if std::path::Path::new(".env").exists() {
-        error!("ERROR: There already is a .env file - ABORT!")
-    } else {
-        info!("Creating a .env file with default options");
-        info!(concat!(
-            "The SECRET_KEY variable is used for password encryption.",
-            "If it is changed all existing passwords are invalid."
+        return Err(ServerError::User(
+            "ERROR: There already is a .env file - ABORT!".to_string(),
         ));
-        let mut file = std::fs::File::create(".env")?;
-
-        let conf_file_content = server_config.to_env_strings();
-
-        conf_file_content.iter().for_each(|l| {
-            file.write_all(l.as_bytes())
-                .expect("failed to write .env file")
-        });
-        info!("Successfully created the env file!")
     }
+
+    info!(
+        r#"Creating a .env file with default options
+            The SECRET_KEY variable is used for password encryption.
+            If it is changed all existing passwords are invalid."#
+    );
+
+    let mut file = std::fs::File::create(".env")?;
+    let conf_file_content = server_config.to_env_strings();
+
+    for line in &conf_file_content {
+        file.write_all(line.as_bytes())
+            .expect("failed to write .env file")
+    }
+    info!("Successfully created the env file!");
+
     Ok(())
 }
