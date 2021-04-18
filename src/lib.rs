@@ -208,7 +208,7 @@ impl ServerConfig {
                 "# If it is changed all existing passwords are invalid.\n"
             )
             .to_owned(),
-            format!("PSLINK_SECRET=\"{}\"\n", self.secret),
+            format!("PSLINK_SECRET=\"{}\"\n", self.secret.secret),
         ]
     }
 }
