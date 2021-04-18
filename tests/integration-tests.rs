@@ -55,10 +55,25 @@ fn test_generate_env() {
     assert!(dbfile.exists(), "No database-file was created!");
 
     let envfile = std::fs::File::open(envfile).unwrap();
-    let mut envcontent = std::io::BufReader::new(envfile).lines();
+    let envcontent: Vec<Result<String, _>> = std::io::BufReader::new(envfile).lines().collect();
     assert!(
-        envcontent.any(|s| s.as_ref().unwrap().starts_with("PSLINK_PORT=")),
-        "Failed to find DATABASE_URL in the generated .env file."
+        envcontent
+            .iter()
+            .any(|s| s.as_ref().unwrap().starts_with("PSLINK_PORT=")),
+        "Failed to find PSLINK_PORT in the generated .env file."
+    );
+    assert!(
+        envcontent
+            .iter()
+            .any(|s| s.as_ref().unwrap().starts_with("PSLINK_SECRET=")),
+        "Failed to find PSLINK_SECRET in the generated .env file."
+    );
+    assert!(
+        !envcontent.iter().any(|s| {
+            let r = s.as_ref().unwrap().contains("***SECRET***");
+            r
+        }),
+        "It seems that a censored secret was used in the .env file."
     );
     let output = test_bin::get_test_bin("pslink")
         .args(&["generate-env"])
