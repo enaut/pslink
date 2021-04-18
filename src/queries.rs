@@ -1,6 +1,7 @@
 use actix_identity::Identity;
 use actix_web::web;
 use serde::Serialize;
+use tracing::info;
 
 use super::models::{Count, Link, NewUser, User};
 use crate::{
@@ -170,7 +171,7 @@ pub async fn get_user(
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
     if let Ok(uid) = user_id.parse::<i64>() {
-        slog_info!(server_config.log, "Getting user {}", uid);
+        info!("Getting user {}", uid);
         let auth = authenticate(id, server_config).await?;
         if auth.admin_or_self(uid) {
             match auth {
@@ -214,7 +215,7 @@ pub async fn create_user(
     data: &web::Form<NewUser>,
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
-    slog_info!(server_config.log, "Creating a User: {:?}", &data);
+    info!("Creating a User: {:?}", &data);
     let auth = authenticate(id, server_config).await?;
     match auth {
         Role::Admin { user } => {
@@ -258,7 +259,7 @@ pub async fn update_user(
         if auth.admin_or_self(uid) {
             match auth {
                 Role::Admin { .. } | Role::Regular { .. } => {
-                    slog_info!(server_config.log, "Updating userinfo: ");
+                    info!("Updating userinfo: ");
                     let password = if data.password.len() > 3 {
                         NewUser::hash_password(&data.password, server_config)?
                     } else {
@@ -303,21 +304,17 @@ pub async fn toggle_admin(
         let auth = authenticate(id, server_config).await?;
         match auth {
             Role::Admin { .. } => {
-                slog_info!(server_config.log, "Changing administrator priviledges: ");
+                info!("Changing administrator priviledges: ");
 
                 let unchanged_user = User::get_user(uid, server_config).await?;
 
                 let old = unchanged_user.role;
                 unchanged_user.toggle_admin(server_config).await?;
 
-                slog_info!(server_config.log, "Toggling role: old was {}", old);
+                info!("Toggling role: old was {}", old);
 
                 let changed_user = User::get_user(uid, server_config).await?;
-                slog_info!(
-                    server_config.log,
-                    "Toggled role: new is {}",
-                    changed_user.role
-                );
+                info!("Toggled role: new is {}", changed_user.role);
                 Ok(Item {
                     user: changed_user.clone(),
                     item: changed_user,
@@ -382,10 +379,10 @@ pub async fn get_link_simple(
     link_code: &str,
     server_config: &ServerConfig,
 ) -> Result<Link, ServerError> {
-    slog_info!(server_config.log, "Getting link for {:?}", link_code);
+    info!("Getting link for {:?}", link_code);
 
     let link = Link::get_link_by_code(link_code, server_config).await?;
-    slog_info!(server_config.log, "Foun d link for {:?}", link);
+    info!("Foun d link for {:?}", link);
     Ok(link)
 }
 
@@ -394,7 +391,7 @@ pub async fn get_link_simple(
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails.
 pub async fn click_link(link_id: i64, server_config: &ServerConfig) -> Result<(), ServerError> {
-    slog_info!(server_config.log, "Clicking on {:?}", link_id);
+    info!("Clicking on {:?}", link_id);
     let new_click = NewClick::new(link_id);
     new_click.insert_click(server_config).await?;
     Ok(())
@@ -429,12 +426,7 @@ pub async fn update_link(
     data: web::Form<LinkForm>,
     server_config: &ServerConfig,
 ) -> Result<Item<Link>, ServerError> {
-    slog_info!(
-        server_config.log,
-        "Changing link to: {:?} {:?}",
-        &data,
-        &link_code
-    );
+    info!("Changing link to: {:?} {:?}", &data, &link_code);
     let auth = authenticate(id, server_config).await?;
     match auth {
         Role::Admin { .. } | Role::Regular { .. } => {
@@ -472,9 +464,9 @@ pub async fn create_link(
     match auth {
         Role::Admin { user } | Role::Regular { user } => {
             let code = data.code.clone();
-            slog_info!(server_config.log, "Creating link for: {}", &code);
+            info!("Creating link for: {}", &code);
             let new_link = NewLink::from_link_form(data.into_inner(), user.id);
-            slog_info!(server_config.log, "Creating link for: {:?}", &new_link);
+            info!("Creating link for: {:?}", &new_link);
 
             new_link.insert(server_config).await?;
             let new_link = get_link_simple(&code, server_config).await?;

@@ -1,30 +1,23 @@
 extern crate sqlx;
-#[allow(unused_imports)]
-#[macro_use(
-    slog_o,
-    slog_info,
-    slog_warn,
-    slog_error,
-    slog_log,
-    slog_record,
-    slog_record_static,
-    slog_b,
-    slog_kv
-)]
-extern crate slog;
-extern crate slog_async;
 
 pub mod forms;
 pub mod models;
 pub mod queries;
+mod views;
 
-use std::{fmt::Display, path::PathBuf, str::FromStr};
-
+use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::HttpResponse;
-
+use actix_web::{web, App, HttpServer};
+use fluent_templates::{static_loader, FluentLoader};
 use qrcode::types::QrError;
 use sqlx::{Pool, Sqlite};
+use std::{fmt::Display, path::PathBuf, str::FromStr};
+use tera::Tera;
 use thiserror::Error;
+use tracing::instrument;
+use tracing::{error, info, trace};
+use tracing_actix_web::TracingLogger;
+
 #[derive(Error, Debug)]
 pub enum ServerError {
     #[error("Failed to encrypt the password {0} - aborting!")]
@@ -162,16 +155,39 @@ impl FromStr for Protocol {
     }
 }
 
+#[derive(Clone)]
+pub struct Secret {
+    secret: String,
+}
+
+impl Secret {
+    #[must_use]
+    pub const fn new(secret: String) -> Self {
+        Self { secret }
+    }
+}
+
+impl std::fmt::Debug for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("*****SECRET*****")
+    }
+}
+
+impl std::fmt::Display for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("*****SECRET*****")
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
-    pub secret: String,
+    pub secret: Secret,
     pub db: PathBuf,
     pub db_pool: Pool<Sqlite>,
     pub public_url: String,
     pub internal_ip: String,
     pub port: u32,
     pub protocol: Protocol,
-    pub log: slog::Logger,
     pub empty_forward_url: String,
     pub brand_name: String,
 }
@@ -192,7 +208,176 @@ impl ServerConfig {
                 "# If it is changed all existing passwords are invalid.\n"
             )
             .to_owned(),
-            format!("PSLINK_SECRET=\"{}\"\n", self.secret),
+            format!("PSLINK_SECRET=\"{}\"\n", self.secret.secret),
         ]
     }
+}
+
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+
+static_loader! {
+    static LOCALES = {
+        locales: "./locales",
+        fallback_language: "en",
+    };
+}
+
+#[instrument]
+fn build_tera() -> Result<Tera, ServerError> {
+    let mut tera = Tera::default();
+
+    // Add translation support
+    tera.register_function("fluent", FluentLoader::new(&*LOCALES));
+
+    tera.add_raw_templates(vec![
+        ("admin.html", include_str!("../templates/admin.html")),
+        ("base.html", include_str!("../templates/base.html")),
+        (
+            "edit_link.html",
+            include_str!("../templates/edit_link.html"),
+        ),
+        (
+            "edit_profile.html",
+            include_str!("../templates/edit_profile.html"),
+        ),
+        (
+            "index_users.html",
+            include_str!("../templates/index_users.html"),
+        ),
+        ("index.html", include_str!("../templates/index.html")),
+        ("login.html", include_str!("../templates/login.html")),
+        (
+            "not_found.html",
+            include_str!("../templates/not_found.html"),
+        ),
+        ("signup.html", include_str!("../templates/signup.html")),
+        (
+            "submission.html",
+            include_str!("../templates/submission.html"),
+        ),
+        (
+            "view_link.html",
+            include_str!("../templates/view_link.html"),
+        ),
+        (
+            "view_profile.html",
+            include_str!("../templates/view_profile.html"),
+        ),
+    ])?;
+    Ok(tera)
+}
+
+/// Launch the pslink-webservice
+///
+/// # Errors
+/// This produces a [`ServerError`] if:
+///   * Tera failed to build its templates
+///   * The server failed to bind to the designated port.
+#[allow(clippy::future_not_send, clippy::too_many_lines)]
+pub async fn webservice(
+    server_config: ServerConfig,
+) -> Result<actix_web::dev::Server, std::io::Error> {
+    let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
+    info!(
+        "Running on: {}://{}/admin/login/",
+        &server_config.protocol, host_port
+    );
+    info!(
+        "If the public url is set up correctly it should be accessible via: {}://{}/admin/login/",
+        &server_config.protocol, &server_config.public_url
+    );
+    let tera = build_tera().expect("Failed to build Templates");
+    trace!("The tera templates are ready");
+
+    let server = HttpServer::new(move || {
+        let generated = generate();
+        App::new()
+            .data(server_config.clone())
+            .wrap(TracingLogger)
+            .wrap(IdentityService::new(
+                CookieIdentityPolicy::new(&[0; 32])
+                    .name("auth-cookie")
+                    .secure(false),
+            ))
+            .data(tera.clone())
+            .service(actix_web_static_files::ResourceFiles::new(
+                "/static", generated,
+            ))
+            // directly go to the main page set the target with the environment variable.
+            .route("/", web::get().to(views::redirect_empty))
+            // admin block
+            .service(
+                web::scope("/admin")
+                    // list all links
+                    .route("/index/", web::get().to(views::index))
+                    // invite users
+                    .route("/signup/", web::get().to(views::signup))
+                    .route("/signup/", web::post().to(views::process_signup))
+                    // logout
+                    .route("/logout/", web::to(views::logout))
+                    // submit a new url for shortening
+                    .route("/submit/", web::get().to(views::create_link))
+                    .route("/submit/", web::post().to(views::process_link_creation))
+                    // view an existing url
+                    .service(
+                        web::scope("/view")
+                            .service(
+                                web::scope("/link")
+                                    .route("/{redirect_id}", web::get().to(views::view_link))
+                                    .route("/", web::get().to(views::view_link_empty)),
+                            )
+                            .service(
+                                web::scope("/profile")
+                                    .route("/{user_id}", web::get().to(views::view_profile)),
+                            )
+                            .route("/users/", web::get().to(views::index_users)),
+                    )
+                    .service(
+                        web::scope("/edit")
+                            .service(
+                                web::scope("/link")
+                                    .route("/{redirect_id}", web::get().to(views::edit_link))
+                                    .route(
+                                        "/{redirect_id}",
+                                        web::post().to(views::process_link_edit),
+                                    ),
+                            )
+                            .service(
+                                web::scope("/profile")
+                                    .route("/{user_id}", web::get().to(views::edit_profile))
+                                    .route(
+                                        "/{user_id}",
+                                        web::post().to(views::process_edit_profile),
+                                    ),
+                            )
+                            .route("/set_admin/{user_id}", web::get().to(views::toggle_admin))
+                            .route(
+                                "/set_language/{language}",
+                                web::get().to(views::set_language),
+                            ),
+                    )
+                    .service(
+                        web::scope("/delete").service(
+                            web::scope("/link")
+                                .route("/{redirect_id}", web::get().to(views::process_link_delete)),
+                        ),
+                    )
+                    .service(
+                        web::scope("/download")
+                            .route("/png/{redirect_id}", web::get().to(views::download_png)),
+                    )
+                    // login to the admin area
+                    .route("/login/", web::get().to(views::login))
+                    .route("/login/", web::post().to(views::process_login)),
+            )
+            // redirect to the url hidden behind the code
+            .route("/{redirect_id}", web::get().to(views::redirect))
+    })
+    .bind(host_port)
+    .map_err(|e| {
+        error!("Failed to bind to port!");
+        e
+    })?
+    .run();
+    Ok(server)
 }
