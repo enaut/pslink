@@ -276,7 +276,7 @@ fn build_tera() -> Result<Tera, ServerError> {
 #[allow(clippy::future_not_send, clippy::too_many_lines)]
 pub async fn webservice(
     server_config: ServerConfig,
-) -> Result<actix_web::dev::Server, ServerError> {
+) -> Result<actix_web::dev::Server, std::io::Error> {
     let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
     info!(
         "Running on: {}://{}/admin/login/",
@@ -286,7 +286,7 @@ pub async fn webservice(
         "If the public url is set up correctly it should be accessible via: {}://{}/admin/login/",
         &server_config.protocol, &server_config.public_url
     );
-    let tera = build_tera()?;
+    let tera = build_tera().expect("Failed to build Templates");
     trace!("The tera templates are ready");
 
     let server = HttpServer::new(move || {

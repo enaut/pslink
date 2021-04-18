@@ -61,6 +61,7 @@ version = "0.2.17"
 reqwest = "0.10.10"
 tempdir = "0.3"
 test_bin = "0.3"
+tokio="0.2.25"
 
 [profile]
 [profile.release]

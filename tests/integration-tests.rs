@@ -42,7 +42,7 @@ fn test_generate_env() {
     use std::io::BufRead;
     let tmp_dir = tempdir::TempDir::new("pslink_test_env").expect("create temp dir");
     let output = test_bin::get_test_bin("pslink")
-        .args(&["generate-env"])
+        .args(&["generate-env", "--secret", "abcdefghijklmnopqrstuvw"])
         .current_dir(&tmp_dir)
         .output()
         .expect("Failed to start pslink");
@@ -74,6 +74,13 @@ fn test_generate_env() {
             r
         }),
         "It seems that a censored secret was used in the .env file."
+    );
+    assert!(
+        envcontent.iter().any(|s| {
+            let r = s.as_ref().unwrap().contains("abcdefghijklmnopqrstuvw");
+            r
+        }),
+        "The secret has not made it into the .env file!"
     );
     let output = test_bin::get_test_bin("pslink")
         .args(&["generate-env"])
@@ -147,7 +154,7 @@ async fn test_migrate_database() {
     assert_eq!(num.number, 1, "Failed to create an admin!");
 }
 
-/* async fn run_server() {
+async fn run_server() {
     use std::io::Write;
     #[derive(serde::Serialize, Debug)]
     pub struct Count {
@@ -156,7 +163,7 @@ async fn test_migrate_database() {
     let tmp_dir = tempdir::TempDir::new("pslink_test_env").expect("create temp dir");
     // generate .env file
     let _output = test_bin::get_test_bin("pslink")
-        .args(&["generate-env"])
+        .args(&["generate-env", "--secret", "abcdefghijklmnopqrstuvw"])
         .current_dir(&tmp_dir)
         .output()
         .expect("Failed generate .env");
@@ -199,18 +206,28 @@ async fn test_migrate_database() {
         num.number, 1,
         "Failed to create an admin! See previous tests!"
     );
-    let output = test_bin::get_test_bin("pslink")
-        .args(&["runserver"])
-        .current_dir(&tmp_dir)
-        .spawn()
-        .expect("Failed to migrate the database");
-    let out = output.wait_with_output().unwrap();
-    println!("{}", String::from_utf8_lossy(&out.stdout));
+
+    let server_config = pslink::ServerConfig {
+        secret: pslink::Secret::new("abcdefghijklmnopqrstuvw".to_string()),
+        db: std::path::PathBuf::from("links.db"),
+        db_pool,
+        public_url: "localhost:8080".to_string(),
+        internal_ip: "localhost".to_string(),
+        port: 8080,
+        protocol: pslink::Protocol::Http,
+        empty_forward_url: "https://github.com/enaut/pslink".to_string(),
+        brand_name: "Pslink".to_string(),
+    };
+
+    let server = pslink::webservice(server_config);
+
+    let neveruse = tokio::spawn(server);
+    println!("Never used: {:?}", neveruse);
 }
 
 #[actix_rt::test]
 async fn test_web_paths() {
-    actix_rt::spawn(run_server());
+    run_server().await;
 
     std::thread::sleep(std::time::Duration::new(5, 0));
     // We need to bring in `reqwest`
@@ -219,7 +236,7 @@ async fn test_web_paths() {
 
     // Act
     let response = client
-        .get("http://127.0.0.1:8080/admin/login/")
+        .get("http://localhost:8080/admin/login/")
         .send()
         .await
         .expect("Failed to execute request.");
@@ -227,4 +244,4 @@ async fn test_web_paths() {
     // Assert
     assert!(response.status().is_success());
     //assert_eq!(Some(0), response.content_length());
-} */
+}
