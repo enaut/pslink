@@ -58,12 +58,16 @@ features = ["registry", "env-filter"]
 version = "0.2.17"
 
 [dev-dependencies]
-reqwest = "0.10.10"
+actix-server = "1.0.4"
 tempdir = "0.3"
 test_bin = "0.3"
-tokio="0.2.25"
+tokio = "0.2.25"
+
+[dev-dependencies.reqwest]
+features = ["cookies"]
+version = "0.10.10"
 
 [profile]
 [profile.release]
-lto = true #timize for size at cost of compilation speed.
+lto = true
 #codegen-units = 1

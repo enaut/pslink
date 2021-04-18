@@ -221,18 +221,32 @@ async fn run_server() {
 
     let server = pslink::webservice(server_config);
 
-    let neveruse = tokio::spawn(server);
-    println!("Never used: {:?}", neveruse);
+    let _neveruse = tokio::spawn(server);
 }
 
 #[actix_rt::test]
 async fn test_web_paths() {
     run_server().await;
 
-    std::thread::sleep(std::time::Duration::new(5, 0));
     // We need to bring in `reqwest`
     // to perform HTTP requests against our application.
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+
+    // Act
+    let response = client
+        .get("http://localhost:8080/")
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // The basic redirection is working!
+    assert!(response.status().is_redirection());
+    let location = response.headers().get("location").unwrap();
+    assert!(location.to_str().unwrap().contains("github"));
 
     // Act
     let response = client
@@ -241,7 +255,95 @@ async fn test_web_paths() {
         .await
         .expect("Failed to execute request.");
 
-    // Assert
+    // The Loginpage is reachable and contains a password field!
     assert!(response.status().is_success());
-    //assert_eq!(Some(0), response.content_length());
+    let content = response.text().await.unwrap();
+    assert!(
+        content.contains(r#"<input type="password"#),
+        "No password field was found!"
+    );
+
+    // Act
+    let formdata = &[("username", "test"), ("password", "testpw")];
+    let response = client
+        .post("http://localhost:8080/admin/login/")
+        .form(formdata)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // It is possible to login
+    assert!(response.status().is_redirection());
+    let location = response.headers().get("location").unwrap();
+    assert_eq!("/admin/index/", location.to_str().unwrap());
+    assert!(
+        response.headers().get("set-cookie").is_some(),
+        "A auth cookie is not set even though authentication succeeds"
+    );
+
+    // After login this should return a redirect
+    let response = client
+        .get("http://localhost:8080/admin/login/")
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // The Loginpage redirects to link index when logged in
+    assert!(
+        response.status().is_redirection(),
+        "/admin/login/ is not redirecting correctly when logged in!"
+    );
+    let location = response.headers().get("location").unwrap();
+    assert_eq!("/admin/index/", location.to_str().unwrap());
+
+    // After login this should return a redirect
+    let response = client
+        .get("http://localhost:8080/admin/index/")
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // The Loginpage redirects to link index when logged in
+    assert!(
+        response.status().is_success(),
+        "Could not access /admin/index/"
+    );
+    let content = response.text().await.unwrap();
+    assert!(
+        content.contains(r#"<a href="/admin/logout/">"#),
+        "No Logout Button was found on /admin/index/!"
+    );
+
+    // Act title=haupt&target=http%3A%2F%2Fdas.geht%2Fjetzt%2F&code=tpuah
+    let formdata = &[
+        ("title", "haupt"),
+        ("target", "https://das.geht/jetzt/"),
+        ("code", "tpuah"),
+    ];
+    let response = client
+        .post("http://localhost:8080/admin/submit/")
+        .form(formdata)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // It is possible to login
+    assert!(response.status().is_redirection());
+    let location = response.headers().get("location").unwrap();
+    assert_eq!("/admin/view/link/tpuah", location.to_str().unwrap());
+
+    // Act
+    let response = client
+        .get("http://localhost:8080/tpuah")
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // The basic redirection is working!
+    assert!(response.status().is_redirection());
+    let location = response.headers().get("location").unwrap();
+    assert!(location
+        .to_str()
+        .unwrap()
+        .contains("https://das.geht/jetzt/"));
 }
