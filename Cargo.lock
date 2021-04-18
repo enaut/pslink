@@ -2598,6 +2598,7 @@ dependencies = [
  "tera",
  "test_bin",
  "thiserror",
+ "tokio",
  "tracing",
  "tracing-actix-web",
  "tracing-bunyan-formatter",
