@@ -147,6 +147,7 @@ async fn parse_args_to_config(config: ArgMatches<'_>) -> ServerConfig {
     } else {
         secret
     };
+    let secret = pslink::Secret::new(secret);
     let db = config
         .value_of("database")
         .expect(concat!(
@@ -219,9 +220,12 @@ pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> 
         ))
         .parse::<PathBuf>()
         .expect("Failed to parse Database path.");
+
     if !db.exists() {
         trace!("No database file found {}", db.display());
-        if config.subcommand_matches("migrate-database").is_none() {
+        if !(config.subcommand_matches("migrate-database").is_none()
+            | config.subcommand_matches("generate-env").is_none())
+        {
             let msg = format!(
                 concat!(
                     "Database not found at {}!",
@@ -239,7 +243,6 @@ pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> 
         // create an empty database file. The if above makes sure that this file does not exist.
         File::create(db)?;
     };
-
     let server_config: crate::ServerConfig = parse_args_to_config(config.clone()).await;
 
     if let Some(_migrate_config) = config.subcommand_matches("generate-env") {

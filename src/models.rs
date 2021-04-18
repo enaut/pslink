@@ -146,7 +146,7 @@ impl NewUser {
 
         let hash = Hasher::default()
             .with_password(password)
-            .with_secret_key(secret)
+            .with_secret_key(&secret.secret)
             .hash()?;
 
         Ok(hash)

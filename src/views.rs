@@ -17,10 +17,10 @@ use queries::{authenticate, Role};
 use tera::{Context, Tera};
 use tracing::{info, instrument, trace, warn};
 
-use pslink::forms::LinkForm;
-use pslink::models::{LoginUser, NewUser};
-use pslink::queries;
-use pslink::ServerError;
+use crate::forms::LinkForm;
+use crate::models::{LoginUser, NewUser};
+use crate::queries;
+use crate::ServerError;
 
 #[instrument]
 fn redirect_builder(target: &str) -> HttpResponse {
@@ -69,7 +69,7 @@ fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
 #[instrument(skip(id, tera))]
 pub async fn index(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     if let Ok(links) = queries::list_all_allowed(&id, &config).await {
@@ -88,7 +88,7 @@ pub async fn index(
 #[instrument(skip(id, tera))]
 pub async fn index_users(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     if let Ok(users) = queries::list_users(&id, &config).await {
@@ -107,7 +107,7 @@ pub async fn index_users(
 #[instrument(skip(id, tera))]
 pub async fn view_link_empty(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     view_link(tera, config, id, web::Path::from("".to_owned())).await
@@ -116,7 +116,7 @@ pub async fn view_link_empty(
 #[instrument(skip(id, tera))]
 pub async fn view_link(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
     link_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -156,7 +156,7 @@ pub async fn view_link(
 #[instrument(skip(id, tera))]
 pub async fn view_profile(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -184,7 +184,7 @@ pub async fn view_profile(
 #[instrument(skip(id, tera))]
 pub async fn edit_profile(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -211,7 +211,7 @@ pub async fn edit_profile(
 #[instrument(skip(id))]
 pub async fn process_edit_profile(
     data: web::Form<NewUser>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
     user_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -225,7 +225,7 @@ pub async fn process_edit_profile(
 #[instrument(skip(id))]
 pub async fn download_png(
     id: Identity,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
     match queries::get_link(&id, &link_code.0, &config).await {
@@ -250,7 +250,7 @@ pub async fn download_png(
 #[instrument(skip(id, tera))]
 pub async fn signup(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     match queries::authenticate(&id, &config).await? {
@@ -271,7 +271,7 @@ pub async fn signup(
 #[instrument(skip(id))]
 pub async fn process_signup(
     data: web::Form<NewUser>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     info!("Creating a User: {:?}", &data);
@@ -286,7 +286,7 @@ pub async fn process_signup(
 #[instrument(skip(id))]
 pub async fn toggle_admin(
     data: web::Path<String>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     let update = queries::toggle_admin(&id, &data.0, &config).await?;
@@ -299,18 +299,18 @@ pub async fn toggle_admin(
 #[instrument(skip(id))]
 pub async fn set_language(
     data: web::Path<String>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     queries::set_language(&id, &data.0, &config).await?;
     Ok(redirect_builder("/admin/index/"))
 }
 
-#[instrument(skip(id))]
+#[instrument(skip(tera, id))]
 pub async fn login(
     tera: web::Data<Tera>,
     id: Identity,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
     let language_code = detect_language(&req)?;
@@ -343,7 +343,7 @@ pub async fn login(
 #[instrument(skip(id))]
 pub async fn process_login(
     data: web::Form<LoginUser>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     let user = queries::get_user_by_name(&data.username, &config).await;
@@ -354,7 +354,7 @@ pub async fn process_login(
             let valid = Verifier::default()
                 .with_hash(&u.password)
                 .with_password(&data.password)
-                .with_secret_key(secret)
+                .with_secret_key(&secret.secret)
                 .verify()?;
 
             if valid {
@@ -383,7 +383,7 @@ pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
 #[instrument]
 pub async fn redirect(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     data: web::Path<String>,
     req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
@@ -413,7 +413,7 @@ pub async fn redirect(
 
 #[instrument]
 pub async fn redirect_empty(
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
 ) -> Result<HttpResponse, ServerError> {
     Ok(redirect_builder(&config.empty_forward_url))
 }
@@ -421,7 +421,7 @@ pub async fn redirect_empty(
 #[instrument(skip(id))]
 pub async fn create_link(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     match queries::authenticate(&id, &config).await? {
@@ -442,7 +442,7 @@ pub async fn create_link(
 #[instrument(skip(id))]
 pub async fn process_link_creation(
     data: web::Form<LinkForm>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     let new_link = queries::create_link(&id, data, &config).await?;
@@ -455,7 +455,7 @@ pub async fn process_link_creation(
 #[instrument(skip(id))]
 pub async fn edit_link(
     tera: web::Data<Tera>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
     link_id: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -472,7 +472,7 @@ pub async fn edit_link(
 }
 pub async fn process_link_edit(
     data: web::Form<LinkForm>,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     id: Identity,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
@@ -488,7 +488,7 @@ pub async fn process_link_edit(
 #[instrument(skip(id))]
 pub async fn process_link_delete(
     id: Identity,
-    config: web::Data<pslink::ServerConfig>,
+    config: web::Data<crate::ServerConfig>,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
     queries::delete_link(&id, &link_code.0, &config).await?;
