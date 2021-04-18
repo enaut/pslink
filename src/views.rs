@@ -313,7 +313,7 @@ pub async fn login(
     config: web::Data<crate::ServerConfig>,
     req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
-    let language_code = detect_language(&req)?;
+    let language_code = detect_language(&req).unwrap_or_else(|_| "en".to_string());
     info!("Detected languagecode: {}", &language_code);
     let mut data = Context::new();
     data.insert("title", "Login");
@@ -402,7 +402,7 @@ pub async fn redirect(
             );
             let mut data = Context::new();
             data.insert("title", "Wurde gel\u{f6}scht");
-            let language = detect_language(&req)?;
+            let language = detect_language(&req).unwrap_or_else(|_| "en".to_string());
             data.insert("language", &language);
             let rendered = tera.render("not_found.html", &data)?;
             Ok(HttpResponse::NotFound().body(rendered))
