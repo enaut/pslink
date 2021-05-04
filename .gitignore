@@ -5,3 +5,5 @@ launch.json
 settings.json
 links.session.sql
 sqltemplates
+dist
+pkg
