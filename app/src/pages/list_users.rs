@@ -123,70 +123,71 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 /// # Panics
 /// Sould only panic on bugs.
 pub fn view(model: &Model) -> Node<Msg> {
-    macro_rules! t {
-            { $key:expr } => {
-                {
-                    model.i18n.translate($key, None)
-                }
-            };
-            { $key:expr, $args:expr } => {
-                {
-                    model.i18n.translate($key, Some(&$args))
-                }
-            };
-        }
+    let lang = model.i18n.clone();
+    let t = move |key: &str| lang.translate(key, None);
     section![
         h1!("List Users Page from list_users"),
         table![
-            tr![
-                th![
-                    ev(Ev::Click, |_| Msg::OrderBy(UserOverviewColumns::Id)),
-                    t!("userid")
-                ],
-                th![
-                    ev(Ev::Click, |_| Msg::OrderBy(UserOverviewColumns::Email)),
-                    t!("email")
-                ],
-                th![
-                    ev(Ev::Click, |_| Msg::OrderBy(UserOverviewColumns::Username)),
-                    t!("username")
-                ],
-            ],
-            tr![
-                C!["filters"],
-                td![input![
-                    attrs! {
-                        At::Value => &model.formconfig.filter[UserOverviewColumns::Id].sieve,
-                        At::Type => "search",
-                        At::Placeholder => t!("search-placeholder")
-                    },
-                    input_ev(Ev::Input, Msg::IdFilterChanged),
-                    el_ref(&model.inputs[UserOverviewColumns::Id].filter_input),
-                ]],
-                td![input![
-                    attrs! {At::Value =>
-                    &model
-                        .formconfig.filter[UserOverviewColumns::Email].sieve,
-                        At::Type => "search",
-                        At::Placeholder => t!("search-placeholder")
-                    },
-                    input_ev(Ev::Input, Msg::EmailFilterChanged),
-                    el_ref(&model.inputs[UserOverviewColumns::Email].filter_input),
-                ]],
-                td![input![
-                    attrs! {At::Value =>
-                    &model
-                        .formconfig.filter[UserOverviewColumns::Username].sieve,
-                        At::Type => "search",
-                        At::Placeholder => t!("search-placeholder")
-                    },
-                    input_ev(Ev::Input, Msg::UsernameFilterChanged),
-                    el_ref(&model.inputs[UserOverviewColumns::Username].filter_input),
-                ]],
-            ],
+            // Column Headlines
+            view_user_table_head(&t),
+            // Add filter fields right below the headlines
+            view_user_table_filter_input(model, &t),
+            // Add all the users one line for each
             model.users.iter().map(view_user)
         ],
         button![ev(Ev::Click, |_| Msg::Fetch), "Refresh"]
+    ]
+}
+
+fn view_user_table_head<F: Fn(&str) -> String>(t: F) -> Node<Msg> {
+    tr![
+        th![
+            ev(Ev::Click, |_| Msg::OrderBy(UserOverviewColumns::Id)),
+            t("userid")
+        ],
+        th![
+            ev(Ev::Click, |_| Msg::OrderBy(UserOverviewColumns::Email)),
+            t("email")
+        ],
+        th![
+            ev(Ev::Click, |_| Msg::OrderBy(UserOverviewColumns::Username)),
+            t("username")
+        ],
+    ]
+}
+
+fn view_user_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> Node<Msg> {
+    tr![
+        C!["filters"],
+        td![input![
+            attrs! {
+                At::Value => &model.formconfig.filter[UserOverviewColumns::Id].sieve,
+                At::Type => "search",
+                At::Placeholder => t("search-placeholder")
+            },
+            input_ev(Ev::Input, Msg::IdFilterChanged),
+            el_ref(&model.inputs[UserOverviewColumns::Id].filter_input),
+        ]],
+        td![input![
+            attrs! {At::Value =>
+            &model
+                .formconfig.filter[UserOverviewColumns::Email].sieve,
+                At::Type => "search",
+                At::Placeholder => t("search-placeholder")
+            },
+            input_ev(Ev::Input, Msg::EmailFilterChanged),
+            el_ref(&model.inputs[UserOverviewColumns::Email].filter_input),
+        ]],
+        td![input![
+            attrs! {At::Value =>
+            &model
+                .formconfig.filter[UserOverviewColumns::Username].sieve,
+                At::Type => "search",
+                At::Placeholder => t("search-placeholder")
+            },
+            input_ev(Ev::Input, Msg::UsernameFilterChanged),
+            el_ref(&model.inputs[UserOverviewColumns::Username].filter_input),
+        ]],
     ]
 }
 
