@@ -1,24 +1,30 @@
-use crate::{forms::LinkForm, ServerConfig, ServerError};
+use crate::{forms::LinkForm, Secret, ServerConfig, ServerError};
 
 use argonautica::Hasher;
+use async_trait::async_trait;
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Serialize, Clone, Debug)]
-pub struct User {
-    pub id: i64,
-    pub username: String,
-    pub email: String,
-    pub password: String,
-    pub role: i64,
-    pub language: String,
+use shared::datatypes::{Count, Link, User};
+
+#[async_trait]
+pub trait UserDbOperations<T> {
+    async fn get_user(id: i64, server_config: &ServerConfig) -> Result<T, ServerError>;
+    async fn get_user_by_name(name: &str, server_config: &ServerConfig) -> Result<T, ServerError>;
+    async fn get_all_users(server_config: &ServerConfig) -> Result<Vec<T>, ServerError>;
+    async fn update_user(&self, server_config: &ServerConfig) -> Result<(), ServerError>;
+    async fn toggle_admin(self, server_config: &ServerConfig) -> Result<(), ServerError>;
+    async fn set_language(
+        self,
+        server_config: &ServerConfig,
+        new_language: &str,
+    ) -> Result<(), ServerError>;
+    async fn count_admins(server_config: &ServerConfig) -> Result<Count, ServerError>;
 }
 
-impl User {
-    pub(crate) async fn get_user(
-        id: i64,
-        server_config: &ServerConfig,
-    ) -> Result<Self, ServerError> {
+#[async_trait]
+impl UserDbOperations<User> for User {
+    async fn get_user(id: i64, server_config: &ServerConfig) -> Result<Self, ServerError> {
         let user = sqlx::query_as!(Self, "Select * from users where id = ? ", id)
             .fetch_one(&server_config.db_pool)
             .await;
@@ -29,7 +35,7 @@ impl User {
     ///
     /// # Errors
     /// fails with [`ServerError`] if the user does not exist or the database cannot be acessed.
-    pub async fn get_user_by_name(
+    async fn get_user_by_name(
         name: &str,
         server_config: &ServerConfig,
     ) -> Result<Self, ServerError> {
@@ -39,19 +45,14 @@ impl User {
         user.map_err(ServerError::Database)
     }
 
-    pub(crate) async fn get_all_users(
-        server_config: &ServerConfig,
-    ) -> Result<Vec<Self>, ServerError> {
+    async fn get_all_users(server_config: &ServerConfig) -> Result<Vec<Self>, ServerError> {
         let user = sqlx::query_as!(Self, "Select * from users")
             .fetch_all(&server_config.db_pool)
             .await;
         user.map_err(ServerError::Database)
     }
 
-    pub(crate) async fn update_user(
-        &self,
-        server_config: &ServerConfig,
-    ) -> Result<(), ServerError> {
+    async fn update_user(&self, server_config: &ServerConfig) -> Result<(), ServerError> {
         sqlx::query!(
             "UPDATE users SET
             username = ?,
@@ -72,7 +73,7 @@ impl User {
     ///
     /// # Errors
     /// fails with [`ServerError`] if the database cannot be acessed. (the user should exist)
-    pub async fn toggle_admin(self, server_config: &ServerConfig) -> Result<(), ServerError> {
+    async fn toggle_admin(self, server_config: &ServerConfig) -> Result<(), ServerError> {
         let new_role = 2 - (self.role + 1) % 2;
         sqlx::query!("UPDATE users SET role = ? where id = ?", new_role, self.id)
             .execute(&server_config.db_pool)
@@ -80,7 +81,7 @@ impl User {
         Ok(())
     }
 
-    pub(crate) async fn set_language(
+    async fn set_language(
         self,
         server_config: &ServerConfig,
         new_language: &str,
@@ -101,7 +102,7 @@ impl User {
     ///
     /// # Errors
     /// fails with [`ServerError`] if the database cannot be acessed.
-    pub async fn count_admins(server_config: &ServerConfig) -> Result<Count, ServerError> {
+    async fn count_admins(server_config: &ServerConfig) -> Result<Count, ServerError> {
         let num = sqlx::query_as!(Count, "select count(*) as number from users where role = 2")
             .fetch_one(&server_config.db_pool)
             .await?;
@@ -125,9 +126,9 @@ impl NewUser {
         username: String,
         email: String,
         password: &str,
-        config: &ServerConfig,
+        secret: &Secret,
     ) -> Result<Self, ServerError> {
-        let hash = Self::hash_password(password, config)?;
+        let hash = Self::hash_password(password, secret)?;
 
         Ok(Self {
             username,
@@ -136,13 +137,8 @@ impl NewUser {
         })
     }
 
-    pub(crate) fn hash_password(
-        password: &str,
-        config: &ServerConfig,
-    ) -> Result<String, ServerError> {
+    pub(crate) fn hash_password(password: &str, secret: &Secret) -> Result<String, ServerError> {
         dotenv().ok();
-
-        let secret = &config.secret;
 
         let hash = Hasher::default()
             .with_password(password)
@@ -179,18 +175,19 @@ pub struct LoginUser {
     pub password: String,
 }
 
-#[derive(Serialize, Debug)]
-pub struct Link {
-    pub id: i64,
-    pub title: String,
-    pub target: String,
-    pub code: String,
-    pub author: i64,
-    pub created_at: chrono::NaiveDateTime,
+#[async_trait]
+pub trait LinkDbOperations<T> {
+    async fn get_link_by_code(code: &str, server_config: &ServerConfig) -> Result<T, ServerError>;
+    async fn delete_link_by_code(
+        code: &str,
+        server_config: &ServerConfig,
+    ) -> Result<(), ServerError>;
+    async fn update_link(&self, server_config: &ServerConfig) -> Result<(), ServerError>;
 }
 
-impl Link {
-    pub(crate) async fn get_link_by_code(
+#[async_trait]
+impl LinkDbOperations<Link> for Link {
+    async fn get_link_by_code(
         code: &str,
         server_config: &ServerConfig,
     ) -> Result<Self, ServerError> {
@@ -201,7 +198,7 @@ impl Link {
         link.map_err(ServerError::Database)
     }
 
-    pub(crate) async fn delete_link_by_code(
+    async fn delete_link_by_code(
         code: &str,
         server_config: &ServerConfig,
     ) -> Result<(), ServerError> {
@@ -210,10 +207,7 @@ impl Link {
             .await?;
         Ok(())
     }
-    pub(crate) async fn update_link(
-        &self,
-        server_config: &ServerConfig,
-    ) -> Result<(), ServerError> {
+    async fn update_link(&self, server_config: &ServerConfig) -> Result<(), ServerError> {
         sqlx::query!(
             "UPDATE links SET
             title = ?,
@@ -274,13 +268,6 @@ impl NewLink {
     }
 }
 
-#[derive(Serialize, Debug)]
-pub struct Click {
-    pub id: i64,
-    pub link: i64,
-    pub created_at: chrono::NaiveDateTime,
-}
-
 #[derive(Serialize)]
 pub struct NewClick {
     pub link: i64,
@@ -311,9 +298,4 @@ impl NewClick {
         .await?;
         Ok(())
     }
-}
-
-#[derive(Serialize, Debug)]
-pub struct Count {
-    pub number: i32,
 }

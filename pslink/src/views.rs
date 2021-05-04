@@ -14,8 +14,9 @@ use fluent_templates::LanguageIdentifier;
 use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use queries::{authenticate, Role};
+use shared::apirequests::{links::LinkRequestForm, users::UserRequestForm};
 use tera::{Context, Tera};
-use tracing::{info, instrument, trace, warn};
+use tracing::{error, info, instrument, warn};
 
 use crate::forms::LinkForm;
 use crate::models::{LoginUser, NewUser};
@@ -64,6 +65,34 @@ fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
     Ok(languagecode)
 }
 
+#[instrument()]
+pub async fn wasm_app(config: web::Data<crate::ServerConfig>) -> Result<HttpResponse, ServerError> {
+    Ok(HttpResponse::Ok().body(
+        r#"<!DOCTYPE html>
+        <html>
+        
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+          <meta name="author" content="Franz Dietrich">
+          <meta http-equiv="robots" content="[noindex|nofollow]">
+          <link rel="stylesheet" href="/static/style.css">
+          <link rel="stylesheet" href="/static/admin.css">
+          <title>Server integration example</title>
+        </head>
+        
+        <body>
+          <section id="app"><div class="lds-ellipsis">Loading: <div></div><div></div><div></div><div></div></div></section>
+          <script type="module">
+            import init from '/app/pkg/package.js';
+            init('/app/pkg/package_bg.wasm');
+          </script>
+        </body>
+        
+        </html>"#,
+    ))
+}
+
 /// Show the list of all available links if a user is authenticated
 
 #[instrument(skip(id, tera))]
@@ -72,15 +101,36 @@ pub async fn index(
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    if let Ok(links) = queries::list_all_allowed(&id, &config).await {
-        let mut data = Context::new();
-        data.insert("user", &links.user);
-        data.insert("title", &format!("Links der {}", &config.brand_name,));
-        data.insert("links_per_users", &links.list);
-        let rendered = tera.render("index.html", &data)?;
-        Ok(HttpResponse::Ok().body(rendered))
-    } else {
-        Ok(redirect_builder("/admin/login/"))
+    match queries::list_all_allowed(&id, &config, LinkRequestForm::default()).await {
+        Ok(links) => {
+            let mut data = Context::new();
+            data.insert("user", &links.user);
+            data.insert("title", &format!("Links der {}", &config.brand_name,));
+            data.insert("links_per_users", &links.list);
+            let rendered = tera.render("index.html", &data)?;
+            Ok(HttpResponse::Ok().body(rendered))
+        }
+        Err(e) => {
+            error!("Failed to get the links: {:?}", e);
+            Ok(redirect_builder("/admin/login/"))
+        }
+    }
+}
+
+#[instrument(skip(id))]
+pub async fn index_json(
+    config: web::Data<crate::ServerConfig>,
+    form: web::Json<LinkRequestForm>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    info!("Listing Links to Json api");
+    match queries::list_all_allowed(&id, &config, form.0).await {
+        Ok(links) => Ok(HttpResponse::Ok().json2(&links.list)),
+        Err(e) => {
+            error!("Failed to access database: {:?}", e);
+            warn!("Not logged in - redirecting to login page");
+            Ok(redirect_builder("/admin/login/"))
+        }
     }
 }
 
@@ -91,7 +141,7 @@ pub async fn index_users(
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    if let Ok(users) = queries::list_users(&id, &config).await {
+    if let Ok(users) = queries::list_users(&id, &config, UserRequestForm::default()).await {
         let mut data = Context::new();
         data.insert("user", &users.user);
         data.insert("title", &format!("Benutzer der {}", &config.brand_name,));
@@ -99,6 +149,19 @@ pub async fn index_users(
 
         let rendered = tera.render("index_users.html", &data)?;
         Ok(HttpResponse::Ok().body(rendered))
+    } else {
+        Ok(redirect_builder("/admin/login"))
+    }
+}
+#[instrument(skip(id))]
+pub async fn index_users_json(
+    config: web::Data<crate::ServerConfig>,
+    form: web::Json<UserRequestForm>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    info!("Listing Users to Json api");
+    if let Ok(users) = queries::list_users(&id, &config, form.0).await {
+        Ok(HttpResponse::Ok().json2(&users.list))
     } else {
         Ok(redirect_builder("/admin/login"))
     }
@@ -323,7 +386,7 @@ pub async fn login(
         if let Ok(r) = authenticate(&id, &config).await {
             match r {
                 Role::Admin { user } | Role::Regular { user } => {
-                    trace!(
+                    info!(
                         "This user ({}) is already logged in redirecting to /admin/index/",
                         user.username
                     );
@@ -380,7 +443,7 @@ pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
     Ok(redirect_builder("/admin/login/"))
 }
 
-#[instrument]
+#[instrument(skip(tera))]
 pub async fn redirect(
     tera: web::Data<Tera>,
     config: web::Data<crate::ServerConfig>,
