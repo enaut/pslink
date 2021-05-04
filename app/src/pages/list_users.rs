@@ -15,6 +15,7 @@ pub fn init(_: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
         i18n,
         formconfig: UserRequestForm::default(),
         inputs: EnumMap::default(),
+        user_edit: None,
     }
 }
 #[derive(Debug)]
@@ -23,6 +24,13 @@ pub struct Model {
     i18n: I18n,
     formconfig: UserRequestForm,
     inputs: EnumMap<UserOverviewColumns, FilterInput>,
+    user_edit: Option<UserEditMode>,
+}
+
+#[derive(Debug)]
+enum UserEditMode {
+    Create { user: User },
+    Edit { user: User },
 }
 
 #[derive(Default, Debug, Clone)]
@@ -38,6 +46,7 @@ pub enum Msg {
     IdFilterChanged(String),
     EmailFilterChanged(String),
     UsernameFilterChanged(String),
+    EditUserSelected(User),
 }
 
 /// # Panics
@@ -117,6 +126,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.formconfig.filter[UserOverviewColumns::Email].sieve = sanit;
             orders.send_msg(Msg::Fetch);
         }
+        Msg::EditUserSelected(user) => {
+            log!("Editing user: ", user);
+            model.user_edit = Some(UserEditMode::Edit { user })
+        }
     }
 }
 #[must_use]
@@ -192,7 +205,9 @@ fn view_user_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
 }
 
 fn view_user(l: &User) -> Node<Msg> {
+    let user = l.clone();
     tr![
+        ev(Ev::Click, |_| Msg::EditUserSelected(user)),
         td![&l.id],
         td![&l.email],
         //td![a![attrs![At::Href => &l.link.target], &l.link.target]],
