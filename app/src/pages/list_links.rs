@@ -148,91 +148,92 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 /// # Panics
 /// Sould only panic on bugs.
 pub fn view(model: &Model) -> Node<Msg> {
-    macro_rules! t {
-        { $key:expr } => {
-            {
-                model.i18n.translate($key, None)
-            }
-        };
-        { $key:expr, $args:expr } => {
-            {
-                model.i18n.translate($key, Some(&$args))
-            }
-        };
-    }
+    let lang = model.i18n.clone();
+    let t = move |key: &str| lang.translate(key, None);
     section![
         h1!("List Links Page from list_links"),
         table![
-            tr![
-                th![
-                    ev(Ev::Click, |_| Msg::OrderBy(LinkOverviewColumns::Code)),
-                    t!("link-code")
-                ],
-                th![
-                    ev(Ev::Click, |_| Msg::OrderBy(
-                        LinkOverviewColumns::Description
-                    )),
-                    t!("link-description")
-                ],
-                th![
-                    ev(Ev::Click, |_| Msg::OrderBy(LinkOverviewColumns::Target)),
-                    t!("link-target")
-                ],
-                th![
-                    ev(Ev::Click, |_| Msg::OrderBy(LinkOverviewColumns::Author)),
-                    t!("username")
-                ],
-                th![
-                    ev(Ev::Click, |_| Msg::OrderBy(LinkOverviewColumns::Statistics)),
-                    t!("statistics")
-                ]
-            ],
-            tr![
-                C!["filters"],
-                td![input![
-                    attrs! {
-                        At::Value => &model.formconfig.filter[LinkOverviewColumns::Code].sieve,
-                        At::Type => "search",
-                        At::Placeholder => t!("search-placeholder")
-                    },
-                    input_ev(Ev::Input, Msg::CodeFilterChanged),
-                    el_ref(&model.inputs[LinkOverviewColumns::Code].filter_input),
-                ]],
-                td![input![
-                    attrs! {At::Value =>
-                    &model
-                        .formconfig.filter[LinkOverviewColumns::Description].sieve,
-                        At::Type => "search",
-                        At::Placeholder => t!("search-placeholder")
-                    },
-                    input_ev(Ev::Input, Msg::DescriptionFilterChanged),
-                    el_ref(&model.inputs[LinkOverviewColumns::Description].filter_input),
-                ]],
-                td![input![
-                    attrs! {At::Value =>
-                    &model
-                        .formconfig.filter[LinkOverviewColumns::Target].sieve,
-                        At::Type => "search",
-                        At::Placeholder => t!("search-placeholder")
-                    },
-                    input_ev(Ev::Input, Msg::TargetFilterChanged),
-                    el_ref(&model.inputs[LinkOverviewColumns::Target].filter_input),
-                ]],
-                td![input![
-                    attrs! {At::Value =>
-                    &model
-                        .formconfig.filter[LinkOverviewColumns::Author].sieve,
-                        At::Type => "search",
-                        At::Placeholder => t!("search-placeholder")
-                    },
-                    input_ev(Ev::Input, Msg::AuthorFilterChanged),
-                    el_ref(&model.inputs[LinkOverviewColumns::Author].filter_input),
-                ]],
-                td![]
-            ],
+            // Add the headlines
+            view_link_table_head(&t),
+            // Add filter fields right below the headlines
+            view_link_table_filter_input(model, &t),
+            // Add all the content lines
             model.links.iter().map(view_link)
         ],
         button![ev(Ev::Click, |_| Msg::Fetch), "Fetch links"]
+    ]
+}
+
+fn view_link_table_head<F: Fn(&str) -> String>(t: F) -> Node<Msg> {
+    tr![
+        th![
+            ev(Ev::Click, |_| Msg::OrderBy(LinkOverviewColumns::Code)),
+            t("link-code")
+        ],
+        th![
+            ev(Ev::Click, |_| Msg::OrderBy(
+                LinkOverviewColumns::Description
+            )),
+            t("link-description")
+        ],
+        th![
+            ev(Ev::Click, |_| Msg::OrderBy(LinkOverviewColumns::Target)),
+            t("link-target")
+        ],
+        th![
+            ev(Ev::Click, |_| Msg::OrderBy(LinkOverviewColumns::Author)),
+            t("username")
+        ],
+        th![
+            ev(Ev::Click, |_| Msg::OrderBy(LinkOverviewColumns::Statistics)),
+            t("statistics")
+        ]
+    ]
+}
+
+fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> Node<Msg> {
+    tr![
+        C!["filters"],
+        td![input![
+            attrs! {
+                At::Value => &model.formconfig.filter[LinkOverviewColumns::Code].sieve,
+                At::Type => "search",
+                At::Placeholder => t("search-placeholder")
+            },
+            input_ev(Ev::Input, Msg::CodeFilterChanged),
+            el_ref(&model.inputs[LinkOverviewColumns::Code].filter_input),
+        ]],
+        td![input![
+            attrs! {At::Value =>
+            &model
+                .formconfig.filter[LinkOverviewColumns::Description].sieve,
+                At::Type => "search",
+                At::Placeholder => t("search-placeholder")
+            },
+            input_ev(Ev::Input, Msg::DescriptionFilterChanged),
+            el_ref(&model.inputs[LinkOverviewColumns::Description].filter_input),
+        ]],
+        td![input![
+            attrs! {At::Value =>
+            &model
+                .formconfig.filter[LinkOverviewColumns::Target].sieve,
+                At::Type => "search",
+                At::Placeholder => t("search-placeholder")
+            },
+            input_ev(Ev::Input, Msg::TargetFilterChanged),
+            el_ref(&model.inputs[LinkOverviewColumns::Target].filter_input),
+        ]],
+        td![input![
+            attrs! {At::Value =>
+            &model
+                .formconfig.filter[LinkOverviewColumns::Author].sieve,
+                At::Type => "search",
+                At::Placeholder => t("search-placeholder")
+            },
+            input_ev(Ev::Input, Msg::AuthorFilterChanged),
+            el_ref(&model.inputs[LinkOverviewColumns::Author].filter_input),
+        ]],
+        td![]
     ]
 }
 
