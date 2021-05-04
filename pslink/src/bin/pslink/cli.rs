@@ -3,6 +3,7 @@ use clap::{
     ArgMatches, SubCommand,
 };
 use dotenv::dotenv;
+use shared::datatypes::User;
 use sqlx::{migrate::Migrator, Pool, Sqlite};
 use std::{
     fs::File,
@@ -10,7 +11,10 @@ use std::{
     path::PathBuf,
 };
 
-use pslink::{models::NewUser, models::User, ServerConfig, ServerError};
+use pslink::{
+    models::{NewUser, UserDbOperations},
+    ServerConfig, ServerError,
+};
 
 use tracing::{error, info, trace, warn};
 
@@ -308,7 +312,12 @@ async fn create_admin(config: &ServerConfig) -> Result<(), ServerError> {
         &new_username, &new_email
     );
 
-    let new_admin = NewUser::new(new_username.clone(), new_email.clone(), &password, config)?;
+    let new_admin = NewUser::new(
+        new_username.clone(),
+        new_email.clone(),
+        &password,
+        &config.secret,
+    )?;
 
     new_admin.insert_user(config).await?;
     let created_user = User::get_user_by_name(&new_username, config).await?;

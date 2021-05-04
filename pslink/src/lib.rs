@@ -5,6 +5,7 @@ pub mod models;
 pub mod queries;
 mod views;
 
+use actix_files::Files;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::HttpResponse;
 use actix_web::{web, App, HttpServer};
@@ -366,9 +367,19 @@ pub async fn webservice(
                         web::scope("/download")
                             .route("/png/{redirect_id}", web::get().to(views::download_png)),
                     )
+                    .service(
+                        web::scope("/json")
+                            .route("/list_links/", web::post().to(views::index_json))
+                            .route("/list_users/", web::post().to(views::index_users_json)),
+                    )
                     // login to the admin area
                     .route("/login/", web::get().to(views::login))
                     .route("/login/", web::post().to(views::process_login)),
+            )
+            .service(
+                web::scope("/app")
+                    .service(Files::new("/pkg", "./app/pkg"))
+                    .default_service(web::get().to(views::wasm_app)),
             )
             // redirect to the url hidden behind the code
             .route("/{redirect_id}", web::get().to(views::redirect))
