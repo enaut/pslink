@@ -1,12 +1,22 @@
 use actix_identity::Identity;
 use actix_web::web;
+use enum_map::EnumMap;
 use serde::Serialize;
-use tracing::info;
+use shared::{
+    apirequests::{
+        general::{Filter, Operation, Ordering},
+        links::{LinkOverviewColumns, LinkRequestForm},
+        users::{UserOverviewColumns, UserRequestForm},
+    },
+    datatypes::{Count, FullLink, Link, User},
+};
+use sqlx::Row;
+use tracing::{info, instrument, warn};
 
-use super::models::{Count, Link, NewUser, User};
+use super::models::NewUser;
 use crate::{
     forms::LinkForm,
-    models::{NewClick, NewLink},
+    models::{LinkDbOperations, NewClick, NewLink, UserDbOperations},
     ServerConfig, ServerError,
 };
 
@@ -34,12 +44,15 @@ impl Role {
 ///
 /// # Errors
 /// Fails only if there are issues using the database.
+#[instrument(skip(id))]
 pub async fn authenticate(
     id: &Identity,
     server_config: &ServerConfig,
 ) -> Result<Role, ServerError> {
     if let Some(username) = id.identity() {
+        info!("Looking for user {}", username);
         let user = User::get_user_by_name(&username, server_config).await?;
+        info!("Found user {:?}", user);
 
         return Ok(match user.role {
             0 => Role::Disabled,
@@ -52,32 +65,26 @@ pub async fn authenticate(
 }
 
 /// A generic list returntype containing the User and a Vec containing e.g. Links or Users
-pub struct List<T> {
+#[derive(Serialize)]
+pub struct ListWithOwner<T> {
     pub user: User,
     pub list: Vec<T>,
-}
-
-/// A link together with its author and its click-count.
-#[derive(Serialize)]
-pub struct FullLink {
-    link: Link,
-    user: User,
-    clicks: Count,
 }
 
 /// Returns a List of `FullLink` meaning `Links` enriched by their author and statistics. This returns all links if the user is either Admin or Regular user.
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails.
+#[instrument(skip(id))]
 pub async fn list_all_allowed(
     id: &Identity,
     server_config: &ServerConfig,
-) -> Result<List<FullLink>, ServerError> {
+    parameters: LinkRequestForm,
+) -> Result<ListWithOwner<FullLink>, ServerError> {
     use crate::sqlx::Row;
     match authenticate(id, server_config).await? {
         Role::Admin { user } | Role::Regular { user } => {
-            let links = sqlx::query(
-                "select
+            let mut querystring = "select
                         links.id as lid,
                         links.title as ltitle,
                         links.target as ltarget,
@@ -93,37 +100,44 @@ pub async fn list_all_allowed(
                     from
                         links
                         join users on links.author = users.id
-                        left join clicks on links.id = clicks.link
-                    group by
-                        links.id",
-            )
-            .fetch_all(&server_config.db_pool)
-            .await?
-            .into_iter()
-            .map(|v| FullLink {
-                link: Link {
-                    id: v.get("lid"),
-                    title: v.get("ltitle"),
-                    target: v.get("ltarget"),
-                    code: v.get("lcode"),
-                    author: v.get("lauthor"),
-                    created_at: v.get("ldate"),
-                },
-                user: User {
-                    id: v.get("usid"),
-                    username: v.get("usern"),
-                    email: v.get("uemail"),
-                    password: "invalid".to_owned(),
-                    role: v.get("urole"),
-                    language: v.get("ulang"),
-                },
-                clicks: Count {
-                    number: v.get("counter"), /* count is never None */
-                },
-            });
+                        left join clicks on links.id = clicks.link"
+                .to_string();
+            querystring.push_str(&generate_filter_sql(&parameters.filter));
+            querystring.push_str("\n GROUP BY links.id");
+            if let Some(order) = parameters.order {
+                querystring.push_str(&generate_order_sql(&order));
+            }
+            querystring.push_str(&format!("\n LIMIT {}", parameters.amount));
+            info!("{}", querystring);
+
+            let links = sqlx::query(&querystring)
+                .fetch_all(&server_config.db_pool)
+                .await?
+                .into_iter()
+                .map(|v| FullLink {
+                    link: Link {
+                        id: v.get("lid"),
+                        title: v.get("ltitle"),
+                        target: v.get("ltarget"),
+                        code: v.get("lcode"),
+                        author: v.get("lauthor"),
+                        created_at: v.get("ldate"),
+                    },
+                    user: User {
+                        id: v.get("usid"),
+                        username: v.get("usern"),
+                        email: v.get("uemail"),
+                        password: "invalid".to_owned(),
+                        role: v.get("urole"),
+                        language: v.get("ulang"),
+                    },
+                    clicks: Count {
+                        number: v.get("counter"), /* count is never None */
+                    },
+                });
             // show all links
             let all_links: Vec<FullLink> = links.collect();
-            Ok(List {
+            Ok(ListWithOwner {
                 user,
                 list: all_links,
             })
@@ -132,26 +146,158 @@ pub async fn list_all_allowed(
     }
 }
 
+fn generate_filter_sql(filters: &EnumMap<LinkOverviewColumns, Filter>) -> String {
+    let mut result = String::new();
+    let filterstring = filters
+        .iter()
+        .filter_map(|(column, sieve)| {
+            // avoid sql injections
+            let sieve: String = sieve.chars().filter(|x| x.is_alphanumeric()).collect();
+            if sieve.is_empty() {
+                None
+            } else {
+                Some(match column {
+                    LinkOverviewColumns::Code => {
+                        format!("\n lcode LIKE '%{}%'", sieve)
+                    }
+                    LinkOverviewColumns::Description => {
+                        format!("\n ltitle LIKE '%{}%'", sieve)
+                    }
+                    LinkOverviewColumns::Target => {
+                        format!("\n ltarget LIKE '%{}%'", sieve)
+                    }
+                    LinkOverviewColumns::Author => {
+                        format!("\n usern LIKE '%{}%'", sieve)
+                    }
+                    LinkOverviewColumns::Statistics => {
+                        format!("\n counter LIKE '%{}%'", sieve)
+                    }
+                })
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" AND ");
+    if filterstring.len() > 1 {
+        result.push_str("\n WHERE ");
+        result.push_str(&filterstring);
+    }
+    result
+}
+macro_rules! ts {
+    ($ordering:expr) => {
+        match $ordering {
+            Ordering::Ascending => "ASC",
+            Ordering::Descending => "DESC",
+        };
+    };
+}
+fn generate_order_sql(order: &Operation<LinkOverviewColumns, Ordering>) -> String {
+    let filterstring = match order.column {
+        LinkOverviewColumns::Code => {
+            format!("\n ORDER BY lcode {}", ts!(order.value))
+        }
+        LinkOverviewColumns::Description => {
+            format!("\n ORDER BY ltitle {}", ts!(order.value))
+        }
+        LinkOverviewColumns::Target => {
+            format!("\n ORDER BY ltarget {}", ts!(order.value))
+        }
+        LinkOverviewColumns::Author => {
+            format!("\n ORDER BY usern {}", ts!(order.value))
+        }
+        LinkOverviewColumns::Statistics => {
+            format!("\n ORDER BY counter {}", ts!(order.value))
+        }
+    };
+    filterstring
+}
+
 /// Only admins can list all users
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[instrument(skip(id))]
 pub async fn list_users(
     id: &Identity,
     server_config: &ServerConfig,
-) -> Result<List<User>, ServerError> {
+    parameters: UserRequestForm,
+) -> Result<ListWithOwner<User>, ServerError> {
     match authenticate(id, server_config).await? {
         Role::Admin { user } => {
-            let all_users: Vec<User> = User::get_all_users(server_config).await?;
-            Ok(List {
-                user,
-                list: all_users,
-            })
+            let mut querystring = "Select * from users".to_string();
+            querystring.push_str(&generate_filter_users_sql(&parameters.filter));
+            if let Some(order) = parameters.order {
+                querystring.push_str(&generate_order_users_sql(&order));
+            }
+            querystring.push_str(&format!("\n LIMIT {}", parameters.amount));
+            info!("{}", querystring);
+
+            let users: Vec<User> = sqlx::query(&querystring)
+                .fetch_all(&server_config.db_pool)
+                .await?
+                .into_iter()
+                .map(|v| User {
+                    id: v.get("id"),
+                    username: v.get("username"),
+                    email: v.get("email"),
+                    password: "invalid".to_owned(),
+                    role: v.get("role"),
+                    language: v.get("language"),
+                })
+                .collect();
+
+            Ok(ListWithOwner { user, list: users })
         }
         _ => Err(ServerError::User(
             "Administrator permissions required".to_owned(),
         )),
     }
+}
+
+fn generate_filter_users_sql(filters: &EnumMap<UserOverviewColumns, Filter>) -> String {
+    let mut result = String::new();
+    let filterstring = filters
+        .iter()
+        .filter_map(|(column, sieve)| {
+            // avoid sql injections
+            let sieve: String = sieve.chars().filter(|x| x.is_alphanumeric()).collect();
+            if sieve.is_empty() {
+                None
+            } else {
+                Some(match column {
+                    UserOverviewColumns::Id => {
+                        format!("\n id LIKE '%{}%'", sieve)
+                    }
+                    UserOverviewColumns::Username => {
+                        format!("\n username LIKE '%{}%'", sieve)
+                    }
+                    UserOverviewColumns::Email => {
+                        format!("\n email LIKE '%{}%'", sieve)
+                    }
+                })
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" AND ");
+    if filterstring.len() > 1 {
+        result.push_str("\n WHERE ");
+        result.push_str(&filterstring);
+    }
+    result
+}
+fn generate_order_users_sql(order: &Operation<UserOverviewColumns, Ordering>) -> String {
+    let filterstring = match order.column {
+        UserOverviewColumns::Id => {
+            format!("\n ORDER BY id {}", ts!(order.value))
+        }
+        UserOverviewColumns::Username => {
+            format!("\n ORDER BY username {}", ts!(order.value))
+        }
+        UserOverviewColumns::Email => {
+            format!("\n ORDER BY email {}", ts!(order.value))
+        }
+    };
+    filterstring
 }
 
 /// A generic returntype containing the User and a single item
@@ -165,6 +311,7 @@ pub struct Item<T> {
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
 #[allow(clippy::clippy::missing_panics_doc)]
+#[instrument(skip(id))]
 pub async fn get_user(
     id: &Identity,
     user_id: &str,
@@ -198,6 +345,7 @@ pub async fn get_user(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails.
+#[instrument()]
 pub async fn get_user_by_name(
     username: &str,
     server_config: &ServerConfig,
@@ -210,6 +358,7 @@ pub async fn get_user_by_name(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails, this user does not have permissions or the user already exists.
+#[instrument(skip(id))]
 pub async fn create_user(
     id: &Identity,
     data: &web::Form<NewUser>,
@@ -223,7 +372,7 @@ pub async fn create_user(
                 data.username.clone(),
                 data.email.clone(),
                 &data.password,
-                server_config,
+                &server_config.secret,
             )?;
 
             new_user.insert_user(server_config).await?;
@@ -247,6 +396,7 @@ pub async fn create_user(
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails, this user does not have permissions, or the given data is malformed.
 #[allow(clippy::clippy::missing_panics_doc)]
+#[instrument(skip(id))]
 pub async fn update_user(
     id: &Identity,
     user_id: &str,
@@ -261,7 +411,7 @@ pub async fn update_user(
                 Role::Admin { .. } | Role::Regular { .. } => {
                     info!("Updating userinfo: ");
                     let password = if data.password.len() > 3 {
-                        NewUser::hash_password(&data.password, server_config)?
+                        NewUser::hash_password(&data.password, &server_config.secret)?
                     } else {
                         unmodified_user.password
                     };
@@ -295,6 +445,7 @@ pub async fn update_user(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails, this user does not have permissions or the user does not exist.
+#[instrument(skip(id))]
 pub async fn toggle_admin(
     id: &Identity,
     user_id: &str,
@@ -333,6 +484,7 @@ pub async fn toggle_admin(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails, this user does not have permissions or the language given is invalid.
+#[instrument(skip(id))]
 pub async fn set_language(
     id: &Identity,
     lang_code: &str,
@@ -347,9 +499,12 @@ pub async fn set_language(
                 Err(ServerError::User("Not Allowed".to_owned()))
             }
         },
-        _ => Err(ServerError::User(
-            "This language is not supported!".to_owned(),
-        )),
+        _ => {
+            warn!("An invalid language was selected!");
+            Err(ServerError::User(
+                "This language is not supported!".to_owned(),
+            ))
+        }
     }
 }
 
@@ -357,6 +512,7 @@ pub async fn set_language(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[instrument(skip(id))]
 pub async fn get_link(
     id: &Identity,
     link_code: &str,
@@ -367,7 +523,10 @@ pub async fn get_link(
             let link = Link::get_link_by_code(link_code, server_config).await?;
             Ok(Item { user, item: link })
         }
-        Role::Disabled | Role::NotAuthenticated => Err(ServerError::User("Not Allowed".to_owned())),
+        Role::Disabled | Role::NotAuthenticated => {
+            warn!("User could not be authenticated!");
+            Err(ServerError::User("Not Allowed".to_owned()))
+        }
     }
 }
 
@@ -375,6 +534,7 @@ pub async fn get_link(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails.
+#[instrument()]
 pub async fn get_link_simple(
     link_code: &str,
     server_config: &ServerConfig,
@@ -390,6 +550,7 @@ pub async fn get_link_simple(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails.
+#[instrument()]
 pub async fn click_link(link_id: i64, server_config: &ServerConfig) -> Result<(), ServerError> {
     info!("Clicking on {:?}", link_id);
     let new_click = NewClick::new(link_id);
@@ -401,13 +562,14 @@ pub async fn click_link(link_id: i64, server_config: &ServerConfig) -> Result<()
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[instrument(skip(id))]
 pub async fn delete_link(
     id: &Identity,
     link_code: &str,
     server_config: &ServerConfig,
 ) -> Result<(), ServerError> {
     let auth = authenticate(id, server_config).await?;
-    let link = get_link_simple(link_code, server_config).await?;
+    let link: Link = get_link_simple(link_code, server_config).await?;
     if auth.admin_or_self(link.author) {
         Link::delete_link_by_code(link_code, server_config).await?;
         Ok(())
@@ -420,6 +582,7 @@ pub async fn delete_link(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[instrument(skip(id))]
 pub async fn update_link(
     id: &Identity,
     link_code: &str,
@@ -430,7 +593,7 @@ pub async fn update_link(
     let auth = authenticate(id, server_config).await?;
     match auth {
         Role::Admin { .. } | Role::Regular { .. } => {
-            let query = get_link(id, link_code, server_config).await?;
+            let query: Item<Link> = get_link(id, link_code, server_config).await?;
             if auth.admin_or_self(query.item.author) {
                 let mut link = query.item;
                 let LinkForm {
@@ -455,6 +618,7 @@ pub async fn update_link(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[instrument(skip(id))]
 pub async fn create_link(
     id: &Identity,
     data: web::Form<LinkForm>,
@@ -469,7 +633,7 @@ pub async fn create_link(
             info!("Creating link for: {:?}", &new_link);
 
             new_link.insert(server_config).await?;
-            let new_link = get_link_simple(&code, server_config).await?;
+            let new_link: Link = get_link_simple(&code, server_config).await?;
             Ok(Item {
                 user,
                 item: new_link,
