@@ -23,7 +23,7 @@ pub trait UserDbOperations<T> {
 }
 
 #[async_trait]
-impl UserDbOperations<User> for User {
+impl UserDbOperations<Self> for User {
     async fn get_user(id: i64, server_config: &ServerConfig) -> Result<Self, ServerError> {
         let user = sqlx::query_as!(Self, "Select * from users where id = ? ", id)
             .fetch_one(&server_config.db_pool)
@@ -186,7 +186,7 @@ pub trait LinkDbOperations<T> {
 }
 
 #[async_trait]
-impl LinkDbOperations<Link> for Link {
+impl LinkDbOperations<Self> for Link {
     async fn get_link_by_code(
         code: &str,
         server_config: &ServerConfig,

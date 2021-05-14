@@ -3,3 +3,9 @@ members = [
     "pslink",
     "app",
 ]
+
+[profile]
+[profile.release]
+lto = true
+#codegen-units = 1
+opt-level = 'z'

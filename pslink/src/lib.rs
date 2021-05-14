@@ -370,7 +370,11 @@ pub async fn webservice(
                     .service(
                         web::scope("/json")
                             .route("/list_links/", web::post().to(views::index_json))
-                            .route("/list_users/", web::post().to(views::index_users_json)),
+                            .route("/list_users/", web::post().to(views::index_users_json))
+                            .route(
+                                "/create_user/",
+                                web::post().to(views::process_create_user_json),
+                            ),
                     )
                     // login to the admin area
                     .route("/login/", web::get().to(views::login))

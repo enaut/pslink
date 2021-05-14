@@ -28,9 +28,11 @@ edit-user-headline = Benutzereinstellungen von: {$username}
 username = Benutzername
 email = Email
 password = Passwort
-password-placeholder = Leer lassen um das Passwort nicht zu ändern
+leave-password-empty-hint = Leer lassen um das Passwort nicht zu ändern
 save-user = Benutzer speichern
 edit-user = Benutzer editieren
+create-user = Benutzer Erstellen
+new-user = Neuer Benutzer
 make-user-admin = Zum Administrator befördern
 make-user-regular = Zurückstufen zum normalen Nutzer
 
