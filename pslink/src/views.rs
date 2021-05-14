@@ -14,7 +14,11 @@ use fluent_templates::LanguageIdentifier;
 use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use queries::{authenticate, Role};
-use shared::apirequests::{links::LinkRequestForm, users::UserRequestForm};
+use shared::apirequests::{
+    general::SuccessMessage,
+    links::LinkRequestForm,
+    users::{UserDelta, UserRequestForm},
+};
 use tera::{Context, Tera};
 use tracing::{error, info, instrument, warn};
 
@@ -342,6 +346,21 @@ pub async fn process_signup(
         Ok(item) => {
             Ok(HttpResponse::Ok().body(format!("Successfully saved user: {}", item.item.username)))
         }
+        Err(e) => Err(e),
+    }
+}
+
+#[instrument(skip(id))]
+pub async fn process_create_user_json(
+    config: web::Data<crate::ServerConfig>,
+    form: web::Json<UserDelta>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    info!("Listing Users to Json api");
+    match queries::create_user_json(&id, &form, &config).await {
+        Ok(item) => Ok(HttpResponse::Ok().json2(&SuccessMessage {
+            message: format!("Successfully saved user: {}", item.item.username),
+        })),
         Err(e) => Err(e),
     }
 }

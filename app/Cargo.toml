@@ -19,12 +19,9 @@ crate-type = ["cdylib", "rlib"]
 fluent = "0.15"
 seed = "0.8"
 serde = "1.0"
-strum_macros = "0.20"
 unic-langid = "0.9"
+strum_macros = "0.20"
 strum = "0.20"
 enum-map = "1"
 
 shared = { path = "../shared" }
-
-[profile.release]
-opt-level = 'z'
