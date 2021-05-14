@@ -1,163 +1,173 @@
-
 body {
-  margin: 0;
-  padding: 0;
+    margin: 0;
+    padding: 0;
 }
 
 form {
-  width: 100%;
+    width: 100%;
 }
+
 .center {
-position: absolute;
-width: 400px;
-height: 400px;
-top: 50%;
-left: 50%;
-margin-left: -200px;
-margin-top: -200px;
-display: flex;
-flex-direction: column;
-justify-content: center;
-align-items: center;
-padding: 30px;
-color: #333;
+    position: absolute;
+    width: 600px;
+    max-width: 100%;
+    height: 400px;
+    max-height: 100%;
+    top: 50%;
+    left: 50%;
+    margin-left: -300px;
+    margin-top: -200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+    color: #333;
 }
+
 .center input {
-width: 100%;
-padding: 15px;
-margin: 5px;
-border-radius: 1px;
-border: 1px solid rgb(90, 90, 90);
-font-family: inherit;
-background-color: #eae9ea;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border-radius: 1px;
+    border: 1px solid rgb(90, 90, 90);
+    font-family: inherit;
+    background-color: #eae9ea;
 }
 
-.center {
-width: 800px;
-height: 600px;
-margin-left: -400px;
-margin-top: -300px;
-
+.center table p {
+    font-size: x-small;
+    margin: 0;
 }
 
 table {
-border-collapse: collapse;
-width: 100%;
+    border-collapse: collapse;
+    width: 100%;
 }
 
-th, td {
-text-align: center;
-border: 1px solid #ccc;
-padding: 10px;
+th,
+td {
+    text-align: center;
+    border: 1px solid #ccc;
+    padding: 10px;
 }
 
 table tr:nth-child(even) {
-background-color: #eee;
+    background-color: #eee;
 }
+
 table tr:nth-child(odd) {
-background-color: #fff;
-} 
+    background-color: #fff;
+}
 
 table tr.filters input {
-  background-image: url("/static/search.svg");
-  background-repeat: no-repeat;
-  background-size: contain;
-  width: 100%;
-  padding: 5px;
-  height: 20px;
-  text-align: center;
-  border-radius: 0;
-  border: none;
+    background-image: url("/static/search.svg");
+    background-repeat: no-repeat;
+    background-size: contain;
+    width: 100%;
+    padding: 5px;
+    height: 20px;
+    text-align: center;
+    border-radius: 0;
+    border: none;
 }
 
 table tr.filters td {
-  padding:5px;
+    padding: 5px;
 }
 
 nav {
-display: flex;
-flex-flow: row wrap;
-justify-content: space-between;
-align-items:stretch;
-width:100%;
-height: 60px;
-}
-nav ol {
-  display:flex;
-  align-items: center;
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-  height: 40px;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    align-items: stretch;
+    width: 100%;
+    height: 60px;
 }
 
-nav li a, nav li div.willkommen {
-  color: white;
-  text-align: center;
-  padding: 14px 16px;
-  text-decoration: none;
-  border-radius: 0 0 10px 10px;
+nav ol {
+    display: flex;
+    align-items: center;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    height: 40px;
+}
+
+nav li a,
+nav li div.willkommen {
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+    border-radius: 0 0 10px 10px;
 }
 
 nav li a {
-background: rgb(2,0,36);
-background: linear-gradient(180deg, rgba(2,0,36,1) 0%, rgba(9,9,121,1) 35%, rgb(0, 145, 174) 100%); 
+    background: rgb(2, 0, 36);
+    background: linear-gradient(180deg, rgba(2, 0, 36, 1) 0%, rgba(9, 9, 121, 1) 35%, rgb(0, 145, 174) 100%);
 }
 
 nav li {
-  float: left;
+    float: left;
 }
+
 nav li a:hover {
-background: rgb(2,0,36);
-background: linear-gradient(180deg, rgba(2,0,36,1) 0%, rgba(9,9,121,1) 35%, rgb(60, 170, 255) 100%); 
+    background: rgb(2, 0, 36);
+    background: linear-gradient(180deg, rgba(2, 0, 36, 1) 0%, rgba(9, 9, 121, 1) 35%, rgb(60, 170, 255) 100%);
 }
 
 nav li {
-  margin: 5px;
+    margin: 5px;
 }
 
-nav li div{
-  background-color: burlywood;
-  text-align: center;
-  padding: 14px 16px;
-  border-radius: 0 0 10px 10px;
+nav li div {
+    background-color: burlywood;
+    text-align: center;
+    padding: 14px 16px;
+    border-radius: 0 0 10px 10px;
 }
-
 
 svg {
-width: 100px;
-height: 100px;
+    width: 100px;
+    height: 100px;
 }
 
 div.actions {
-margin-left:5px;
-display: flex;
-width:100%;
-align-items: center;
-padding: 10px;
-color: #333;
-flex-flow: row wrap;
-justify-content: center;
+    margin-left: 5px;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    padding: 10px;
+    color: #333;
+    flex-flow: row wrap;
+    justify-content: center;
 }
 
 div.danger {
-background-color: rgb(235, 127, 77);
-font-size: smaller;
-border: 2px solid crimson;
+    background-color: rgb(235, 127, 77);
+    font-size: smaller;
+    border: 2px solid crimson;
 }
 
 div.danger h3 {
-width:100%;
+    width: 100%;
 }
 
-a.button, div.actions input {
-width: 250px;
-display:block;
-padding: 15px;
-margin-left: 15px;
-text-align: center;
-border-radius: 1px;
-border: 1px solid rgb(90, 90, 90);
-font-family: inherit;
-background-color: #eae9ea;
+a.button,
+div.actions input {
+    width: 250px;
+    display: block;
+    padding: 15px;
+    margin-left: 15px;
+    text-align: center;
+    border-radius: 1px;
+    border: 1px solid rgb(90, 90, 90);
+    font-family: inherit;
+    background-color: #eae9ea;
+}
+
+div.editdialog {
+    background-color: aliceblue;
+    border: 5px solid rgb(90, 90, 90);
 }

@@ -71,8 +71,3 @@ tokio = "0.2.25"
 [dev-dependencies.reqwest]
 features = ["cookies"]
 version = "0.10.10"
-
-[profile]
-[profile.release]
-lto = true
-#codegen-units = 1

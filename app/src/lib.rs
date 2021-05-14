@@ -49,13 +49,13 @@ enum Page {
 impl Page {
     fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Self {
         url.next_path_part();
-        let result = match url.remaining_path_parts().as_slice() {
-            [] | ["list_links"] => Self::Home(pages::list_links::init(
+        let result = match url.next_path_part() {
+            None | Some("list_links") => Self::Home(pages::list_links::init(
                 url,
                 &mut orders.proxy(Msg::ListLinksMsg),
                 i18n,
             )),
-            ["list_users"] => Self::ListUsers(pages::list_users::init(
+            Some("list_users") => Self::ListUsers(pages::list_users::init(
                 url,
                 &mut orders.proxy(Msg::ListUsersMsg),
                 i18n,
@@ -143,6 +143,10 @@ impl<'a> Urls<'a> {
     #[must_use]
     pub fn list_users(self) -> Url {
         self.base_url().add_path_part("list_users")
+    }
+    #[must_use]
+    pub fn create_user(self) -> Url {
+        self.list_users().add_path_part("create_user")
     }
 }
 

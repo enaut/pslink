@@ -6,7 +6,7 @@ use shared::{
     apirequests::{
         general::{Filter, Operation, Ordering},
         links::{LinkOverviewColumns, LinkRequestForm},
-        users::{UserOverviewColumns, UserRequestForm},
+        users::{UserDelta, UserOverviewColumns, UserRequestForm},
     },
     datatypes::{Count, FullLink, Link, User},
 };
@@ -372,6 +372,51 @@ pub async fn create_user(
                 data.username.clone(),
                 data.email.clone(),
                 &data.password,
+                &server_config.secret,
+            )?;
+
+            new_user.insert_user(server_config).await?;
+
+            // querry the new user
+            let new_user = get_user_by_name(&data.username, server_config).await?;
+            Ok(Item {
+                user,
+                item: new_user,
+            })
+        }
+        Role::Regular { .. } | Role::Disabled | Role::NotAuthenticated => {
+            Err(ServerError::User("Permission denied!".to_owned()))
+        }
+    }
+}
+/// Create a new user and save it to the database
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails, this user does not have permissions or the user already exists.
+#[instrument(skip(id))]
+pub async fn create_user_json(
+    id: &Identity,
+    data: &web::Json<UserDelta>,
+    server_config: &ServerConfig,
+) -> Result<Item<User>, ServerError> {
+    info!("Creating a User: {:?}", &data);
+    let auth = authenticate(id, server_config).await?;
+
+    // Require a password on user creation!
+    let password = match &data.password {
+        Some(pass) => pass,
+        None => {
+            return Err(ServerError::User(
+                "A new users does require a password".to_string(),
+            ))
+        }
+    };
+    match auth {
+        Role::Admin { user } => {
+            let new_user = NewUser::new(
+                data.username.clone(),
+                data.email.clone(),
+                password,
                 &server_config.secret,
             )?;
 
