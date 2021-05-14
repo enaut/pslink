@@ -25,3 +25,20 @@ pub struct Operation<T, V> {
     pub column: T,
     pub value: V,
 }
+
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub enum EditMode {
+    Create,
+    Edit,
+}
+
+impl Default for EditMode {
+    fn default() -> Self {
+        Self::Create
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct SuccessMessage {
+    pub message: String,
+}

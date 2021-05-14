@@ -28,9 +28,11 @@ edit-user-headline = Change Settings of: {$username}
 username = Username
 email = Email
 password = Password
-password-placeholder = Leave this empty to keep the current password
+leave-password-empty-hint = Leave this empty to keep the current password
 save-user = Save this user
 edit-user = Edit this user
+new-user = Neuer Benutzer
+create-user = Create user
 make-user-admin = Promote to admin
 make-user-regular = Demote to regular
 
