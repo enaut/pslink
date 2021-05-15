@@ -20,7 +20,7 @@ use tracing::{error, info, trace, warn};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 
-#[allow(clippy::clippy::too_many_lines)]
+#[allow(clippy::too_many_lines)]
 fn generate_cli() -> App<'static, 'static> {
     app_from_crate!()
         .arg(
