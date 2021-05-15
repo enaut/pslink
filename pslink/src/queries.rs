@@ -4,7 +4,7 @@ use enum_map::EnumMap;
 use serde::Serialize;
 use shared::{
     apirequests::{
-        general::{Filter, Operation, Ordering},
+        general::{EditMode, Filter, Operation, Ordering},
         links::{LinkOverviewColumns, LinkRequestForm},
         users::{UserDelta, UserOverviewColumns, UserRequestForm},
     },
@@ -310,7 +310,7 @@ pub struct Item<T> {
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
-#[allow(clippy::clippy::missing_panics_doc)]
+#[allow(clippy::missing_panics_doc)]
 #[instrument(skip(id))]
 pub async fn get_user(
     id: &Identity,
@@ -400,6 +400,9 @@ pub async fn create_user_json(
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
     info!("Creating a User: {:?}", &data);
+    if data.edit != EditMode::Create {
+        return Err(ServerError::User("Wrong Request".to_string()));
+    }
     let auth = authenticate(id, server_config).await?;
 
     // Require a password on user creation!
@@ -440,7 +443,58 @@ pub async fn create_user_json(
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails, this user does not have permissions, or the given data is malformed.
-#[allow(clippy::clippy::missing_panics_doc)]
+
+#[instrument(skip(id))]
+pub async fn update_user_json(
+    id: &Identity,
+    data: &web::Json<UserDelta>,
+    server_config: &ServerConfig,
+) -> Result<Item<User>, ServerError> {
+    let auth = authenticate(id, server_config).await?;
+    if let Some(uid) = data.id {
+        let unmodified_user = User::get_user(uid, server_config).await?;
+        if auth.admin_or_self(uid) {
+            match auth {
+                Role::Admin { .. } | Role::Regular { .. } => {
+                    info!("Updating userinfo: ");
+                    let password = match &data.password {
+                        Some(password) => NewUser::hash_password(password, &server_config.secret)?,
+                        None => unmodified_user.password,
+                    };
+                    let new_user = User {
+                        id: uid,
+                        username: data.username.clone(),
+                        email: data.email.clone(),
+                        password,
+                        role: unmodified_user.role,
+                        language: unmodified_user.language,
+                    };
+                    new_user.update_user(server_config).await?;
+                    let changed_user = User::get_user(uid, server_config).await?;
+                    Ok(Item {
+                        user: changed_user.clone(),
+                        item: changed_user,
+                    })
+                }
+                Role::NotAuthenticated | Role::Disabled => {
+                    unreachable!("Should be unreachable because of the `admin_or_self`")
+                }
+            }
+        } else {
+            Err(ServerError::User("Not a valid UID".to_owned()))
+        }
+    } else {
+        Err(ServerError::User("Not a valid UID".to_owned()))
+    }
+}
+
+/// Take a [`actix_web::web::Form<NewUser>`] and update the corresponding entry in the database.
+/// The password is only updated if a new password of at least 4 characters is provided.
+/// The `user_id` is never changed.
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails, this user does not have permissions, or the given data is malformed.
+#[allow(clippy::missing_panics_doc)]
 #[instrument(skip(id))]
 pub async fn update_user(
     id: &Identity,

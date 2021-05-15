@@ -52,12 +52,12 @@ impl Page {
         let result = match url.next_path_part() {
             None | Some("list_links") => Self::Home(pages::list_links::init(
                 url,
-                &mut orders.proxy(Msg::ListLinksMsg),
+                &mut orders.proxy(Msg::ListLinks),
                 i18n,
             )),
             Some("list_users") => Self::ListUsers(pages::list_users::init(
                 url,
-                &mut orders.proxy(Msg::ListUsersMsg),
+                &mut orders.proxy(Msg::ListUsers),
                 i18n,
             )),
             _other => Self::NotFound,
@@ -71,12 +71,11 @@ impl Page {
 // ------ ------
 //    Update
 // ------ ------
-#[allow(renamed_and_removed_lints, pub_enum_variant_names)]
 #[derive(Clone)]
 pub enum Msg {
     UrlChanged(subs::UrlChanged),
-    ListLinksMsg(list_links::Msg),
-    ListUsersMsg(list_users::Msg),
+    ListLinks(list_links::Msg),
+    ListUsers(list_users::Msg),
     NoMessage,
 }
 
@@ -87,14 +86,14 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 
             model.page = Page::init(url.0, orders, model.i18n.clone());
         }
-        Msg::ListLinksMsg(msg) => {
+        Msg::ListLinks(msg) => {
             if let Page::Home(model) = &mut model.page {
-                list_links::update(msg, model, &mut orders.proxy(Msg::ListLinksMsg))
+                list_links::update(msg, model, &mut orders.proxy(Msg::ListLinks))
             }
         }
-        Msg::ListUsersMsg(msg) => {
+        Msg::ListUsers(msg) => {
             if let Page::ListUsers(model) = &mut model.page {
-                list_users::update(msg, model, &mut orders.proxy(Msg::ListUsersMsg))
+                list_users::update(msg, model, &mut orders.proxy(Msg::ListUsers))
             }
         }
         Msg::NoMessage => (),
@@ -165,8 +164,8 @@ fn view_content(page: &Page, url: &Url) -> Node<Msg> {
     div![
         C!["container"],
         match page {
-            Page::Home(model) => pages::list_links::view(model).map_msg(Msg::ListLinksMsg),
-            Page::ListUsers(model) => pages::list_users::view(model).map_msg(Msg::ListUsersMsg),
+            Page::Home(model) => pages::list_links::view(model).map_msg(Msg::ListLinks),
+            Page::ListUsers(model) => pages::list_users::view(model).map_msg(Msg::ListUsers),
             Page::NotFound => div![div![url.to_string()], "Page not found!"],
         }
     ]
