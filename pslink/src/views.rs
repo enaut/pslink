@@ -366,6 +366,21 @@ pub async fn process_create_user_json(
 }
 
 #[instrument(skip(id))]
+pub async fn process_update_user_json(
+    config: web::Data<crate::ServerConfig>,
+    form: web::Json<UserDelta>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    info!("Listing Users to Json api");
+    match queries::update_user_json(&id, &form, &config).await {
+        Ok(item) => Ok(HttpResponse::Ok().json2(&SuccessMessage {
+            message: format!("Successfully saved user: {}", item.item.username),
+        })),
+        Err(e) => Err(e),
+    }
+}
+
+#[instrument(skip(id))]
 pub async fn toggle_admin(
     data: web::Path<String>,
     config: web::Data<crate::ServerConfig>,

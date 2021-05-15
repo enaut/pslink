@@ -26,7 +26,7 @@ pub fn navigation(i18n: &I18n, base_url: &Url) -> Node<Msg> {
             li![a![ev(Ev::Click, |_| Msg::NoMessage), t!("add-link"),],],
             li![a![
                 attrs! {At::Href => crate::Urls::new(base_url).create_user()},
-                ev(Ev::Click, |_| Msg::ListUsersMsg(
+                ev(Ev::Click, |_| Msg::ListUsers(
                     super::pages::list_users::Msg::Edit(
                         super::pages::list_users::UserEditMsg::CreateNewUser
                     )
