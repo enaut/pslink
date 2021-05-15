@@ -374,6 +374,10 @@ pub async fn webservice(
                             .route(
                                 "/create_user/",
                                 web::post().to(views::process_create_user_json),
+                            )
+                            .route(
+                                "/update_user/",
+                                web::post().to(views::process_update_user_json),
                             ),
                     )
                     // login to the admin area

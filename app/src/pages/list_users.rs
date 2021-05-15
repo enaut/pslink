@@ -49,6 +49,7 @@ struct FilterInput {
 pub enum Msg {
     Query(UserQueryMsg),
     Edit(UserEditMsg),
+    ClearAll,
 }
 
 /// All the messages on user Querying
@@ -81,6 +82,10 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Query(msg) => process_query_messages(msg, model, orders),
         Msg::Edit(msg) => process_user_edit_messages(msg, model, orders),
+        Msg::ClearAll => {
+            model.last_message = None;
+            model.user_edit = None;
+        }
     }
 }
 
@@ -176,6 +181,7 @@ pub fn process_user_edit_messages(
     match msg {
         UserEditMsg::EditUserSelected(user) => {
             log!("Editing user: ", user);
+            model.last_message = None;
             model.user_edit = Some(RefCell::new(user))
         }
         UserEditMsg::CreateNewUser => {
@@ -216,10 +222,13 @@ pub fn process_user_edit_messages(
             orders.perform_cmd(async {
                 let data = data;
                 let response = match fetch(
-                    Request::new("/admin/json/create_user/")
-                        .method(Method::Post)
-                        .json(&data)
-                        .expect("serialization failed"),
+                    Request::new(match data.edit {
+                        EditMode::Create => "/admin/json/create_user/",
+                        EditMode::Edit => "/admin/json/update_user/",
+                    })
+                    .method(Method::Post)
+                    .json(&data)
+                    .expect("serialization failed"),
                 )
                 .await
                 {
@@ -256,11 +265,22 @@ pub fn view(model: &Model) -> Node<Msg> {
     let lang = model.i18n.clone();
     let t = move |key: &str| lang.translate(key, None);
     section![
+        keyboard_ev(Ev::KeyDown, |keyboard_event| {
+            IF!(keyboard_event.key() == "Escape" => Msg::ClearAll)
+        }),
         h1!("List Users Page from list_users"),
         if let Some(message) = &model.last_message {
-            div![C!("Message"), &message.message]
+            div![
+                C!["message", "center"],
+                div![
+                    C!["closebutton"],
+                    a!["\u{d7}"],
+                    ev(Ev::Click, |_| Msg::ClearAll)
+                ],
+                &message.message
+            ]
         } else {
-            section!()
+            section![]
         },
         table![
             // Column Headlines
@@ -363,6 +383,11 @@ fn edit_or_create_user<F: Fn(&str) -> String>(l: &RefCell<UserDelta>, t: F) -> N
     let user = l.borrow();
     div![
         C!["editdialog", "center"],
+        div![
+            C!["closebutton"],
+            a!["\u{d7}"],
+            ev(Ev::Click, |_| Msg::ClearAll)
+        ],
         h1![match &user.edit {
             EditMode::Edit => t("edit-user"),
             EditMode::Create => t("new-user"),
