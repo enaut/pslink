@@ -28,6 +28,7 @@ macro_rules! unwrap_or_return {
     };
 }
 
+/// Setup the page
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
     log!(url);
     orders.send_msg(Msg::Query(QueryMsg::Fetch));
@@ -99,8 +100,7 @@ pub enum EditMsg {
     DeletedLink(Status),
 }
 
-/// # Panics
-/// Sould only panic on bugs.
+/// React to environment changes
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Query(msg) => process_query_messages(msg, model, orders),
@@ -118,8 +118,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
-/// # Panics
-/// Sould only panic on bugs.
+/// Process all messages for loading the information from the server.
 pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         QueryMsg::Fetch => {
@@ -194,8 +193,10 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
         }
     }
 }
+
+/// Perform a request to the server to load the links from the server.
 fn load_links(model: &Model, orders: &mut impl Orders<Msg>) {
-    let data = model.formconfig.clone(); // complicated way to move into the closure
+    let data = model.formconfig.clone();
     orders.perform_cmd(async {
         let data = data;
         let request = unwrap_or_return!(
@@ -223,6 +224,7 @@ fn load_links(model: &Model, orders: &mut impl Orders<Msg>) {
     });
 }
 
+/// Process all the events related to editing links.
 pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         EditMsg::EditSelected(link) => {
@@ -271,16 +273,14 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
         EditMsg::DeleteSelected(link) => {
             orders.perform_cmd(async {
                 let data = link;
-                let response = unwrap_or_return!(
-                    fetch(
-                        Request::new("/admin/json/delete_link/")
-                            .method(Method::Post)
-                            .json(&data)
-                            .expect("serialization failed"),
-                    )
-                    .await,
-                    Msg::Edit(EditMsg::FailedToDeleteLink)
+                let request = unwrap_or_return!(
+                    Request::new("/admin/json/delete_link/")
+                        .method(Method::Post)
+                        .json(&data),
+                    Msg::SetMessage("serialization failed".to_string())
                 );
+                let response =
+                    unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToDeleteLink));
 
                 let response = unwrap_or_return!(
                     response.check_status(),
@@ -306,13 +306,15 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
     }
 }
 
+/// Save a link to the server.
 fn save_link(model: &Model, orders: &mut impl Orders<Msg>) {
-    let data = model
-        .edit_link
-        .as_ref()
-        .expect("should exist!")
-        .borrow()
-        .clone();
+    let edit_link = if let Some(e) = model.edit_link.as_ref() {
+        e
+    } else {
+        orders.send_msg(Msg::SetMessage("Please enter a link".to_string()));
+        return;
+    };
+    let data = edit_link.borrow().clone();
     orders.perform_cmd(async {
         let data = data;
         let request = unwrap_or_return!(
@@ -342,6 +344,10 @@ fn save_link(model: &Model, orders: &mut impl Orders<Msg>) {
     });
 }
 
+/// view the page
+///   * messages
+///   * questions
+///   * the table of links including sorting and searching
 #[must_use]
 pub fn view(model: &Model) -> Node<Msg> {
     let lang = &model.i18n.clone();
@@ -410,6 +416,7 @@ pub fn view(model: &Model) -> Node<Msg> {
     ]
 }
 
+/// Create the headlines of the link table
 fn view_link_table_head<F: Fn(&str) -> String>(t: F) -> Node<Msg> {
     tr![
         th![
@@ -446,6 +453,7 @@ fn view_link_table_head<F: Fn(&str) -> String>(t: F) -> Node<Msg> {
     ]
 }
 
+/// Create the filter fields in the table columns
 fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> Node<Msg> {
     tr![
         C!["filters"],
@@ -495,6 +503,7 @@ fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
     ]
 }
 
+/// display a single link
 fn view_link(l: &FullLink) -> Node<Msg> {
     // Ugly hack
     let link = LinkDelta::from(l.clone());
@@ -538,6 +547,7 @@ fn view_link(l: &FullLink) -> Node<Msg> {
     ]
 }
 
+/// display a link editing dialog with save and close button
 fn edit_or_create_link<F: Fn(&str) -> String>(l: &RefCell<LinkDelta>, t: F) -> Node<Msg> {
     let link = l.borrow();
     div![
