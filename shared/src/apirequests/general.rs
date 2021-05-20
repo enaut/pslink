@@ -39,6 +39,12 @@ impl Default for EditMode {
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct SuccessMessage {
+pub struct Message {
     pub message: String,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub enum Status {
+    Success(Message),
+    Error(Message),
 }

@@ -5,10 +5,10 @@ use serde::Serialize;
 use shared::{
     apirequests::{
         general::{EditMode, Filter, Operation, Ordering},
-        links::{LinkOverviewColumns, LinkRequestForm},
+        links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
         users::{UserDelta, UserOverviewColumns, UserRequestForm},
     },
-    datatypes::{Count, FullLink, Link, User},
+    datatypes::{Count, FullLink, Link, Secret, User},
 };
 use sqlx::Row;
 use tracing::{info, instrument, warn};
@@ -127,7 +127,7 @@ pub async fn list_all_allowed(
                         id: v.get("usid"),
                         username: v.get("usern"),
                         email: v.get("uemail"),
-                        password: "invalid".to_owned(),
+                        password: Secret::new("invalid".to_string()),
                         role: v.get("urole"),
                         language: v.get("ulang"),
                     },
@@ -240,7 +240,7 @@ pub async fn list_users(
                     id: v.get("id"),
                     username: v.get("username"),
                     email: v.get("email"),
-                    password: "invalid".to_owned(),
+                    password: Secret::new("".to_string()),
                     role: v.get("role"),
                     language: v.get("language"),
                 })
@@ -458,7 +458,9 @@ pub async fn update_user_json(
                 Role::Admin { .. } | Role::Regular { .. } => {
                     info!("Updating userinfo: ");
                     let password = match &data.password {
-                        Some(password) => NewUser::hash_password(password, &server_config.secret)?,
+                        Some(password) => {
+                            Secret::new(NewUser::hash_password(password, &server_config.secret)?)
+                        }
                         None => unmodified_user.password,
                     };
                     let new_user = User {
@@ -510,7 +512,10 @@ pub async fn update_user(
                 Role::Admin { .. } | Role::Regular { .. } => {
                     info!("Updating userinfo: ");
                     let password = if data.password.len() > 3 {
-                        NewUser::hash_password(&data.password, &server_config.secret)?
+                        Secret::new(NewUser::hash_password(
+                            &data.password,
+                            &server_config.secret,
+                        )?)
                     } else {
                         unmodified_user.password
                     };
@@ -620,6 +625,28 @@ pub async fn get_link(
     match authenticate(id, server_config).await? {
         Role::Admin { user } | Role::Regular { user } => {
             let link = Link::get_link_by_code(link_code, server_config).await?;
+            Ok(Item { user, item: link })
+        }
+        Role::Disabled | Role::NotAuthenticated => {
+            warn!("User could not be authenticated!");
+            Err(ServerError::User("Not Allowed".to_owned()))
+        }
+    }
+}
+
+/// Get one link if permissions are accordingly.
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[instrument(skip(id))]
+pub async fn get_link_by_id(
+    id: &Identity,
+    lid: i64,
+    server_config: &ServerConfig,
+) -> Result<Item<Link>, ServerError> {
+    match authenticate(id, server_config).await? {
+        Role::Admin { user } | Role::Regular { user } => {
+            let link = Link::get_link_by_id(lid, server_config).await?;
             Ok(Item { user, item: link })
         }
         Role::Disabled | Role::NotAuthenticated => {
@@ -741,5 +768,75 @@ pub async fn create_link(
         Role::Disabled | Role::NotAuthenticated => {
             Err(ServerError::User("Permission denied!".to_owned()))
         }
+    }
+}
+
+/// Create a new link
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[instrument(skip(id))]
+pub async fn create_link_json(
+    id: &Identity,
+    data: web::Json<LinkDelta>,
+    server_config: &ServerConfig,
+) -> Result<Item<Link>, ServerError> {
+    let auth = authenticate(id, server_config).await?;
+    match auth {
+        Role::Admin { user } | Role::Regular { user } => {
+            let code = data.code.clone();
+            info!("Creating link for: {}", &code);
+            let new_link = NewLink::from_link_delta(data.into_inner(), user.id);
+            info!("Creating link for: {:?}", &new_link);
+
+            new_link.insert(server_config).await?;
+            let new_link: Link = get_link_simple(&code, server_config).await?;
+            Ok(Item {
+                user,
+                item: new_link,
+            })
+        }
+        Role::Disabled | Role::NotAuthenticated => {
+            Err(ServerError::User("Permission denied!".to_owned()))
+        }
+    }
+}
+
+/// Update a link if the user is admin or it is its own link.
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[instrument(skip(ident))]
+pub async fn update_link_json(
+    ident: &Identity,
+    data: web::Json<LinkDelta>,
+    server_config: &ServerConfig,
+) -> Result<Item<Link>, ServerError> {
+    let auth = authenticate(ident, server_config).await?;
+    match auth {
+        Role::Admin { .. } | Role::Regular { .. } => {
+            if let Some(id) = data.id {
+                let query: Item<Link> = get_link_by_id(ident, id, server_config).await?;
+                if auth.admin_or_self(query.item.author) {
+                    let mut link = query.item;
+                    let LinkDelta {
+                        title,
+                        target,
+                        code,
+                        ..
+                    } = data.into_inner();
+                    link.code = code.clone();
+                    link.target = target;
+                    link.title = title;
+                    link.update_link(server_config).await?;
+                    get_link(ident, &code, server_config).await
+                } else {
+                    Err(ServerError::User("Invalid Request".to_owned()))
+                }
+            } else {
+                Err(ServerError::User("Not Allowed".to_owned()))
+            }
+        }
+        Role::Disabled | Role::NotAuthenticated => Err(ServerError::User("Not Allowed".to_owned())),
     }
 }

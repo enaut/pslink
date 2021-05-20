@@ -5,7 +5,12 @@ use async_trait::async_trait;
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 
-use shared::datatypes::{Count, Link, User};
+use shared::{
+    apirequests::links::LinkDelta,
+    datatypes::{Count, Link, User},
+};
+use sqlx::Row;
+use tracing::{error, info, instrument};
 
 #[async_trait]
 pub trait UserDbOperations<T> {
@@ -24,10 +29,19 @@ pub trait UserDbOperations<T> {
 
 #[async_trait]
 impl UserDbOperations<Self> for User {
+    #[instrument()]
     async fn get_user(id: i64, server_config: &ServerConfig) -> Result<Self, ServerError> {
-        let user = sqlx::query_as!(Self, "Select * from users where id = ? ", id)
+        let user = sqlx::query!("Select * from users where id = ? ", id)
             .fetch_one(&server_config.db_pool)
-            .await;
+            .await
+            .map(|row| Self {
+                id: row.id,
+                username: row.username,
+                email: row.email,
+                password: Secret::new(row.password),
+                role: row.role,
+                language: row.language,
+            });
         user.map_err(ServerError::Database)
     }
 
@@ -35,23 +49,46 @@ impl UserDbOperations<Self> for User {
     ///
     /// # Errors
     /// fails with [`ServerError`] if the user does not exist or the database cannot be acessed.
+    #[instrument()]
     async fn get_user_by_name(
         name: &str,
         server_config: &ServerConfig,
     ) -> Result<Self, ServerError> {
-        let user = sqlx::query_as!(Self, "Select * from users where username = ? ", name)
+        let user = sqlx::query!("Select * from users where username = ? ", name)
             .fetch_one(&server_config.db_pool)
-            .await;
+            .await
+            .map(|row| Self {
+                id: row.id,
+                username: row.username,
+                email: row.email,
+                password: Secret::new(row.password),
+                role: row.role,
+                language: row.language,
+            });
         user.map_err(ServerError::Database)
     }
 
+    #[instrument()]
     async fn get_all_users(server_config: &ServerConfig) -> Result<Vec<Self>, ServerError> {
-        let user = sqlx::query_as!(Self, "Select * from users")
+        let user = sqlx::query("Select * from users")
             .fetch_all(&server_config.db_pool)
-            .await;
+            .await
+            .map(|row| {
+                row.into_iter()
+                    .map(|r| Self {
+                        id: r.get("id"),
+                        username: r.get("username"),
+                        email: r.get("email"),
+                        password: Secret::new(r.get("password")),
+                        role: r.get("role"),
+                        language: r.get("language"),
+                    })
+                    .collect()
+            });
         user.map_err(ServerError::Database)
     }
 
+    #[instrument()]
     async fn update_user(&self, server_config: &ServerConfig) -> Result<(), ServerError> {
         sqlx::query!(
             "UPDATE users SET
@@ -61,7 +98,7 @@ impl UserDbOperations<Self> for User {
             role = ? where id = ?",
             self.username,
             self.email,
-            self.password,
+            self.password.secret,
             self.role,
             self.id
         )
@@ -69,10 +106,12 @@ impl UserDbOperations<Self> for User {
         .await?;
         Ok(())
     }
+
     /// Change an admin user to normal user and a normal user to admin
     ///
     /// # Errors
     /// fails with [`ServerError`] if the database cannot be acessed. (the user should exist)
+    #[instrument()]
     async fn toggle_admin(self, server_config: &ServerConfig) -> Result<(), ServerError> {
         let new_role = 2 - (self.role + 1) % 2;
         sqlx::query!("UPDATE users SET role = ? where id = ?", new_role, self.id)
@@ -81,6 +120,7 @@ impl UserDbOperations<Self> for User {
         Ok(())
     }
 
+    #[instrument()]
     async fn set_language(
         self,
         server_config: &ServerConfig,
@@ -102,6 +142,7 @@ impl UserDbOperations<Self> for User {
     ///
     /// # Errors
     /// fails with [`ServerError`] if the database cannot be acessed.
+    #[instrument()]
     async fn count_admins(server_config: &ServerConfig) -> Result<Count, ServerError> {
         let num = sqlx::query_as!(Count, "select count(*) as number from users where role = 2")
             .fetch_one(&server_config.db_pool)
@@ -122,6 +163,7 @@ impl NewUser {
     ///
     /// # Errors
     /// fails with [`ServerError`] if the password could not be encrypted.
+    #[instrument()]
     pub fn new(
         username: String,
         email: String,
@@ -137,12 +179,13 @@ impl NewUser {
         })
     }
 
+    #[instrument()]
     pub(crate) fn hash_password(password: &str, secret: &Secret) -> Result<String, ServerError> {
         dotenv().ok();
 
         let hash = Hasher::default()
             .with_password(password)
-            .with_secret_key(&secret.secret)
+            .with_secret_key(secret.secret.as_ref().expect("A secret key was not given"))
             .hash()?;
 
         Ok(hash)
@@ -152,6 +195,7 @@ impl NewUser {
     ///
     /// # Errors
     /// fails with [`ServerError`] if the database cannot be acessed.
+    #[instrument()]
     pub async fn insert_user(&self, server_config: &ServerConfig) -> Result<(), ServerError> {
         sqlx::query!(
             "Insert into users (
@@ -178,6 +222,7 @@ pub struct LoginUser {
 #[async_trait]
 pub trait LinkDbOperations<T> {
     async fn get_link_by_code(code: &str, server_config: &ServerConfig) -> Result<T, ServerError>;
+    async fn get_link_by_id(id: i64, server_config: &ServerConfig) -> Result<T, ServerError>;
     async fn delete_link_by_code(
         code: &str,
         server_config: &ServerConfig,
@@ -187,6 +232,7 @@ pub trait LinkDbOperations<T> {
 
 #[async_trait]
 impl LinkDbOperations<Self> for Link {
+    #[instrument()]
     async fn get_link_by_code(
         code: &str,
         server_config: &ServerConfig,
@@ -197,7 +243,16 @@ impl LinkDbOperations<Self> for Link {
         tracing::info!("Found link: {:?}", &link);
         link.map_err(ServerError::Database)
     }
+    #[instrument()]
+    async fn get_link_by_id(id: i64, server_config: &ServerConfig) -> Result<Self, ServerError> {
+        let link = sqlx::query_as!(Self, "Select * from links where id = ? ", id)
+            .fetch_one(&server_config.db_pool)
+            .await;
+        tracing::info!("Found link: {:?}", &link);
+        link.map_err(ServerError::Database)
+    }
 
+    #[instrument()]
     async fn delete_link_by_code(
         code: &str,
         server_config: &ServerConfig,
@@ -207,8 +262,11 @@ impl LinkDbOperations<Self> for Link {
             .await?;
         Ok(())
     }
+
+    #[instrument()]
     async fn update_link(&self, server_config: &ServerConfig) -> Result<(), ServerError> {
-        sqlx::query!(
+        info!("{:?}", self);
+        let qry = sqlx::query!(
             "UPDATE links SET
             title = ?,
             target = ?,
@@ -221,10 +279,15 @@ impl LinkDbOperations<Self> for Link {
             self.author,
             self.created_at,
             self.id
-        )
-        .execute(&server_config.db_pool)
-        .await?;
-        Ok(())
+        );
+        match qry.execute(&server_config.db_pool).await {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                //error!("{}", qry);
+                error!("{}", e);
+                Err(e.into())
+            }
+        }
     }
 }
 
@@ -243,6 +306,15 @@ impl NewLink {
             title: form.title,
             target: form.target,
             code: form.code,
+            author: uid,
+            created_at: chrono::Local::now().naive_utc(),
+        }
+    }
+    pub(crate) fn from_link_delta(link: LinkDelta, uid: i64) -> Self {
+        Self {
+            title: link.title,
+            target: link.target,
+            code: link.code,
             author: uid,
             created_at: chrono::Local::now().naive_utc(),
         }

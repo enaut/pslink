@@ -3,8 +3,11 @@ add-link = Add a new link
 invite-user = Invite a new user
 list-users = List of existing users
 welcome-user = Welcome {$username}
+welcome = Welcome
 logout = Logout
 login = Login
+yes = Ja
+no = Nein
 
 not-found = This Link has not been found or has been deleted
 
@@ -16,6 +19,7 @@ link-target = Link target
 link-code = Link code
 shortlink = Shortlink
 search-placeholder = Filter according to...
+really-delete = Do you really want to delete {$code}?
 
 danger-zone = Danger Zone!
 danger-zone-text = Do not change the code of links that are published. If you do so the published links will become invalid! If you change the target the published links will point to the new target.

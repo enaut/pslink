@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 /// A generic list returntype containing the User and a Vec containing e.g. Links or Users
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ListWithOwner<T> {
@@ -19,7 +19,7 @@ pub struct User {
     pub id: i64,
     pub username: String,
     pub email: String,
-    pub password: String,
+    pub password: Secret,
     pub role: i64,
     pub language: String,
 }
@@ -43,4 +43,46 @@ pub struct Click {
     pub id: i64,
     pub link: i64,
     pub created_at: chrono::NaiveDateTime,
+}
+
+#[derive(PartialEq, Clone, Deserialize)]
+#[serde(from = "String")]
+pub struct Secret {
+    pub secret: Option<String>,
+}
+
+impl From<String> for Secret {
+    fn from(_: String) -> Self {
+        Self { secret: None }
+    }
+}
+
+impl Serialize for Secret {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str("*****SECRET*****")
+    }
+}
+
+impl Secret {
+    #[must_use]
+    pub const fn new(secret: String) -> Self {
+        Self {
+            secret: Some(secret),
+        }
+    }
+}
+
+impl std::fmt::Debug for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("*****SECRET*****")
+    }
+}
+
+impl std::fmt::Display for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("*****SECRET*****")
+    }
 }

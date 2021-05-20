@@ -15,8 +15,8 @@ use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use queries::{authenticate, Role};
 use shared::apirequests::{
-    general::SuccessMessage,
-    links::LinkRequestForm,
+    general::{Message, Status},
+    links::{LinkDelta, LinkRequestForm},
     users::{UserDelta, UserRequestForm},
 };
 use tera::{Context, Tera};
@@ -168,6 +168,19 @@ pub async fn index_users_json(
         Ok(HttpResponse::Ok().json2(&users.list))
     } else {
         Ok(redirect_builder("/admin/login"))
+    }
+}
+
+pub async fn get_logged_user_json(
+    config: web::Data<crate::ServerConfig>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    let user = authenticate(&id, &config).await?;
+    match user {
+        Role::NotAuthenticated | Role::Disabled => {
+            Err(ServerError::User("User not logged in!".to_string()))
+        }
+        Role::Regular { user } | Role::Admin { user } => Ok(HttpResponse::Ok().json2(&user)),
     }
 }
 
@@ -358,9 +371,9 @@ pub async fn process_create_user_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
     match queries::create_user_json(&id, &form, &config).await {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&SuccessMessage {
+        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
-        })),
+        }))),
         Err(e) => Err(e),
     }
 }
@@ -373,9 +386,9 @@ pub async fn process_update_user_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
     match queries::update_user_json(&id, &form, &config).await {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&SuccessMessage {
+        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
-        })),
+        }))),
         Err(e) => Err(e),
     }
 }
@@ -447,20 +460,26 @@ pub async fn process_login(
 
     match user {
         Ok(u) => {
-            let secret = &config.secret;
-            let valid = Verifier::default()
-                .with_hash(&u.password)
-                .with_password(&data.password)
-                .with_secret_key(&secret.secret)
-                .verify()?;
+            if let Some(hash) = u.password.secret {
+                let secret = &config.secret;
+                let valid = Verifier::default()
+                    .with_hash(hash)
+                    .with_password(&data.password)
+                    .with_secret_key(secret.secret.as_ref().expect("No secret available"))
+                    .verify()?;
 
-            if valid {
-                info!("Log-in of user: {}", &u.username);
-                let session_token = u.username;
-                id.remember(session_token);
-                Ok(redirect_builder("/admin/index/"))
+                if valid {
+                    info!("Log-in of user: {}", &u.username);
+                    let session_token = u.username;
+                    id.remember(session_token);
+                    Ok(redirect_builder("/admin/index/"))
+                } else {
+                    Ok(redirect_builder("/admin/login/"))
+                }
             } else {
-                Ok(redirect_builder("/admin/login/"))
+                Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
+                    message: "Failed to Login".to_string(),
+                })))
             }
         }
         Err(e) => {
@@ -513,6 +532,36 @@ pub async fn redirect_empty(
     config: web::Data<crate::ServerConfig>,
 ) -> Result<HttpResponse, ServerError> {
     Ok(redirect_builder(&config.empty_forward_url))
+}
+
+#[instrument(skip(id))]
+pub async fn process_create_link_json(
+    config: web::Data<crate::ServerConfig>,
+    data: web::Json<LinkDelta>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    let new_link = queries::create_link_json(&id, data, &config).await;
+    match new_link {
+        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+            message: format!("Successfully saved link: {}", item.item.code),
+        }))),
+        Err(e) => Err(e),
+    }
+}
+
+#[instrument(skip(id))]
+pub async fn process_update_link_json(
+    config: web::Data<crate::ServerConfig>,
+    data: web::Json<LinkDelta>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    let new_link = queries::update_link_json(&id, data, &config).await;
+    match new_link {
+        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+            message: format!("Successfully updated link: {}", item.item.code),
+        }))),
+        Err(e) => Err(e),
+    }
 }
 
 #[instrument(skip(id))]
@@ -590,4 +639,15 @@ pub async fn process_link_delete(
 ) -> Result<HttpResponse, ServerError> {
     queries::delete_link(&id, &link_code.0, &config).await?;
     Ok(redirect_builder("/admin/login/"))
+}
+#[instrument(skip(id))]
+pub async fn process_delete_link_json(
+    id: Identity,
+    config: web::Data<crate::ServerConfig>,
+    data: web::Json<LinkDelta>,
+) -> Result<HttpResponse, ServerError> {
+    queries::delete_link(&id, &data.code, &config).await?;
+    Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        message: format!("Successfully deleted link: {}", &data.code),
+    })))
 }
