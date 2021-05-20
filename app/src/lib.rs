@@ -5,6 +5,7 @@ pub mod pages;
 use pages::list_links;
 use pages::list_users;
 use seed::{div, log, prelude::*, App, Url, C};
+use shared::datatypes::User;
 
 use crate::i18n::{I18n, Lang};
 
@@ -14,6 +15,7 @@ use crate::i18n::{I18n, Lang};
 
 fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
+    orders.send_msg(Msg::GetLoggedUser);
 
     log!(url);
 
@@ -24,6 +26,7 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
         base_url: Url::new().add_path_part("app"),
         page: Page::init(url, orders, lang.clone()),
         i18n: lang,
+        user: None,
     }
 }
 
@@ -37,6 +40,7 @@ struct Model {
     base_url: Url,
     page: Page,
     i18n: i18n::I18n,
+    user: Option<User>,
 }
 
 #[derive(Debug)]
@@ -76,6 +80,8 @@ pub enum Msg {
     UrlChanged(subs::UrlChanged),
     ListLinks(list_links::Msg),
     ListUsers(list_users::Msg),
+    GetLoggedUser,
+    UserReceived(User),
     NoMessage,
 }
 
@@ -97,6 +103,29 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             }
         }
         Msg::NoMessage => (),
+        Msg::GetLoggedUser => {
+            orders.skip(); // No need to rerender/ complicated way to move into the closure
+            orders.perform_cmd(async {
+                let response = fetch(
+                    Request::new("/admin/json/get_logged_user/")
+                        .method(Method::Post)
+                        .json(&())
+                        .expect("serialization failed"),
+                )
+                .await
+                .expect("HTTP request failed");
+
+                let user: User = response
+                    .check_status() // ensure we've got 2xx status
+                    .expect("status check failed")
+                    .json()
+                    .await
+                    .expect("deserialization failed");
+
+                Msg::UserReceived(user)
+            });
+        }
+        Msg::UserReceived(user) => model.user = Some(user),
     }
 }
 
@@ -140,6 +169,10 @@ impl<'a> Urls<'a> {
         self.base_url().add_path_part("list_links")
     }
     #[must_use]
+    pub fn create_link(self) -> Url {
+        self.list_links().add_path_part("create_link")
+    }
+    #[must_use]
     pub fn list_users(self) -> Url {
         self.base_url().add_path_part("list_users")
     }
@@ -156,7 +189,7 @@ impl<'a> Urls<'a> {
 fn view(model: &Model) -> Node<Msg> {
     div![
         C!["page"],
-        navigation::navigation(&model.i18n, &model.base_url,),
+        navigation::navigation(&model.i18n, &model.base_url, &model.user),
         view_content(&model.page, &model.base_url),
     ]
 }

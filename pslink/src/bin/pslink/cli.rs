@@ -3,7 +3,7 @@ use clap::{
     ArgMatches, SubCommand,
 };
 use dotenv::dotenv;
-use shared::datatypes::User;
+use shared::datatypes::{Secret, User};
 use sqlx::{migrate::Migrator, Pool, Sqlite};
 use std::{
     fs::File,
@@ -151,7 +151,7 @@ async fn parse_args_to_config(config: ArgMatches<'_>) -> ServerConfig {
     } else {
         secret
     };
-    let secret = pslink::Secret::new(secret);
+    let secret = Secret::new(secret);
     let db = config
         .value_of("database")
         .expect(concat!(

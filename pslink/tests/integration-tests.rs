@@ -1,3 +1,5 @@
+use shared::datatypes::Secret;
+
 #[test]
 fn test_help_of_command_for_breaking_changes() {
     let output = test_bin::get_test_bin("pslink")
@@ -208,7 +210,7 @@ async fn run_server() {
     );
 
     let server_config = pslink::ServerConfig {
-        secret: pslink::Secret::new("abcdefghijklmnopqrstuvw".to_string()),
+        secret: Secret::new("abcdefghijklmnopqrstuvw".to_string()),
         db: std::path::PathBuf::from("links.db"),
         db_pool,
         public_url: "localhost:8080".to_string(),
