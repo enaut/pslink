@@ -116,8 +116,18 @@
       ]
     }
   },
-  "193ebdfd8bdb96da45f5054f83a6a5e23eaa311e3e5c4139095a3455f4764c64": {
-    "query": "Select * from users",
+  "3ad5584fcb0c2685339e471320e8d0c091b684ffe86912a1f2540eee1444889d": {
+    "query": "Insert into clicks (\n            link,\n            created_at) VALUES (?,?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 2
+      },
+      "nullable": []
+    }
+  },
+  "5624dec3d87f37ae3f77fb265ace3075b8e46bdcc0af273e0f28d4e1a89b6e9e": {
+    "query": "Select * from links where id = ? ",
     "describe": {
       "columns": [
         {
@@ -126,33 +136,33 @@
           "type_info": "Int64"
         },
         {
-          "name": "username",
+          "name": "title",
           "ordinal": 1,
           "type_info": "Text"
         },
         {
-          "name": "email",
+          "name": "target",
           "ordinal": 2,
           "type_info": "Text"
         },
         {
-          "name": "password",
+          "name": "code",
           "ordinal": 3,
           "type_info": "Text"
         },
         {
-          "name": "role",
+          "name": "author",
           "ordinal": 4,
           "type_info": "Int64"
         },
         {
-          "name": "language",
+          "name": "created_at",
           "ordinal": 5,
-          "type_info": "Text"
+          "type_info": "Datetime"
         }
       ],
       "parameters": {
-        "Right": 0
+        "Right": 1
       },
       "nullable": [
         false,
@@ -162,16 +172,6 @@
         false,
         false
       ]
-    }
-  },
-  "3ad5584fcb0c2685339e471320e8d0c091b684ffe86912a1f2540eee1444889d": {
-    "query": "Insert into clicks (\n            link,\n            created_at) VALUES (?,?)",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Right": 2
-      },
-      "nullable": []
     }
   },
   "5919b8824209c31a76178f30b3d52f385931ee0f3aa17e65f8647ad15a3595d8": {
