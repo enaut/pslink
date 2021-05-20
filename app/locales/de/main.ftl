@@ -3,8 +3,11 @@ add-link = Link hinzufügen
 invite-user = Benutzer einladen
 list-users = Liste der Benutzer
 welcome-user = Herzlich willkommen {$username}
+welcome = Herzlich willkommen
 logout = Abmelden
 login = Login
+yes = Ja
+no = Nein
 
 not-found = Dieser Link existiert nicht, oder wurde gelöscht.
 
@@ -17,6 +20,7 @@ link-code = Link Code
 shortlink = Shortlink
 qr-code = QR-code
 search-placeholder = Filtern nach...
+really-delete = Wollen Sie {$code} wirklich löschen?
 
 danger-zone = Achtung!
 danger-zone-text = Verändern Sie den Code von bereits veröffentlichten Links nicht. Sollte es dennoch geschehen werden veröffentlichte links unbenutzbar. Wird das Linkziel verändert, so zeigen auch die bereits veröffentlichten Links auf das neue Ziel.

@@ -11,6 +11,7 @@ use actix_web::HttpResponse;
 use actix_web::{web, App, HttpServer};
 use fluent_templates::{static_loader, FluentLoader};
 use qrcode::types::QrError;
+use shared::datatypes::Secret;
 use sqlx::{Pool, Sqlite};
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use tera::Tera;
@@ -156,30 +157,6 @@ impl FromStr for Protocol {
     }
 }
 
-#[derive(Clone)]
-pub struct Secret {
-    secret: String,
-}
-
-impl Secret {
-    #[must_use]
-    pub const fn new(secret: String) -> Self {
-        Self { secret }
-    }
-}
-
-impl std::fmt::Debug for Secret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("*****SECRET*****")
-    }
-}
-
-impl std::fmt::Display for Secret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("*****SECRET*****")
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
     pub secret: Secret,
@@ -209,7 +186,13 @@ impl ServerConfig {
                 "# If it is changed all existing passwords are invalid.\n"
             )
             .to_owned(),
-            format!("PSLINK_SECRET=\"{}\"\n", self.secret.secret),
+            format!(
+                "PSLINK_SECRET=\"{}\"\n",
+                self.secret
+                    .secret
+                    .as_ref()
+                    .expect("A Secret was not specified!")
+            ),
         ]
     }
 }
@@ -370,6 +353,18 @@ pub async fn webservice(
                     .service(
                         web::scope("/json")
                             .route("/list_links/", web::post().to(views::index_json))
+                            .route(
+                                "/create_link/",
+                                web::post().to(views::process_create_link_json),
+                            )
+                            .route(
+                                "/edit_link/",
+                                web::post().to(views::process_update_link_json),
+                            )
+                            .route(
+                                "/delete_link/",
+                                web::post().to(views::process_delete_link_json),
+                            )
                             .route("/list_users/", web::post().to(views::index_users_json))
                             .route(
                                 "/create_user/",
@@ -378,6 +373,10 @@ pub async fn webservice(
                             .route(
                                 "/update_user/",
                                 web::post().to(views::process_update_user_json),
+                            )
+                            .route(
+                                "/get_logged_user/",
+                                web::post().to(views::get_logged_user_json),
                             ),
                     )
                     // login to the admin area
