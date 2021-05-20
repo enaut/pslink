@@ -301,7 +301,10 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
             log!("Failed to delete Link");
         }
         EditMsg::DeletedLink(message) => {
-            log!("Deleted link", message);
+            model.last_message = Some(message);
+            model.edit_link = None;
+            model.question = None;
+            orders.send_msg(Msg::Query(QueryMsg::Fetch));
         }
     }
 }
