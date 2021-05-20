@@ -8,4 +8,4 @@ members = [
 [profile.release]
 lto = true
 #codegen-units = 1
-opt-level = 'z'
+#opt-level = 'z' # Z is not supported by argonautica

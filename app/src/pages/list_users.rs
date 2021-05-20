@@ -7,7 +7,7 @@ use seed::{
 use shared::{
     apirequests::general::{Operation, Ordering},
     apirequests::{
-        general::{EditMode, SuccessMessage},
+        general::{EditMode, Status},
         users::{UserDelta, UserOverviewColumns, UserRequestForm},
     },
     datatypes::User,
@@ -37,7 +37,7 @@ pub struct Model {
     formconfig: UserRequestForm,
     inputs: EnumMap<UserOverviewColumns, FilterInput>,
     user_edit: Option<RefCell<UserDelta>>,
-    last_message: Option<SuccessMessage>,
+    last_message: Option<Status>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -68,7 +68,7 @@ pub enum UserQueryMsg {
 pub enum UserEditMsg {
     EditUserSelected(UserDelta),
     CreateNewUser,
-    UserCreated(SuccessMessage),
+    UserCreated(Status),
     EditUsernameChanged(String),
     EditEmailChanged(String),
     EditPasswordChanged(String),
@@ -236,7 +236,7 @@ pub fn process_user_edit_messages(
                     Err(_) => return Msg::Edit(UserEditMsg::FailedToCreateUser),
                 };
 
-                let message: SuccessMessage = response
+                let message: Status = response
                     .check_status() // ensure we've got 2xx status
                     .expect("status check failed")
                     .json()
@@ -268,7 +268,6 @@ pub fn view(model: &Model) -> Node<Msg> {
         keyboard_ev(Ev::KeyDown, |keyboard_event| {
             IF!(keyboard_event.key() == "Escape" => Msg::ClearAll)
         }),
-        h1!("List Users Page from list_users"),
         if let Some(message) = &model.last_message {
             div![
                 C!["message", "center"],
@@ -277,7 +276,11 @@ pub fn view(model: &Model) -> Node<Msg> {
                     a!["\u{d7}"],
                     ev(Ev::Click, |_| Msg::ClearAll)
                 ],
-                &message.message
+                match message {
+                    Status::Success(m) | Status::Error(m) => {
+                        &m.message
+                    }
+                }
             ]
         } else {
             section![]
