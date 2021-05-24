@@ -69,7 +69,7 @@ To get Pslink up and running use the commands in the following order:
 
 ### Run the service
 
-If everything is correctly set up just do `pslink runserver`.
+If everything is correctly set up just do `pslink runserver` to launch the server.
 
 ### Update
 
