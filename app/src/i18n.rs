@@ -4,8 +4,7 @@ use fluent::{FluentArgs, FluentBundle, FluentResource};
 use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
 use unic_langid::LanguageIdentifier;
 
-// ------ I18n ------
-
+// A struct containing the functions and the current language to query the localized strings.
 #[derive(Clone)]
 pub struct I18n {
     lang: Lang,
@@ -19,6 +18,7 @@ impl std::fmt::Debug for I18n {
 }
 
 impl I18n {
+    /// Create a new translator struct
     #[must_use]
     pub fn new(lang: Lang) -> Self {
         Self {
@@ -27,24 +27,27 @@ impl I18n {
         }
     }
 
+    /// Get the current language
     #[must_use]
     pub const fn lang(&self) -> &Lang {
         &self.lang
     }
 
+    /// Set the current language
     pub fn set_lang(&mut self, lang: Lang) -> &Self {
         self.lang = lang;
         self.ftl_bundle = Arc::new(lang.create_ftl_bundle());
         self
     }
 
+    /// Get a localized string. Optionally with parameters provided in `args`.
     pub fn translate(&self, key: impl AsRef<str>, args: Option<&FluentArgs>) -> String {
         let msg = self
             .ftl_bundle
             .get_message(key.as_ref())
-            .expect("get fluent message");
+            .expect("Failed to get fluent message for key {}");
 
-        let pattern = msg.value().expect("get value for fluent message");
+        let pattern = msg.value().expect("Failed to parse pattern");
 
         self.ftl_bundle
             .format_pattern(pattern, args, &mut vec![])
@@ -52,8 +55,8 @@ impl I18n {
     }
 }
 
-// ------ Lang ------
-
+/// An `enum` containing the available languages.
+/// To add an additional language add it to this enum aswell as an appropriate file into the locales folder.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Copy, Clone, Display, EnumIter, EnumString, AsRefStr, Eq, PartialEq)]
 pub enum Lang {
@@ -64,6 +67,7 @@ pub enum Lang {
 }
 
 impl Lang {
+    /// Prettyprint the language name
     #[must_use]
     pub const fn label(self) -> &'static str {
         match self {
@@ -72,6 +76,7 @@ impl Lang {
         }
     }
 
+    /// include the fluent messages into the binary
     #[must_use]
     pub const fn ftl_messages(self) -> &'static str {
         macro_rules! include_ftl_messages {
@@ -92,6 +97,7 @@ impl Lang {
             .expect("parse Lang to LanguageIdentifier")
     }
 
+    /// Create and initialize a fluent bundle.
     #[must_use]
     pub fn create_ftl_bundle(self) -> FluentBundle<FluentResource> {
         let ftl_resource =
@@ -103,45 +109,3 @@ impl Lang {
     }
 }
 
-// ------ create_t ------
-
-/// Convenience macro to improve readability of `view`s with many translations.
-///
-/// # Example
-///
-///```rust,no_run
-/// fn view(model: &Model) -> Node<Msg> {
-///    let args_male_sg = fluent_args![
-///      "userName" => "Stephan",
-///      "userGender" => "male",
-///    ];
-///
-///    create_t!(model.i18n);
-///    div![
-///        p![t!("hello-world")],
-///        p![t!("hello-user", args_male_sg)],
-///    ]
-/// }
-///```
-#[macro_export]
-macro_rules! create_t {
-    ( $i18n:expr ) => {
-        // This replaces $d with $ in the inner macro.
-        seed::with_dollar_sign! {
-            ($d:tt) => {
-                macro_rules! t {
-                    { $d key:expr } => {
-                        {
-                            $i18n.translate($d key, None)
-                        }
-                    };
-                    { $d key:expr, $d args:expr } => {
-                        {
-                            $i18n.translate($d key, Some(&$d args))
-                        }
-                    };
-                }
-            }
-        }
-    };
-}
