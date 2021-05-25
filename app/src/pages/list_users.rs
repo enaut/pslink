@@ -12,8 +12,10 @@ use shared::{
     },
     datatypes::User,
 };
-
-use crate::i18n::I18n;
+/*
+ * init
+ */
+use crate::{i18n::I18n, unwrap_or_return};
 #[must_use]
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
     orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
@@ -38,6 +40,13 @@ pub struct Model {
     inputs: EnumMap<UserOverviewColumns, FilterInput>,
     user_edit: Option<RefCell<UserDelta>>,
     last_message: Option<Status>,
+}
+
+impl Model {
+    fn clean_dialogs(&mut self) {
+        self.last_message = None;
+        self.user_edit = None;
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -75,16 +84,15 @@ pub enum UserEditMsg {
     SaveUser,
     FailedToCreateUser,
 }
-
-/// # Panics
-/// Sould only panic on bugs.
+/*
+ * update
+ */
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Query(msg) => process_query_messages(msg, model, orders),
         Msg::Edit(msg) => process_user_edit_messages(msg, model, orders),
         Msg::ClearAll => {
-            model.last_message = None;
-            model.user_edit = None;
+            model.clean_dialogs();
         }
     }
 }
@@ -92,31 +100,8 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 pub fn process_query_messages(msg: UserQueryMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         UserQueryMsg::Fetch => {
-            orders.skip(); // No need to rerender
-            let data = model.formconfig.clone(); // complicated way to move into the closure
-            orders.perform_cmd(async {
-                let data = data;
-                let response = match fetch(
-                    Request::new("/admin/json/list_users/")
-                        .method(Method::Post)
-                        .json(&data)
-                        .expect("serialization failed"),
-                )
-                .await
-                {
-                    Ok(response) => response,
-                    Err(_) => return Msg::Query(UserQueryMsg::FailedToFetchUsers),
-                };
-
-                let users: Vec<User> = response
-                    .check_status() // ensure we've got 2xx status
-                    .expect("status check failed")
-                    .json()
-                    .await
-                    .expect("deserialization failed");
-
-                Msg::Query(UserQueryMsg::Received(users))
-            });
+            orders.skip(); // No need to rerender only after the data is fetched the page has to be rerendered.
+            load_users(model.formconfig.clone(), orders);
         }
         UserQueryMsg::OrderBy(column) => {
             model.formconfig.order = model.formconfig.order.as_ref().map_or_else(
@@ -173,6 +158,37 @@ pub fn process_query_messages(msg: UserQueryMsg, model: &mut Model, orders: &mut
         }
     }
 }
+
+fn load_users(data: UserRequestForm, orders: &mut impl Orders<Msg>) {
+    orders.perform_cmd(async {
+        let data = data;
+        // create the request
+        let request = unwrap_or_return!(
+            Request::new("/admin/json/list_users/")
+                .method(Method::Post)
+                .json(&data),
+            Msg::Query(UserQueryMsg::FailedToFetchUsers)
+        );
+        // request and get response
+        let response = unwrap_or_return!(
+            fetch(request).await,
+            Msg::Query(UserQueryMsg::FailedToFetchUsers)
+        );
+        // check the response status
+        let response = unwrap_or_return!(
+            response.check_status(),
+            Msg::Query(UserQueryMsg::FailedToFetchUsers)
+        );
+        // deserialize the users list
+        let users: Vec<User> = unwrap_or_return!(
+            response.json().await,
+            Msg::Query(UserQueryMsg::FailedToFetchUsers)
+        );
+
+        Msg::Query(UserQueryMsg::Received(users))
+    });
+}
+
 pub fn process_user_edit_messages(
     msg: UserEditMsg,
     model: &mut Model,
@@ -180,16 +196,14 @@ pub fn process_user_edit_messages(
 ) {
     match msg {
         UserEditMsg::EditUserSelected(user) => {
-            log!("Editing user: ", user);
-            model.last_message = None;
+            model.clean_dialogs();
             model.user_edit = Some(RefCell::new(user))
         }
         UserEditMsg::CreateNewUser => {
-            log!("Creating new user");
+            model.clean_dialogs();
             model.user_edit = Some(RefCell::new(UserDelta::default()))
         }
         UserEditMsg::EditUsernameChanged(s) => {
-            log!("New Username is: ", &s);
             if let Some(ref ue) = model.user_edit {
                 ue.try_borrow_mut()
                     .expect("Failed to borrow mutably")
@@ -197,13 +211,11 @@ pub fn process_user_edit_messages(
             };
         }
         UserEditMsg::EditEmailChanged(s) => {
-            log!("New Email is: ", &s);
             if let Some(ref ue) = model.user_edit {
                 ue.try_borrow_mut().expect("Failed to borrow mutably").email = s;
             };
         }
         UserEditMsg::EditPasswordChanged(s) => {
-            log!("New Password is: ", &s);
             if let Some(ref ue) = model.user_edit {
                 ue.try_borrow_mut()
                     .expect("Failed to borrow mutably")
@@ -218,33 +230,7 @@ pub fn process_user_edit_messages(
                 .borrow()
                 .clone(); // complicated way to move into the closure
             log!("Saving User: ", &data.username);
-
-            orders.perform_cmd(async {
-                let data = data;
-                let response = match fetch(
-                    Request::new(match data.edit {
-                        EditMode::Create => "/admin/json/create_user/",
-                        EditMode::Edit => "/admin/json/update_user/",
-                    })
-                    .method(Method::Post)
-                    .json(&data)
-                    .expect("serialization failed"),
-                )
-                .await
-                {
-                    Ok(response) => response,
-                    Err(_) => return Msg::Edit(UserEditMsg::FailedToCreateUser),
-                };
-
-                let message: Status = response
-                    .check_status() // ensure we've got 2xx status
-                    .expect("status check failed")
-                    .json()
-                    .await
-                    .expect("deserialization failed");
-
-                Msg::Edit(UserEditMsg::UserCreated(message))
-            });
+            save_user(data, orders);
         }
         UserEditMsg::FailedToCreateUser => {
             log!("Failed to create user");
@@ -258,24 +244,53 @@ pub fn process_user_edit_messages(
     }
 }
 
+fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
+    orders.perform_cmd(async {
+        let data = user;
+        // create the request
+        let request = unwrap_or_return!(
+            Request::new(match data.edit {
+                EditMode::Create => "/admin/json/create_user/",
+                EditMode::Edit => "/admin/json/update_user/",
+            })
+            .method(Method::Post)
+            .json(&data),
+            Msg::Edit(UserEditMsg::FailedToCreateUser)
+        );
+        // perform the request and get the response
+        let response = unwrap_or_return!(
+            fetch(request).await,
+            Msg::Edit(UserEditMsg::FailedToCreateUser)
+        );
+        // check for the status
+        let response = unwrap_or_return!(response
+            .check_status(), 
+            Msg::Edit(UserEditMsg::FailedToCreateUser));
+        // deserialize the response
+        let message: Status =  unwrap_or_return!(response
+            .json()
+            .await, Msg::Edit(UserEditMsg::FailedToCreateUser));
+
+        Msg::Edit(UserEditMsg::UserCreated(message))
+    });
+}
+
 #[must_use]
-/// # Panics
-/// Sould only panic on bugs.
+/// View the users page.
 pub fn view(model: &Model) -> Node<Msg> {
     let lang = model.i18n.clone();
+    // shortcut for easier translations
     let t = move |key: &str| lang.translate(key, None);
     section![
+        // Clear all dialogs on press of the ESC button.
         keyboard_ev(Ev::KeyDown, |keyboard_event| {
             IF!(keyboard_event.key() == "Escape" => Msg::ClearAll)
         }),
+        // display the messages to the user
         if let Some(message) = &model.last_message {
             div![
                 C!["message", "center"],
-                div![
-                    C!["closebutton"],
-                    a!["\u{d7}"],
-                    ev(Ev::Click, |_| Msg::ClearAll)
-                ],
+                close_button(),
                 match message {
                     Status::Success(m) | Status::Error(m) => {
                         &m.message
@@ -285,6 +300,8 @@ pub fn view(model: &Model) -> Node<Msg> {
         } else {
             section![]
         },
+
+        // display the table with users
         table![
             // Column Headlines
             view_user_table_head(&t),
@@ -293,10 +310,12 @@ pub fn view(model: &Model) -> Node<Msg> {
             // Add all the users one line for each
             model.users.iter().map(view_user)
         ],
+        // A refresh button. This will be removed in future versions.
         button![
             ev(Ev::Click, |_| Msg::Query(UserQueryMsg::Fetch)),
             "Refresh"
         ],
+        // Display the user edit dialog if available
         if let Some(l) = &model.user_edit {
             edit_or_create_user(l, t)
         } else {
@@ -377,7 +396,6 @@ fn view_user(l: &User) -> Node<Msg> {
         ))),
         td![&l.id],
         td![&l.email],
-        //td![a![attrs![At::Href => &l.link.target], &l.link.target]],
         td![&l.username],
     ]
 }
@@ -386,11 +404,7 @@ fn edit_or_create_user<F: Fn(&str) -> String>(l: &RefCell<UserDelta>, t: F) -> N
     let user = l.borrow();
     div![
         C!["editdialog", "center"],
-        div![
-            C!["closebutton"],
-            a!["\u{d7}"],
-            ev(Ev::Click, |_| Msg::ClearAll)
-        ],
+        close_button(),
         h1![match &user.edit {
             EditMode::Edit => t("edit-user"),
             EditMode::Create => t("new-user"),
@@ -461,5 +475,14 @@ fn edit_or_create_user<F: Fn(&str) -> String>(l: &RefCell<UserDelta>, t: F) -> N
             C!["button"],
             ev(Ev::Click, |_| Msg::Edit(UserEditMsg::SaveUser))
         ]
+    ]
+}
+
+/// a close button for dialogs
+fn close_button() -> Node<Msg> {
+    div![
+        C!["closebutton"],
+        a!["\u{d7}"],
+        ev(Ev::Click, |_| Msg::ClearAll)
     ]
 }
