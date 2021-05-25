@@ -19,7 +19,7 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
 
     log!(url);
 
-    let lang = I18n::new(Lang::DeDE);
+    let lang = I18n::new(Lang::EnUS);
 
     Model {
         index: 0,

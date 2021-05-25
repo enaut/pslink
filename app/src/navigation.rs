@@ -58,8 +58,7 @@ pub fn navigation(i18n: &I18n, base_url: &Url, user: &Option<User>) -> Node<Msg>
             li![div![welcome]],
             // The logout button
             li![a![
-                attrs! {At::Href => "/admin/logout"},
-                ev(Ev::Click, |_| Msg::NoMessage),
+                attrs! {At::Href => "/admin/logout/"},
                 t("logout"),
             ]]
         ]
