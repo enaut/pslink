@@ -8,6 +8,8 @@ So in general this is more a shared short url bookmark webpage than a shorturl s
 
 The Page comes with a basic commandline interface to setup the environment.
 
+> This branch is under development the commands below are slightly different. To build use: `cargo make build` to use pslink use the `target/debug/pslink` file.
+
 ## Usage
 
 ### install binary
