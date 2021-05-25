@@ -16,29 +16,8 @@ use shared::{
     datatypes::FullLink,
 };
 
-use crate::i18n::I18n;
+use crate::{i18n::I18n, unwrap_or_return, unwrap_or_send};
 
-/// Unwrap a result and return it's content, or return from the function with another expression.
-macro_rules! unwrap_or_return {
-    ( $e:expr, $result:expr) => {
-        match $e {
-            Ok(x) => x,
-            Err(_) => return $result,
-        }
-    };
-}
-
-/// Unwrap a result and return it's content, or return from the function with another expression.
-macro_rules! unwrap_or_send {
-    ( $e:expr, $result:expr, $orders:expr) => {
-        match $e {
-            Some(x) => x,
-            None => {
-                $orders.send_msg($result);
-                return;},
-        }
-    };
-}
 
 /// Setup the page
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
@@ -388,11 +367,7 @@ pub fn view(model: &Model) -> Node<Msg> {
         if let Some(message) = &model.last_message {
             div![
                 C!["message", "center"],
-                div![
-                    C!["closebutton"],
-                    a!["\u{d7}"],
-                    ev(Ev::Click, |_| Msg::ClearAll)
-                ],
+                close_button(),
                 match message {
                     Status::Success(m) | Status::Error(m) => &m.message,
                 }
@@ -404,11 +379,7 @@ pub fn view(model: &Model) -> Node<Msg> {
         if let Some(question) = &model.question {
             div![
                 C!["message", "center"],
-                div![
-                    C!["closebutton"],
-                    a!["\u{d7}"],
-                    ev(Ev::Click, |_| Msg::ClearAll)
-                ],
+                close_button(),
                 if let EditMsg::MayDeleteSelected(l) = question.clone() {
                     div![
                         lang.translate(
@@ -592,11 +563,7 @@ fn edit_or_create_link<F: Fn(&str) -> String>(l: &RefCell<LinkDelta>, t: F) -> N
     div![
         // close button top right
         C!["editdialog", "center"],
-        div![
-            C!["closebutton"],
-            a!["\u{d7}"],
-            ev(Ev::Click, |_| Msg::ClearAll)
-        ],
+        close_button(),
         h1![match &link.edit {
             EditMode::Edit => t("edit-link"),
             EditMode::Create => t("create-link"),
@@ -646,5 +613,15 @@ fn edit_or_create_link<F: Fn(&str) -> String>(l: &RefCell<LinkDelta>, t: F) -> N
             C!["button"],
             ev(Ev::Click, |_| Msg::Edit(EditMsg::SaveLink))
         ]
+    ]
+}
+
+
+/// a close button for dialogs
+fn close_button() -> Node<Msg> {
+    div![
+        C!["closebutton"],
+        a!["\u{d7}"],
+        ev(Ev::Click, |_| Msg::ClearAll)
     ]
 }
