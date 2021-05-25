@@ -88,8 +88,6 @@ pub enum Msg {
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::UrlChanged(url) => {
-            log!("Url changed!");
-
             model.page = Page::init(url.0, orders, model.i18n.clone());
         }
         Msg::ListLinks(msg) => {
@@ -186,6 +184,7 @@ impl<'a> Urls<'a> {
 //     View
 // ------ ------
 
+/// Render the menu and the subpages.
 fn view(model: &Model) -> Node<Msg> {
     div![
         C!["page"],
@@ -193,6 +192,8 @@ fn view(model: &Model) -> Node<Msg> {
         view_content(&model.page, &model.base_url),
     ]
 }
+
+/// Render the subpages.
 fn view_content(page: &Page, url: &Url) -> Node<Msg> {
     div![
         C!["container"],
