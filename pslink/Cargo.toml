@@ -51,7 +51,7 @@ features = ["tera"]
 version = "0.6"
 
 [dependencies.sqlx]
-features = ["sqlite", "macros", "runtime-actix-rustls", "chrono", "migrate"]
+features = ["sqlite", "macros", "runtime-actix-rustls", "chrono", "migrate", "offline"]
 version = "0.4"
 
 [dependencies.tracing]
