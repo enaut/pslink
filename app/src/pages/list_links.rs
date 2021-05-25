@@ -28,36 +28,49 @@ macro_rules! unwrap_or_return {
     };
 }
 
+/// Unwrap a result and return it's content, or return from the function with another expression.
+macro_rules! unwrap_or_send {
+    ( $e:expr, $result:expr, $orders:expr) => {
+        match $e {
+            Some(x) => x,
+            None => {
+                $orders.send_msg($result);
+                return;},
+        }
+    };
+}
+
 /// Setup the page
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
-    log!(url);
+    // fetch the links to fill the list.
     orders.send_msg(Msg::Query(QueryMsg::Fetch));
+    // if the url contains create_link set the edit_link variable.
+    // This variable then opens the create link dialog.
     let edit_link = match url.next_path_part() {
         Some("create_link") => Some(RefCell::new(LinkDelta::default())),
         None | Some(_) => None,
     };
-    log!(edit_link);
-
+    
     Model {
-        links: Vec::new(),
-        i18n,
-        formconfig: LinkRequestForm::default(),
-        inputs: EnumMap::default(),
-        edit_link,
-        last_message: None,
-        question: None,
+        links: Vec::new(), // will contain the links to display
+        i18n, // to translate
+        formconfig: LinkRequestForm::default(), // when requesting links the form is stored here
+        inputs: EnumMap::default(), // the input fields for the searches
+        edit_link, // if set this will trigger a link edit dialog
+        last_message: None, // if a message to the user is recieved
+        question: None, // some operations should be confirmed
     }
 }
 
 #[derive(Debug)]
 pub struct Model {
-    links: Vec<FullLink>,
-    i18n: I18n,
-    formconfig: LinkRequestForm,
-    inputs: EnumMap<LinkOverviewColumns, FilterInput>,
-    edit_link: Option<RefCell<LinkDelta>>,
-    last_message: Option<Status>,
-    question: Option<EditMsg>,
+    links: Vec<FullLink>, // will contain the links to display
+    i18n: I18n, // to translate
+    formconfig: LinkRequestForm, // when requesting links the form is stored here
+    inputs: EnumMap<LinkOverviewColumns, FilterInput>, // the input fields for the searches
+    edit_link: Option<RefCell<LinkDelta>>, // if set this will trigger a link edit dialog
+    last_message: Option<Status>, // if a message to the user is recieved
+    question: Option<EditMsg>, // some operations should be confirmed
 }
 
 #[derive(Default, Debug, Clone)]
@@ -67,10 +80,10 @@ struct FilterInput {
 
 #[derive(Clone)]
 pub enum Msg {
-    Query(QueryMsg),
-    Edit(EditMsg),
-    ClearAll,
-    SetMessage(String),
+    Query(QueryMsg), // Messages related to querying links
+    Edit(EditMsg), // Messages related to editing links
+    ClearAll, // Clear all messages
+    SetMessage(String), // Set a message to the user
 }
 
 #[derive(Clone)]
@@ -100,19 +113,23 @@ pub enum EditMsg {
     DeletedLink(Status),
 }
 
+/// hide all dialogs
+fn clear_all(model: &mut Model) {
+    model.edit_link = None;
+    model.last_message = None;
+    model.question = None;
+}
+
 /// React to environment changes
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Query(msg) => process_query_messages(msg, model, orders),
         Msg::Edit(msg) => process_edit_messages(msg, model, orders),
         Msg::ClearAll => {
-            model.edit_link = None;
-            model.last_message = None;
-            model.question = None;
+            clear_all(model)
         }
         Msg::SetMessage(msg) => {
-            model.edit_link = None;
-            model.question = None;
+            clear_all(model);
             model.last_message = Some(Status::Error(Message { message: msg }));
         }
     }
@@ -125,6 +142,7 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
             orders.skip(); // No need to rerender
             load_links(model, orders)
         }
+        // Default to ascending ordering but if the links are already sorted according to this collumn toggle between ascending and descending ordering.
         QueryMsg::OrderBy(column) => {
             model.formconfig.order = model.formconfig.order.as_ref().map_or_else(
                 || {
@@ -144,8 +162,11 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
                     })
                 },
             );
+            // After setting up the ordering fetch the links from the server again with the new filter settings.
+            // If the new filters and ordering include more links the list would be incomplete otherwise.
             orders.send_msg(Msg::Query(QueryMsg::Fetch));
 
+            // Also sort the links locally - can probably removed...
             model.links.sort_by(match column {
                 LinkOverviewColumns::Code => {
                     |o: &FullLink, t: &FullLink| o.link.code.cmp(&t.link.code)
@@ -199,27 +220,29 @@ fn load_links(model: &Model, orders: &mut impl Orders<Msg>) {
     let data = model.formconfig.clone();
     orders.perform_cmd(async {
         let data = data;
+        // create a request
         let request = unwrap_or_return!(
             Request::new("/admin/json/list_links/")
                 .method(Method::Post)
                 .json(&data),
             Msg::SetMessage("Failed to parse data".to_string())
         );
+        // send the request and recieve a response
         let response = unwrap_or_return!(
             fetch(request).await,
             Msg::SetMessage("Failed to send data".to_string())
         );
-
+        // check the html status to be 200
         let response = unwrap_or_return!(
             response.check_status(),
             Msg::SetMessage("Wrong response code".to_string())
         );
-
+        // unpack the response into the `Vec<FullLink>`
         let links: Vec<FullLink> = unwrap_or_return!(
             response.json().await,
             Msg::SetMessage("Invalid response".to_string())
         );
-
+        // The message that is sent by perform_cmd after this async block is completed
         Msg::Query(QueryMsg::Received(links))
     });
 }
@@ -228,17 +251,16 @@ fn load_links(model: &Model, orders: &mut impl Orders<Msg>) {
 pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         EditMsg::EditSelected(link) => {
-            log!("Editing link: ", link);
-            model.last_message = None;
+            clear_all(model);
             model.edit_link = Some(RefCell::new(link))
         }
         EditMsg::CreateNewLink => {
-            log!("Create new link!");
+            clear_all(model);
             model.edit_link = Some(RefCell::new(LinkDelta::default()))
         }
         EditMsg::Created(success_msg) => {
+            clear_all(model);
             model.last_message = Some(success_msg);
-            model.edit_link = None;
             orders.send_msg(Msg::Query(QueryMsg::Fetch));
         }
         EditMsg::EditCodeChanged(s) => {
@@ -262,34 +284,38 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
             save_link(model, orders);
         }
         EditMsg::FailedToCreateLink => {
+            orders.send_msg(Msg::SetMessage("Failed to create this link!".to_string()));
             log!("Failed to create Link");
         }
+        // capture including the message part
         link @ EditMsg::MayDeleteSelected(..) => {
-            log!("Deleting link: ", link);
-            model.last_message = None;
-            model.edit_link = None;
+            clear_all(model);
             model.question = Some(link)
         }
         EditMsg::DeleteSelected(link) => {
             orders.perform_cmd(async {
                 let data = link;
+                // create the request
                 let request = unwrap_or_return!(
                     Request::new("/admin/json/delete_link/")
                         .method(Method::Post)
                         .json(&data),
                     Msg::SetMessage("serialization failed".to_string())
                 );
+                // perform the request and recieve a respnse
                 let response =
                     unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToDeleteLink));
 
+                // check the status of the response
                 let response = unwrap_or_return!(
                     response.check_status(),
                     Msg::SetMessage("Wrong response code!".to_string())
                 );
+                // deserialize the response
                 let message: Status = unwrap_or_return!(
                     response.json().await,
                     Msg::SetMessage(
-                        "Failed to parse the response the link might be deleted however!"
+                        "Failed to parse the response! The link might or might not be deleted!"
                             .to_string()
                     )
                 );
@@ -301,25 +327,25 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
             log!("Failed to delete Link");
         }
         EditMsg::DeletedLink(message) => {
+            clear_all(model);
             model.last_message = Some(message);
-            model.edit_link = None;
-            model.question = None;
             orders.send_msg(Msg::Query(QueryMsg::Fetch));
         }
     }
 }
 
-/// Save a link to the server.
+/// Send a link save request to the server.
 fn save_link(model: &Model, orders: &mut impl Orders<Msg>) {
-    let edit_link = if let Some(e) = model.edit_link.as_ref() {
-        e
-    } else {
-        orders.send_msg(Msg::SetMessage("Please enter a link".to_string()));
-        return;
-    };
+    // get the link to save
+    let edit_link = unwrap_or_send!(
+        model.edit_link.as_ref(),
+        Msg::SetMessage("Please enter a link".to_string()),
+        orders
+    );
     let data = edit_link.borrow().clone();
     orders.perform_cmd(async {
         let data = data;
+        // create the request
         let request = unwrap_or_return!(
             Request::new(match data.edit {
                 EditMode::Create => "/admin/json/create_link/",
@@ -329,15 +355,16 @@ fn save_link(model: &Model, orders: &mut impl Orders<Msg>) {
             .json(&data),
             Msg::SetMessage("Failed to encode the link!".to_string())
         );
+        // perform the request
         let response =
             unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToCreateLink));
 
-        log!(response);
+        // check the response status
         let response = unwrap_or_return!(
             response.check_status(),
             Msg::SetMessage("Wrong response code".to_string())
         );
-
+        // Parse the response
         let message: Status = unwrap_or_return!(
             response.json().await,
             Msg::SetMessage("Invalid response!".to_string())
@@ -354,8 +381,10 @@ fn save_link(model: &Model, orders: &mut impl Orders<Msg>) {
 #[must_use]
 pub fn view(model: &Model) -> Node<Msg> {
     let lang = &model.i18n.clone();
+    // shortcut for translating
     let t = move |key: &str| lang.translate(key, None);
     section![
+        // display a message if any
         if let Some(message) = &model.last_message {
             div![
                 C!["message", "center"],
@@ -371,6 +400,7 @@ pub fn view(model: &Model) -> Node<Msg> {
         } else {
             section![]
         },
+        // Display a question if any
         if let Some(question) = &model.question {
             div![
                 C!["message", "center"],
@@ -399,6 +429,8 @@ pub fn view(model: &Model) -> Node<Msg> {
         } else {
             section![]
         },
+
+        // display the list of links
         table![
             // Add the headlines
             view_link_table_head(&t),
@@ -407,10 +439,13 @@ pub fn view(model: &Model) -> Node<Msg> {
             // Add all the content lines
             model.links.iter().map(view_link)
         ],
+
+        // A fetch button - this should not be needed and will be removed in future.
         button![
             ev(Ev::Click, |_| Msg::Query(QueryMsg::Fetch)),
             "Fetch links"
         ],
+        // Display the edit dialog if any
         if let Some(l) = &model.edit_link {
             edit_or_create_link(l, t)
         } else {
@@ -501,6 +536,7 @@ fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
             input_ev(Ev::Input, |s| Msg::Query(QueryMsg::AuthorFilterChanged(s))),
             el_ref(&model.inputs[LinkOverviewColumns::Author].filter_input),
         ]],
+        // statistics and the delete column cannot be filtered
         td![],
         td![],
     ]
@@ -508,7 +544,7 @@ fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
 
 /// display a single link
 fn view_link(l: &FullLink) -> Node<Msg> {
-    // Ugly hack
+    // Ugly hack - this is needed to be able to move the l into the closures... l.clone() in place does not work.
     let link = LinkDelta::from(l.clone());
     let link2 = LinkDelta::from(l.clone());
     let link3 = LinkDelta::from(l.clone());
@@ -554,6 +590,7 @@ fn view_link(l: &FullLink) -> Node<Msg> {
 fn edit_or_create_link<F: Fn(&str) -> String>(l: &RefCell<LinkDelta>, t: F) -> Node<Msg> {
     let link = l.borrow();
     div![
+        // close button top right
         C!["editdialog", "center"],
         div![
             C!["closebutton"],
