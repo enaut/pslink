@@ -81,7 +81,7 @@ impl Lang {
     pub const fn ftl_messages(self) -> &'static str {
         macro_rules! include_ftl_messages {
             ( $lang_id:literal ) => {
-                include_str!(concat!("../locales/", $lang_id, "/main.ftl"))
+                include_str!(concat!("../../locales/", $lang_id, "/main.ftl"))
             };
         }
         match self {
