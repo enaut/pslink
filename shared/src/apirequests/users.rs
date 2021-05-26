@@ -25,6 +25,12 @@ impl Default for UserRequestForm {
     }
 }
 
+#[derive(Debug, Deserialize, Default, Serialize, Clone)]
+pub struct LoginUser {
+    pub username: String,
+    pub password: String,
+}
+
 /// The Struct that is responsible for creating and editing users.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct UserDelta {

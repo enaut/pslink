@@ -5,21 +5,17 @@ use shared::datatypes::User;
 use crate::{i18n::I18n, Msg};
 
 /// Generate the top navigation menu of all pages.
-/// 
+///
 /// The menu options are translated using the i18n module.
 #[must_use]
-pub fn navigation(i18n: &I18n, base_url: &Url, user: &Option<User>) -> Node<Msg> {
+pub fn navigation(i18n: &I18n, base_url: &Url, user: &User) -> Node<Msg> {
     // A shortcut for translating strings.
     let t = move |key: &str| i18n.translate(key, None);
     // Translate the wellcome message
-    let welcome = if let Some(user) = user {
-        i18n.translate(
-            "welcome-user",
-            Some(&fluent_args![ "username" => user.username.clone()]),
-        )
-    } else {
-        t("welcome")
-    };
+    let welcome = i18n.translate(
+        "welcome-user",
+        Some(&fluent_args![ "username" => user.username.clone()]),
+    );
     nav![
         ol![
             // A button for the homepage, the list of URLs
@@ -57,10 +53,7 @@ pub fn navigation(i18n: &I18n, base_url: &Url, user: &Option<User>) -> Node<Msg>
             // The Welcome message
             li![div![welcome]],
             // The logout button
-            li![a![
-                attrs! {At::Href => "/admin/logout/"},
-                t("logout"),
-            ]]
+            li![a![ev(Ev::Click, |_| Msg::NotAuthenticated), t("logout"),]]
         ]
     ]
 }
