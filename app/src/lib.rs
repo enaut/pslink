@@ -4,7 +4,12 @@ pub mod pages;
 
 use pages::list_links;
 use pages::list_users;
+use seed::attrs;
+use seed::button;
+use seed::input;
+use seed::label;
 use seed::{div, log, prelude::*, App, Url, C};
+use shared::apirequests::users::LoginUser;
 use shared::datatypes::User;
 
 use crate::i18n::{I18n, Lang};
@@ -27,6 +32,8 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
         page: Page::init(url, orders, lang.clone()),
         i18n: lang,
         user: None,
+        login_form: LoginForm::default(),
+        login_data: LoginUser::default(),
     }
 }
 
@@ -41,6 +48,14 @@ struct Model {
     page: Page,
     i18n: i18n::I18n,
     user: Option<User>,
+    login_form: LoginForm,
+    login_data: LoginUser,
+}
+
+#[derive(Default, Debug)]
+struct LoginForm {
+    username: ElRef<web_sys::HtmlInputElement>,
+    password: ElRef<web_sys::HtmlInputElement>,
 }
 
 #[derive(Debug)]
@@ -83,6 +98,10 @@ pub enum Msg {
     GetLoggedUser,
     UserReceived(User),
     NoMessage,
+    NotAuthenticated,
+    Login,
+    UsernameChanged(String),
+    PasswordChanged(String),
 }
 
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -102,29 +121,60 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::NoMessage => (),
         Msg::GetLoggedUser => {
-            orders.skip(); // No need to rerender/ complicated way to move into the closure
+            orders.skip(); // No need to rerender
             orders.perform_cmd(async {
-                let response = fetch(
+                // create request
+                let request = unwrap_or_return!(
                     Request::new("/admin/json/get_logged_user/")
                         .method(Method::Post)
-                        .json(&())
-                        .expect("serialization failed"),
-                )
-                .await
-                .expect("HTTP request failed");
-
-                let user: User = response
-                    .check_status() // ensure we've got 2xx status
-                    .expect("status check failed")
-                    .json()
-                    .await
-                    .expect("deserialization failed");
+                        .json(&()),
+                    Msg::NotAuthenticated
+                );
+                // perform and get response
+                let response = unwrap_or_return!(fetch(request).await, Msg::NotAuthenticated);
+                // validate response status
+                let response = unwrap_or_return!(response.check_status(), Msg::NotAuthenticated);
+                let user: User = unwrap_or_return!(response.json().await, Msg::NotAuthenticated);
 
                 Msg::UserReceived(user)
             });
         }
         Msg::UserReceived(user) => model.user = Some(user),
+        Msg::NotAuthenticated => {if model.user.is_some() {model.user = None; logout(orders)}},
+        Msg::Login => {login_user(model, orders)}
+        Msg::UsernameChanged(s) => model.login_data.username = s,
+        Msg::PasswordChanged(s) => model.login_data.password = s,
     }
+}
+
+fn logout(orders: &mut impl Orders<Msg>) {
+    orders.perform_cmd(async {let request = Request::new("/admin/logout/");
+    unwrap_or_return!(fetch(request).await, Msg::GetLoggedUser);
+    Msg::NotAuthenticated});
+
+}
+
+fn login_user(model: &mut Model, orders: &mut impl Orders<Msg>) {
+    orders.skip(); // No need to rerender
+    let data = model.login_data.clone();
+
+    orders.perform_cmd(async {
+        let data = data;
+        // create request
+        let request = unwrap_or_return!(
+            Request::new("/admin/json/login_user/")
+                .method(Method::Post)
+                .json(&data),
+            Msg::NotAuthenticated
+        );
+        // perform and get response
+        let response = unwrap_or_return!(fetch(request).await, Msg::NotAuthenticated);
+        // validate response status
+        let response = unwrap_or_return!(response.check_status(), Msg::NotAuthenticated);
+        let user: User = unwrap_or_return!(response.json().await, Msg::NotAuthenticated);
+
+        Msg::UserReceived(user)
+    });
 }
 
 pub struct Urls<'a> {
@@ -188,8 +238,14 @@ impl<'a> Urls<'a> {
 fn view(model: &Model) -> Node<Msg> {
     div![
         C!["page"],
-        navigation::navigation(&model.i18n, &model.base_url, &model.user),
-        view_content(&model.page, &model.base_url),
+        if let Some(user) = &model.user {
+            div![
+                navigation::navigation(&model.i18n, &model.base_url, user),
+                view_content(&model.page, &model.base_url)
+            ]
+        } else {
+            view_login(&model.i18n, &model)
+        }
     ]
 }
 
@@ -202,6 +258,39 @@ fn view_content(page: &Page, url: &Url) -> Node<Msg> {
             Page::ListUsers(model) => pages::list_users::view(model).map_msg(Msg::ListUsers),
             Page::NotFound => div![div![url.to_string()], "Page not found!"],
         }
+    ]
+}
+
+fn view_login(lang: &I18n, model: &Model) -> Node<Msg> {
+    let t = move |key: &str| lang.translate(key, None);
+
+    div![
+        C!["center", "login"],
+        div![
+            label![t("username")],
+            input![
+                input_ev(Ev::Input, |s| { Msg::UsernameChanged(s) }),
+                attrs![
+        At::Type => "text",
+        At::Placeholder => t("username"),
+        At::Name => "username",
+        At::Value => model.login_data.username],
+                el_ref(&model.login_form.username)
+            ]
+        ],
+        div![
+            label![t("password")],
+            input![
+                input_ev(Ev::Input, |s| { Msg::PasswordChanged(s) }),
+                attrs![
+            At::Type => "password",
+            At::Placeholder => t("password"),
+        At::Name => "password",
+        At::Value => model.login_data.password],
+                el_ref(&model.login_form.password)
+            ]
+        ],
+        button![t("login"), ev(Ev::Click, |_| Msg::Login)]
     ]
 }
 

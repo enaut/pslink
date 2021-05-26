@@ -17,13 +17,13 @@ use queries::{authenticate, Role};
 use shared::apirequests::{
     general::{Message, Status},
     links::{LinkDelta, LinkRequestForm},
-    users::{UserDelta, UserRequestForm},
+    users::{LoginUser, UserDelta, UserRequestForm},
 };
 use tera::{Context, Tera};
 use tracing::{error, info, instrument, warn};
 
 use crate::forms::LinkForm;
-use crate::models::{LoginUser, NewUser};
+use crate::models::NewUser;
 use crate::queries;
 use crate::ServerError;
 
@@ -74,7 +74,6 @@ pub async fn wasm_app(config: web::Data<crate::ServerConfig>) -> Result<HttpResp
     Ok(HttpResponse::Ok().body(
         r#"<!DOCTYPE html>
         <html>
-        
         <head>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
@@ -84,7 +83,6 @@ pub async fn wasm_app(config: web::Data<crate::ServerConfig>) -> Result<HttpResp
           <link rel="stylesheet" href="/static/admin.css">
           <title>Server integration example</title>
         </head>
-        
         <body>
           <section id="app"><div class="lds-ellipsis">Loading: <div></div><div></div><div></div><div></div></div></section>
           <script type="module">
@@ -92,7 +90,6 @@ pub async fn wasm_app(config: web::Data<crate::ServerConfig>) -> Result<HttpResp
             init('/app/pkg/package_bg.wasm');
           </script>
         </body>
-        
         </html>"#,
     ))
 }
@@ -178,7 +175,7 @@ pub async fn get_logged_user_json(
     let user = authenticate(&id, &config).await?;
     match user {
         Role::NotAuthenticated | Role::Disabled => {
-            Err(ServerError::User("User not logged in!".to_string()))
+            Ok(HttpResponse::Unauthorized().finish())
         }
         Role::Regular { user } | Role::Admin { user } => Ok(HttpResponse::Ok().json2(&user)),
     }
@@ -484,7 +481,57 @@ pub async fn process_login(
         }
         Err(e) => {
             info!("Failed to login: {}", e);
-            Ok(redirect_builder("/admin/login/"))
+            Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
+                message: "Failed to Login".to_string(),
+            })))
+        }
+    }
+}
+
+#[instrument(skip(id))]
+pub async fn process_login_json(
+    data: web::Json<LoginUser>,
+    config: web::Data<crate::ServerConfig>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    // query the username to see if a user by that name exists.
+    let user = queries::get_user_by_name(&data.username, &config).await;
+
+    match user {
+        Ok(u) => {
+            // get the password hash
+            if let Some(hash) = &u.password.secret {
+                // get the servers secret
+                let secret = &config.secret;
+                // validate the secret
+                let valid = Verifier::default()
+                    .with_hash(hash)
+                    .with_password(&data.password)
+                    .with_secret_key(secret.secret.as_ref().expect("No secret available"))
+                    .verify()?;
+
+                // login the user
+                if valid {
+                    info!("Log-in of user: {}", &u.username);
+                    let session_token = u.username.clone();
+                    id.remember(session_token);
+                    Ok(HttpResponse::Ok().json2(&u))
+                } else {
+                    info!("Invalid password for user: {}", &u.username);
+                    Ok(redirect_builder("/admin/login/"))
+                }
+            } else {
+                // should fail earlier if secret is missing.
+                Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
+                    message: "Failed to Login".to_string(),
+                })))
+            }
+        }
+        Err(e) => {
+            info!("Failed to login: {}", e);
+            Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
+                message: "Failed to Login".to_string(),
+            })))
         }
     }
 }

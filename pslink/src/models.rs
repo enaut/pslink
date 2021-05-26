@@ -213,12 +213,6 @@ impl NewUser {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct LoginUser {
-    pub username: String,
-    pub password: String,
-}
-
 #[async_trait]
 pub trait LinkDbOperations<T> {
     async fn get_link_by_code(code: &str, server_config: &ServerConfig) -> Result<T, ServerError>;
