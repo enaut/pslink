@@ -281,7 +281,7 @@ pub async fn webservice(
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&[0; 32])
                     .name("auth-cookie")
-                    .secure(false),
+                    .secure(true),
             ))
             .data(tera.clone())
             .service(actix_web_static_files::ResourceFiles::new(
@@ -377,6 +377,10 @@ pub async fn webservice(
                             .route(
                                 "/get_logged_user/",
                                 web::post().to(views::get_logged_user_json),
+                            )
+                            .route(
+                                "/login_user/",
+                                web::post().to(views::process_login_json),
                             ),
                     )
                     // login to the admin area
