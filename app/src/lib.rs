@@ -10,6 +10,7 @@ use seed::input;
 use seed::label;
 use seed::{div, log, prelude::*, App, Url, C};
 use shared::apirequests::users::LoginUser;
+use shared::datatypes::Loadable;
 use shared::datatypes::User;
 
 use crate::i18n::{I18n, Lang};
@@ -31,7 +32,7 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
         base_url: Url::new().add_path_part("app"),
         page: Page::init(url, orders, lang.clone()),
         i18n: lang,
-        user: None,
+        user: Loadable::Data(None),
         login_form: LoginForm::default(),
         login_data: LoginUser::default(),
     }
@@ -47,7 +48,7 @@ struct Model {
     base_url: Url,
     page: Page,
     i18n: i18n::I18n,
-    user: Option<User>,
+    user: Loadable<User>,
     login_form: LoginForm,
     login_data: LoginUser,
 }
@@ -139,8 +140,8 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 Msg::UserReceived(user)
             });
         }
-        Msg::UserReceived(user) => model.user = Some(user),
-        Msg::NotAuthenticated => {if model.user.is_some() {model.user = None; logout(orders)}},
+        Msg::UserReceived(user) => model.user = Loadable::Data(Some(user)),
+        Msg::NotAuthenticated => {if model.user.is_some() {model.user = Loadable::Data(None); logout(orders)}},
         Msg::Login => {login_user(model, orders)}
         Msg::UsernameChanged(s) => model.login_data.username = s,
         Msg::PasswordChanged(s) => model.login_data.password = s,
@@ -238,7 +239,7 @@ impl<'a> Urls<'a> {
 fn view(model: &Model) -> Node<Msg> {
     div![
         C!["page"],
-        if let Some(user) = &model.user {
+        if let Some(ref user) = *model.user {
             div![
                 navigation::navigation(&model.i18n, &model.base_url, user),
                 view_content(&model.page, &model.base_url)
