@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use serde::{Deserialize, Serialize, Serializer};
 /// A generic list returntype containing the User and a Vec containing e.g. Links or Users
 #[derive(Clone, Deserialize, Serialize)]
@@ -84,5 +86,22 @@ impl std::fmt::Debug for Secret {
 impl std::fmt::Display for Secret {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("*****SECRET*****")
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Loadable<T> {
+    Data(Option<T>),
+    Loading,
+}
+
+impl<T> Deref for Loadable<T>{
+    type Target = Option<T>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Loadable::Data(t) => t,
+            Loadable::Loading => &None
+        }
     }
 }
