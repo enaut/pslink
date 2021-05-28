@@ -263,13 +263,15 @@ fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
             Msg::Edit(UserEditMsg::FailedToCreateUser)
         );
         // check for the status
-        let response = unwrap_or_return!(response
-            .check_status(), 
-            Msg::Edit(UserEditMsg::FailedToCreateUser));
+        let response = unwrap_or_return!(
+            response.check_status(),
+            Msg::Edit(UserEditMsg::FailedToCreateUser)
+        );
         // deserialize the response
-        let message: Status =  unwrap_or_return!(response
-            .json()
-            .await, Msg::Edit(UserEditMsg::FailedToCreateUser));
+        let message: Status = unwrap_or_return!(
+            response.json().await,
+            Msg::Edit(UserEditMsg::FailedToCreateUser)
+        );
 
         Msg::Edit(UserEditMsg::UserCreated(message))
     });
@@ -300,7 +302,6 @@ pub fn view(model: &Model) -> Node<Msg> {
         } else {
             section![]
         },
-
         // display the table with users
         table![
             // Column Headlines

@@ -18,7 +18,6 @@ use shared::{
 
 use crate::{i18n::I18n, unwrap_or_return, unwrap_or_send};
 
-
 /// Setup the page
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
     // fetch the links to fill the list.
@@ -29,27 +28,27 @@ pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
         Some("create_link") => Some(RefCell::new(LinkDelta::default())),
         None | Some(_) => None,
     };
-    
+
     Model {
-        links: Vec::new(), // will contain the links to display
-        i18n, // to translate
+        links: Vec::new(),                      // will contain the links to display
+        i18n,                                   // to translate
         formconfig: LinkRequestForm::default(), // when requesting links the form is stored here
-        inputs: EnumMap::default(), // the input fields for the searches
-        edit_link, // if set this will trigger a link edit dialog
-        last_message: None, // if a message to the user is recieved
-        question: None, // some operations should be confirmed
+        inputs: EnumMap::default(),             // the input fields for the searches
+        edit_link,                              // if set this will trigger a link edit dialog
+        last_message: None,                     // if a message to the user is recieved
+        question: None,                         // some operations should be confirmed
     }
 }
 
 #[derive(Debug)]
 pub struct Model {
-    links: Vec<FullLink>, // will contain the links to display
-    i18n: I18n, // to translate
+    links: Vec<FullLink>,        // will contain the links to display
+    i18n: I18n,                  // to translate
     formconfig: LinkRequestForm, // when requesting links the form is stored here
     inputs: EnumMap<LinkOverviewColumns, FilterInput>, // the input fields for the searches
     edit_link: Option<RefCell<LinkDelta>>, // if set this will trigger a link edit dialog
     last_message: Option<Status>, // if a message to the user is recieved
-    question: Option<EditMsg>, // some operations should be confirmed
+    question: Option<EditMsg>,   // some operations should be confirmed
 }
 
 #[derive(Default, Debug, Clone)]
@@ -59,9 +58,9 @@ struct FilterInput {
 
 #[derive(Clone)]
 pub enum Msg {
-    Query(QueryMsg), // Messages related to querying links
-    Edit(EditMsg), // Messages related to editing links
-    ClearAll, // Clear all messages
+    Query(QueryMsg),    // Messages related to querying links
+    Edit(EditMsg),      // Messages related to editing links
+    ClearAll,           // Clear all messages
     SetMessage(String), // Set a message to the user
 }
 
@@ -104,9 +103,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Query(msg) => process_query_messages(msg, model, orders),
         Msg::Edit(msg) => process_edit_messages(msg, model, orders),
-        Msg::ClearAll => {
-            clear_all(model)
-        }
+        Msg::ClearAll => clear_all(model),
         Msg::SetMessage(msg) => {
             clear_all(model);
             model.last_message = Some(Status::Error(Message { message: msg }));
@@ -400,7 +397,6 @@ pub fn view(model: &Model) -> Node<Msg> {
         } else {
             section![]
         },
-
         // display the list of links
         table![
             // Add the headlines
@@ -410,7 +406,6 @@ pub fn view(model: &Model) -> Node<Msg> {
             // Add all the content lines
             model.links.iter().map(view_link)
         ],
-
         // A fetch button - this should not be needed and will be removed in future.
         button![
             ev(Ev::Click, |_| Msg::Query(QueryMsg::Fetch)),
@@ -615,7 +610,6 @@ fn edit_or_create_link<F: Fn(&str) -> String>(l: &RefCell<LinkDelta>, t: F) -> N
         ]
     ]
 }
-
 
 /// a close button for dialogs
 fn close_button() -> Node<Msg> {
