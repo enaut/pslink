@@ -95,13 +95,13 @@ pub enum Loadable<T> {
     Loading,
 }
 
-impl<T> Deref for Loadable<T>{
+impl<T> Deref for Loadable<T> {
     type Target = Option<T>;
 
     fn deref(&self) -> &Self::Target {
         match self {
             Loadable::Data(t) => t,
-            Loadable::Loading => &None
+            Loadable::Loading => &None,
         }
     }
 }

@@ -2,7 +2,6 @@ pub mod home;
 pub mod list_links;
 pub mod list_users;
 
-
 /// Unwrap a result and return it's content, or return from the function with another expression.
 #[macro_export]
 macro_rules! unwrap_or_return {
@@ -22,7 +21,8 @@ macro_rules! unwrap_or_send {
             Some(x) => x,
             None => {
                 $orders.send_msg($result);
-                return;},
+                return;
+            }
         }
     };
 }
