@@ -174,9 +174,7 @@ pub async fn get_logged_user_json(
 ) -> Result<HttpResponse, ServerError> {
     let user = authenticate(&id, &config).await?;
     match user {
-        Role::NotAuthenticated | Role::Disabled => {
-            Ok(HttpResponse::Unauthorized().finish())
-        }
+        Role::NotAuthenticated | Role::Disabled => Ok(HttpResponse::Unauthorized().finish()),
         Role::Regular { user } | Role::Admin { user } => Ok(HttpResponse::Ok().json2(&user)),
     }
 }

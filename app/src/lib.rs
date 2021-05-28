@@ -141,18 +141,24 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             });
         }
         Msg::UserReceived(user) => model.user = Loadable::Data(Some(user)),
-        Msg::NotAuthenticated => {if model.user.is_some() {model.user = Loadable::Data(None); logout(orders)}},
-        Msg::Login => {login_user(model, orders)}
+        Msg::NotAuthenticated => {
+            if model.user.is_some() {
+                model.user = Loadable::Data(None);
+                logout(orders)
+            }
+        }
+        Msg::Login => login_user(model, orders),
         Msg::UsernameChanged(s) => model.login_data.username = s,
         Msg::PasswordChanged(s) => model.login_data.password = s,
     }
 }
 
 fn logout(orders: &mut impl Orders<Msg>) {
-    orders.perform_cmd(async {let request = Request::new("/admin/logout/");
-    unwrap_or_return!(fetch(request).await, Msg::GetLoggedUser);
-    Msg::NotAuthenticated});
-
+    orders.perform_cmd(async {
+        let request = Request::new("/admin/logout/");
+        unwrap_or_return!(fetch(request).await, Msg::GetLoggedUser);
+        Msg::NotAuthenticated
+    });
 }
 
 fn login_user(model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -245,7 +251,7 @@ fn view(model: &Model) -> Node<Msg> {
                 view_content(&model.page, &model.base_url)
             ]
         } else {
-            view_login(&model.i18n, &model)
+            view_login(&model.i18n, model)
         }
     ]
 }
