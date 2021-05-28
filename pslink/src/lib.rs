@@ -378,10 +378,7 @@ pub async fn webservice(
                                 "/get_logged_user/",
                                 web::post().to(views::get_logged_user_json),
                             )
-                            .route(
-                                "/login_user/",
-                                web::post().to(views::process_login_json),
-                            ),
+                            .route("/login_user/", web::post().to(views::process_login_json)),
                     )
                     // login to the admin area
                     .route("/login/", web::get().to(views::login))
