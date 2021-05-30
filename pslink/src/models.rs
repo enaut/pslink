@@ -231,9 +231,13 @@ impl LinkDbOperations<Self> for Link {
         code: &str,
         server_config: &ServerConfig,
     ) -> Result<Self, ServerError> {
-        let link = sqlx::query_as!(Self, "Select * from links where code = ? ", code)
-            .fetch_one(&server_config.db_pool)
-            .await;
+        let link = sqlx::query_as!(
+            Self,
+            "Select * from links where code = ? COLLATE NOCASE",
+            code
+        )
+        .fetch_one(&server_config.db_pool)
+        .await;
         tracing::info!("Found link: {:?}", &link);
         link.map_err(ServerError::Database)
     }
