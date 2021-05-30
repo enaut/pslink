@@ -4,14 +4,9 @@ pub mod pages;
 
 use pages::list_links;
 use pages::list_users;
-use seed::attrs;
-use seed::button;
-use seed::input;
-use seed::label;
-use seed::{div, log, prelude::*, App, Url, C};
+use seed::{attrs, button, div, input, label, log, prelude::*, App, Url, C};
 use shared::apirequests::users::LoginUser;
-use shared::datatypes::Loadable;
-use shared::datatypes::User;
+use shared::datatypes::{Loadable, User};
 
 use crate::i18n::{I18n, Lang};
 
@@ -23,13 +18,14 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
     orders.send_msg(Msg::GetLoggedUser);
 
-    log!(url);
+    log!(&url);
 
     let lang = I18n::new(Lang::EnUS);
 
     Model {
         index: 0,
         base_url: Url::new().add_path_part("app"),
+        current_url: url.clone(),
         page: Page::init(url, orders, lang.clone()),
         i18n: lang,
         user: Loadable::Data(None),
@@ -46,6 +42,7 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
 struct Model {
     index: usize,
     base_url: Url,
+    current_url: Url,
     page: Page,
     i18n: i18n::I18n,
     user: Loadable<User>,
@@ -100,6 +97,7 @@ pub enum Msg {
     UserReceived(User),
     NoMessage,
     NotAuthenticated,
+    Logout,
     Login,
     UsernameChanged(String),
     PasswordChanged(String),
@@ -122,30 +120,37 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::NoMessage => (),
         Msg::GetLoggedUser => {
-            orders.skip(); // No need to rerender
+            model.user = Loadable::Loading;
             orders.perform_cmd(async {
                 // create request
                 let request = unwrap_or_return!(
                     Request::new("/admin/json/get_logged_user/")
                         .method(Method::Post)
                         .json(&()),
-                    Msg::NotAuthenticated
+                    Msg::Logout
                 );
                 // perform and get response
-                let response = unwrap_or_return!(fetch(request).await, Msg::NotAuthenticated);
+                let response = unwrap_or_return!(fetch(request).await, Msg::Logout);
                 // validate response status
-                let response = unwrap_or_return!(response.check_status(), Msg::NotAuthenticated);
-                let user: User = unwrap_or_return!(response.json().await, Msg::NotAuthenticated);
+                let response = unwrap_or_return!(response.check_status(), Msg::Logout);
+                let user: User = unwrap_or_return!(response.json().await, Msg::Logout);
 
                 Msg::UserReceived(user)
             });
         }
-        Msg::UserReceived(user) => model.user = Loadable::Data(Some(user)),
+        Msg::UserReceived(user) => {
+            model.user = Loadable::Data(Some(user));
+            model.page = Page::init(model.current_url.clone(), orders, model.i18n.clone());
+        }
         Msg::NotAuthenticated => {
             if model.user.is_some() {
                 model.user = Loadable::Data(None);
                 logout(orders)
             }
+        }
+        Msg::Logout => {
+            model.user = Loadable::Data(None);
+            logout(orders)
         }
         Msg::Login => login_user(model, orders),
         Msg::UsernameChanged(s) => model.login_data.username = s,
@@ -162,7 +167,7 @@ fn logout(orders: &mut impl Orders<Msg>) {
 }
 
 fn login_user(model: &mut Model, orders: &mut impl Orders<Msg>) {
-    orders.skip(); // No need to rerender
+    model.user = Loadable::Loading;
     let data = model.login_data.clone();
 
     orders.perform_cmd(async {
@@ -245,13 +250,13 @@ impl<'a> Urls<'a> {
 fn view(model: &Model) -> Node<Msg> {
     div![
         C!["page"],
-        if let Some(ref user) = *model.user {
-            div![
+        match model.user {
+            Loadable::Data(Some(ref user)) => div![
                 navigation::navigation(&model.i18n, &model.base_url, user),
                 view_content(&model.page, &model.base_url)
-            ]
-        } else {
-            view_login(&model.i18n, model)
+            ],
+            Loadable::Data(None) => view_login(&model.i18n, model),
+            Loadable::Loading => div![C!("lds-ellipsis"), div!(), div!(), div!(), div!()],
         }
     ]
 }
