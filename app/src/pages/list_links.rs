@@ -2,9 +2,10 @@ use std::cell::RefCell;
 
 use enum_map::EnumMap;
 use fluent::fluent_args;
+use qrcode::{render::svg, QrCode};
 use seed::{
-    a, attrs, button, div, h1, img, input, log, prelude::*, section, span, table, td, th, tr, Url,
-    C,
+    a, attrs, button, div, h1, img, input, log, prelude::*, raw, section, span, table, td, th, tr,
+    Url, C,
 };
 
 use shared::{
@@ -508,7 +509,7 @@ fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
     ]
 }
 
-/// display a single link
+/// display a single table row containing one link
 fn view_link(l: &FullLink) -> Node<Msg> {
     // Ugly hack - this is needed to be able to move the l into the closures... l.clone() in place does not work.
     let link = LinkDelta::from(l.clone());
@@ -598,6 +599,10 @@ fn edit_or_create_link<F: Fn(&str) -> String>(l: &RefCell<LinkDelta>, t: F) -> N
                     },
                     input_ev(Ev::Input, |s| { Msg::Edit(EditMsg::EditCodeChanged(s)) }),
                 ],]
+            ],
+            tr![
+                th![t("qr-code")],
+                td![raw!(&generate_qr_code(&format!("http://{}", &link.code)))]
             ]
         ],
         a![
@@ -609,6 +614,20 @@ fn edit_or_create_link<F: Fn(&str) -> String>(l: &RefCell<LinkDelta>, t: F) -> N
             ev(Ev::Click, |_| Msg::Edit(EditMsg::SaveLink))
         ]
     ]
+}
+
+fn generate_qr_code(link: &str) -> String {
+    if let Ok(qr) = QrCode::with_error_correction_level(&link, qrcode::EcLevel::L) {
+        let svg = qr
+            .render()
+            .min_dimensions(100, 100)
+            .dark_color(svg::Color("#000000"))
+            .light_color(svg::Color("#ffffff"))
+            .build();
+        svg
+    } else {
+        "".to_string()
+    }
 }
 
 /// a close button for dialogs
