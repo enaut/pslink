@@ -23,5 +23,6 @@ unic-langid = "0.9"
 strum_macros = "0.20"
 strum = "0.20"
 enum-map = "1"
+qrcode = "0.12"
 
 shared = { path = "../shared" }
