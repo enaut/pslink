@@ -16,7 +16,7 @@ use qrcode::{render::svg, QrCode};
 use queries::{authenticate, Role};
 use shared::apirequests::{
     general::{Message, Status},
-    links::{LinkDelta, LinkRequestForm},
+    links::{LinkDelta, LinkRequestForm, QrCodeRequest, SvgQrCodeResponse},
     users::{LoginUser, UserDelta, UserRequestForm},
 };
 use tera::{Context, Tera};
@@ -130,7 +130,7 @@ pub async fn index_json(
         Err(e) => {
             error!("Failed to access database: {:?}", e);
             warn!("Not logged in - redirecting to login page");
-            Ok(redirect_builder("/admin/login/"))
+            Ok(HttpResponse::Unauthorized().body("Failed"))
         }
     }
 }
@@ -186,6 +186,31 @@ pub async fn view_link_empty(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     view_link(tera, config, id, web::Path::from("".to_owned())).await
+}
+
+pub async fn get_qr_code_json(
+    config: web::Data<crate::ServerConfig>,
+    qr_request: web::Json<QrCodeRequest>,
+    id: Identity,
+) -> Result<HttpResponse, ServerError> {
+    if let Ok(link) = queries::get_link(&id, &qr_request.link_id, &config).await {
+        let host = config.public_url.to_string();
+        let qr = QrCode::with_error_correction_level(
+            &format!("http://{}/{}", &host, &link.item.code),
+            qrcode::EcLevel::L,
+        )?;
+
+        let svg = qr
+            .render()
+            .min_dimensions(100, 100)
+            .dark_color(svg::Color("#000000"))
+            .light_color(svg::Color("#ffffff"))
+            .build();
+
+        Ok(HttpResponse::Ok().json2(&SvgQrCodeResponse { svg }))
+    } else {
+        Ok(redirect_builder("/admin/login/"))
+    }
 }
 
 #[instrument(skip(id, tera))]

@@ -4,6 +4,7 @@ pub mod pages;
 
 use pages::list_links;
 use pages::list_users;
+use seed::window;
 use seed::{attrs, button, div, input, label, log, prelude::*, App, Url, C};
 use shared::apirequests::users::LoginUser;
 use shared::datatypes::{Loadable, User};
@@ -18,14 +19,11 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
     orders.send_msg(Msg::GetLoggedUser);
 
-    log!(&url);
-
     let lang = I18n::new(Lang::EnUS);
 
     Model {
         index: 0,
-        base_url: Url::new().add_path_part("app"),
-        current_url: url.clone(),
+        location: Location::new(url.clone()),
         page: Page::init(url, orders, lang.clone()),
         i18n: lang,
         user: Loadable::Data(None),
@@ -41,8 +39,7 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
 #[derive(Debug)]
 struct Model {
     index: usize,
-    base_url: Url,
-    current_url: Url,
+    location: Location,
     page: Page,
     i18n: i18n::I18n,
     user: Loadable<User>,
@@ -57,6 +54,32 @@ struct LoginForm {
 }
 
 #[derive(Debug)]
+struct Location {
+    host: String,
+    base_url: Url,
+    current_url: Url,
+}
+
+impl Location {
+    fn new(url: Url) -> Self {
+        let host = get_host();
+        Self {
+            host,
+            base_url: Url::new().add_path_part("app"),
+            current_url: url,
+        }
+    }
+}
+
+#[must_use]
+pub fn get_host() -> String {
+    window()
+        .location()
+        .host()
+        .expect("Failed to extract the host of the url")
+}
+
+#[derive(Debug)]
 enum Page {
     Home(pages::list_links::Model),
     ListUsers(pages::list_users::Model),
@@ -65,6 +88,7 @@ enum Page {
 
 impl Page {
     fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Self {
+        log!(&url);
         url.next_path_part();
         let result = match url.next_path_part() {
             None | Some("list_links") => Self::Home(pages::list_links::init(
@@ -140,7 +164,11 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::UserReceived(user) => {
             model.user = Loadable::Data(Some(user));
-            model.page = Page::init(model.current_url.clone(), orders, model.i18n.clone());
+            model.page = Page::init(
+                model.location.current_url.clone(),
+                orders,
+                model.i18n.clone(),
+            );
         }
         Msg::NotAuthenticated => {
             if model.user.is_some() {
@@ -252,8 +280,8 @@ fn view(model: &Model) -> Node<Msg> {
         C!["page"],
         match model.user {
             Loadable::Data(Some(ref user)) => div![
-                navigation::navigation(&model.i18n, &model.base_url, user),
-                view_content(&model.page, &model.base_url)
+                navigation::navigation(&model.i18n, &model.location.base_url, user),
+                view_content(&model.page, &model.location.base_url)
             ],
             Loadable::Data(None) => view_login(&model.i18n, model),
             Loadable::Loading => div![C!("lds-ellipsis"), div!(), div!(), div!(), div!()],
