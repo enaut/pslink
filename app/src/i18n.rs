@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use fluent::{FluentArgs, FluentBundle, FluentResource};
+use seed::log;
 use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
 use unic_langid::LanguageIdentifier;
 
@@ -42,6 +43,7 @@ impl I18n {
 
     /// Get a localized string. Optionally with parameters provided in `args`.
     pub fn translate(&self, key: impl AsRef<str>, args: Option<&FluentArgs>) -> String {
+        log!(key.as_ref());
         let msg = self
             .ftl_bundle
             .get_message(key.as_ref())

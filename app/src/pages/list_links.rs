@@ -17,7 +17,7 @@ use shared::{
     datatypes::FullLink,
 };
 
-use crate::{i18n::I18n, unwrap_or_return, unwrap_or_send};
+use crate::{get_host, i18n::I18n, unwrap_or_return, unwrap_or_send};
 
 /// Setup the page
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
@@ -544,6 +544,15 @@ fn view_link(l: &FullLink) -> Node<Msg> {
             ]
         },
         {
+            td![
+                C!["table_qr"],
+                a![
+                    attrs![At::Href => format!["http://localhost:8080/admin/download/png/{}",  &l.link.code], At::Download => true.as_at_value()],
+                    raw!(&generate_qr_from_code(&l.link.code))
+                ]
+            ]
+        },
+        {
             td![img![
                 ev(Ev::Click, |_| Msg::Edit(EditMsg::MayDeleteSelected(link5))),
                 C!["trashicon"],
@@ -602,7 +611,7 @@ fn edit_or_create_link<F: Fn(&str) -> String>(l: &RefCell<LinkDelta>, t: F) -> N
             ],
             tr![
                 th![t("qr-code")],
-                td![raw!(&generate_qr_code(&format!("http://{}", &link.code)))]
+                td![raw!(&generate_qr_from_code(&link.code))]
             ]
         ],
         a![
@@ -616,8 +625,12 @@ fn edit_or_create_link<F: Fn(&str) -> String>(l: &RefCell<LinkDelta>, t: F) -> N
     ]
 }
 
-fn generate_qr_code(link: &str) -> String {
-    if let Ok(qr) = QrCode::with_error_correction_level(&link, qrcode::EcLevel::L) {
+fn generate_qr_from_code(code: &str) -> String {
+    generate_qr_from_link(&format!("https://{}/{}", get_host(), code))
+}
+
+fn generate_qr_from_link(url: &str) -> String {
+    if let Ok(qr) = QrCode::with_error_correction_level(&url, qrcode::EcLevel::L) {
         let svg = qr
             .render()
             .min_dimensions(100, 100)

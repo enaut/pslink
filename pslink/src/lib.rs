@@ -357,6 +357,7 @@ pub async fn webservice(
                                 "/create_link/",
                                 web::post().to(views::process_create_link_json),
                             )
+                            .route("/get_qr_code/", web::post().to(views::get_qr_code_json))
                             .route(
                                 "/edit_link/",
                                 web::post().to(views::process_update_link_json),
