@@ -17,6 +17,7 @@ create-link = Create link
 link-description = Description
 link-target = Link target
 link-code = Link code
+qr-code = QR-code
 shortlink = Shortlink
 search-placeholder = Filter according to...
 really-delete = Do you really want to delete {$code}?
