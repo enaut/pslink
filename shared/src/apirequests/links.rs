@@ -73,3 +73,20 @@ pub enum LinkOverviewColumns {
     Author,
     Statistics,
 }
+
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub struct QrCodeRequest {
+    pub link_id: String,
+    pub format: QrCodeFormat,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub struct SvgQrCodeResponse {
+    pub svg: String,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub enum QrCodeFormat {
+    Svg,
+    Png,
+}
