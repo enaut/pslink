@@ -10,54 +10,6 @@
       "nullable": []
     }
   },
-  "04640e79c590ae8b845b6281a786ebe72060d02ee98eaec4839d1525bde3b0b5": {
-    "query": "Select * from links where code = ? ",
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "title",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "target",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "code",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "author",
-          "ordinal": 4,
-          "type_info": "Int64"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 5,
-          "type_info": "Datetime"
-        }
-      ],
-      "parameters": {
-        "Right": 1
-      },
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        false,
-        false
-      ]
-    }
-  },
   "0d5cc1ab073e15c4306ef2bfc89aeefd6daa409766741c21f9eb0115b0f24eb1": {
     "query": "UPDATE users SET\n            username = ?,\n            email = ?,\n            password = ?,\n            role = ? where id = ?",
     "describe": {
@@ -101,6 +53,54 @@
           "name": "language",
           "ordinal": 5,
           "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "2c544ae2e18b70271164f75ca06851ec971a7426222ef8ccab86e20226056408": {
+    "query": "Select * from links where code = ? COLLATE NOCASE",
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "title",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "target",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "code",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "author",
+          "ordinal": 4,
+          "type_info": "Int64"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 5,
+          "type_info": "Datetime"
         }
       ],
       "parameters": {
