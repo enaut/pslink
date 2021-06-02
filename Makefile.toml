@@ -25,6 +25,7 @@ description = "Build client in release mode"
 args = ["build", "app", "--target", "web", "--out-name", "app", "--release"]
 
 [tasks.build_server]
+env = { SQLX_OFFLINE = 1 }
 description = "Build server"
 command = "cargo"
 args = ["build", "--package", "pslink"]
