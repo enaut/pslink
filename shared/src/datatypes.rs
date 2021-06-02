@@ -89,7 +89,7 @@ impl std::fmt::Display for Secret {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Loadable<T> {
     Data(Option<T>),
     Loading,

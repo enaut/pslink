@@ -24,5 +24,6 @@ strum_macros = "0.20"
 strum = "0.20"
 enum-map = "1"
 qrcode = "0.12"
+image = "0.23"
 
 shared = { path = "../shared" }
