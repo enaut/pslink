@@ -465,6 +465,7 @@ version = "0.3.1"
 dependencies = [
  "enum-map",
  "fluent 0.15.0",
+ "image",
  "qrcode",
  "seed",
  "serde",
