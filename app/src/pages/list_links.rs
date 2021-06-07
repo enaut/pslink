@@ -38,6 +38,7 @@ pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
         formconfig: LinkRequestForm::default(), // when requesting links the form is stored here
         inputs: EnumMap::default(),             // the input fields for the searches
         dialog,
+        handle: None,
     }
 }
 
@@ -48,6 +49,7 @@ pub struct Model {
     formconfig: LinkRequestForm, // when requesting links the form is stored here
     inputs: EnumMap<LinkOverviewColumns, FilterInput>, // the input fields for the searches
     dialog: Dialog,              // User interaction - there can only ever be one dialog open.
+    handle: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
 }
 
 #[derive(Debug, Clone)]
@@ -68,15 +70,14 @@ pub struct QrGuard {
 }
 
 impl QrGuard {
-    fn new(link_delta: LinkDelta) -> Self {
+    fn new(code: &str) -> Self {
         use std::iter::FromIterator;
         log!("Generating new QrCode");
-        let LinkDelta { code, .. } = link_delta;
-        let svg = generate_qr_from_code(&code);
+        let svg = generate_qr_from_code(code);
 
         let mut properties = web_sys::BlobPropertyBag::new();
         properties.type_("image/png");
-        let png_vec = generate_qr_png(&code);
+        let png_vec = generate_qr_png(code);
 
         let png_jsarray: JsValue = js_sys::Uint8Array::from(&png_vec[..]).into();
         // the buffer has to be an array of arrays
@@ -86,6 +87,12 @@ impl QrGuard {
                 .unwrap();
         let url = web_sys::Url::create_object_url_with_blob(&png_blob).unwrap();
         Self { svg, url }
+    }
+}
+
+impl Drop for QrGuard {
+    fn drop(&mut self) {
+        let _ = web_sys::Url::revoke_object_url(&self.url);
     }
 }
 
@@ -270,10 +277,10 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
                 qr: Loadable::Data(None),
             };
             log!("#loaded dialog");
-            orders.perform_cmd(async move {
-                let qr_code = Loadable::Data(Some(QrGuard::new(link_delta)));
+            model.handle = Some(orders.perform_cmd_with_handle(async move {
+                let qr_code = Loadable::Data(Some(QrGuard::new(&link_delta.code)));
                 Msg::Edit(EditMsg::QrGeneration(qr_code))
-            });
+            }));
             orders.force_render_now();
             log!("#after async");
         }
@@ -315,7 +322,11 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
                 ref mut link_delta, ..
             } = model.dialog
             {
-                link_delta.code = s;
+                link_delta.code = s.clone();
+                model.handle = Some(orders.perform_cmd_with_handle(async move {
+                    let qr_code = Loadable::Data(Some(QrGuard::new(&s)));
+                    Msg::Edit(EditMsg::QrGeneration(qr_code))
+                }));
             }
         }
         EditMsg::EditDescriptionChanged(s) => {
@@ -667,7 +678,7 @@ fn edit_or_create_link<F: Fn(&str) -> String>(
                     attrs! {
                         At::Value => &link.code,
                         At::Type => "text",
-                        At::Placeholder => t("password")
+                        At::Placeholder => t("link-code")
                     },
                     input_ev(Ev::Input, |s| { Msg::Edit(EditMsg::EditCodeChanged(s)) }),
                 ],]
@@ -676,7 +687,7 @@ fn edit_or_create_link<F: Fn(&str) -> String>(
                 th![t("qr-code")],
                 if let Loadable::Data(Some(qr)) = qr {
                     td![a![
-                        span!["Download", raw!(&qr.svg),],
+                        span![C!["qrdownload"], "Download", raw!(&qr.svg),],
                         attrs!(At::Href => qr.url, At::Download => "qr-code.png")
                     ]]
                 } else {

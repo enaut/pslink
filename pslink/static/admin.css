@@ -209,3 +209,8 @@ a {
 img.trashicon {
     width: 0.5cm;
 }
+
+qrdownload {
+    display: flex;
+    vertical-align: middle;
+}
