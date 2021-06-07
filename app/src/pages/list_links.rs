@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use enum_map::EnumMap;
 use fluent::fluent_args;
 use image::{DynamicImage, ImageOutputFormat, Luma};
@@ -26,9 +24,12 @@ pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
     orders.send_msg(Msg::Query(QueryMsg::Fetch));
     // if the url contains create_link set the edit_link variable.
     // This variable then opens the create link dialog.
-    let edit_link = match url.next_path_part() {
-        Some("create_link") => Some(RefCell::new(LinkDelta::default())),
-        None | Some(_) => None,
+    let dialog = match url.next_path_part() {
+        Some("create_link") => Dialog::EditLink {
+            link_delta: LinkDelta::default(),
+            qr: Loadable::Data(None),
+        },
+        None | Some(_) => Dialog::None,
     };
 
     Model {
@@ -36,7 +37,7 @@ pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
         i18n,                                   // to translate
         formconfig: LinkRequestForm::default(), // when requesting links the form is stored here
         inputs: EnumMap::default(),             // the input fields for the searches
-        dialog: Dialog::None,
+        dialog,
     }
 }
 
@@ -49,10 +50,10 @@ pub struct Model {
     dialog: Dialog,              // User interaction - there can only ever be one dialog open.
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Dialog {
     EditLink {
-        link_delta: RefCell<LinkDelta>,
+        link_delta: LinkDelta,
         qr: Loadable<QrGuard>,
     },
     Message(Status),
@@ -67,20 +68,19 @@ pub struct QrGuard {
 }
 
 impl QrGuard {
-    fn new(link_delta: RefCell<LinkDelta>) -> Self {
-        log!("Generating new QrCode");
-        let link_delta = link_delta.borrow();
-        let svg = generate_qr_from_code(&link_delta.code);
-        use std::array;
+    fn new(link_delta: LinkDelta) -> Self {
         use std::iter::FromIterator;
+        log!("Generating new QrCode");
+        let LinkDelta { code, .. } = link_delta;
+        let svg = generate_qr_from_code(&code);
 
         let mut properties = web_sys::BlobPropertyBag::new();
         properties.type_("image/png");
-        let png_vec = generate_qr_png(&link_delta.code);
+        let png_vec = generate_qr_png(&code);
 
         let png_jsarray: JsValue = js_sys::Uint8Array::from(&png_vec[..]).into();
         // the buffer has to be an array of arrays
-        let png_buffer = js_sys::Array::from_iter(array::IntoIter::new([png_jsarray]));
+        let png_buffer = js_sys::Array::from_iter(std::array::IntoIter::new([png_jsarray]));
         let png_blob =
             web_sys::Blob::new_with_buffer_source_sequence_and_options(&png_buffer, &properties)
                 .unwrap();
@@ -264,7 +264,7 @@ fn load_links(model: &Model, orders: &mut impl Orders<Msg>) {
 pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         EditMsg::EditSelected(link) => {
-            let link_delta = RefCell::new(link);
+            let link_delta = link;
             model.dialog = Dialog::EditLink {
                 link_delta: link_delta.clone(),
                 qr: Loadable::Data(None),
@@ -301,7 +301,7 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
         EditMsg::CreateNewLink => {
             clear_all(model);
             model.dialog = Dialog::EditLink {
-                link_delta: RefCell::new(LinkDelta::default()),
+                link_delta: LinkDelta::default(),
                 qr: Loadable::Data(None),
             }
         }
@@ -311,31 +311,31 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
             orders.send_msg(Msg::Query(QueryMsg::Fetch));
         }
         EditMsg::EditCodeChanged(s) => {
-            if let Dialog::EditLink { ref link_delta, .. } = model.dialog {
-                link_delta
-                    .try_borrow_mut()
-                    .expect("Failed to borrow mutably")
-                    .code = s;
+            if let Dialog::EditLink {
+                ref mut link_delta, ..
+            } = model.dialog
+            {
+                link_delta.code = s;
             }
         }
         EditMsg::EditDescriptionChanged(s) => {
-            if let Dialog::EditLink { ref link_delta, .. } = model.dialog {
-                link_delta
-                    .try_borrow_mut()
-                    .expect("Failed to borrow mutably")
-                    .title = s;
+            if let Dialog::EditLink {
+                ref mut link_delta, ..
+            } = model.dialog
+            {
+                link_delta.title = s;
             }
         }
         EditMsg::EditTargetChanged(s) => {
-            if let Dialog::EditLink { ref link_delta, .. } = model.dialog {
-                link_delta
-                    .try_borrow_mut()
-                    .expect("Failed to borrow mutably")
-                    .target = s;
+            if let Dialog::EditLink {
+                ref mut link_delta, ..
+            } = model.dialog
+            {
+                link_delta.target = s;
             }
         }
         EditMsg::SaveLink => {
-            if let Dialog::EditLink { ref link_delta, .. } = model.dialog {
+            if let Dialog::EditLink { link_delta, .. } = model.dialog.clone() {
                 save_link(link_delta, orders);
             }
         }
@@ -391,8 +391,8 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
 }
 
 /// Send a link save request to the server.
-fn save_link(link_delta: &RefCell<LinkDelta>, orders: &mut impl Orders<Msg>) {
-    let data = link_delta.borrow().clone();
+fn save_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
+    let data = link_delta;
     orders.perform_cmd(async {
         let data = data;
         // create the request
@@ -455,7 +455,6 @@ pub fn view(model: &Model) -> Node<Msg> {
                         ),
                         a![t("no"), C!["button"], ev(Ev::Click, |_| Msg::ClearAll)],
                         a![t("yes"), C!["button"], {
-                            let l = l.clone();
                             ev(Ev::Click, move |_| Msg::Edit(EditMsg::DeleteSelected(l)))
                         }]
                     ]]
@@ -625,11 +624,10 @@ fn view_link(l: &FullLink) -> Node<Msg> {
 
 /// display a link editing dialog with save and close button
 fn edit_or_create_link<F: Fn(&str) -> String>(
-    l: &RefCell<LinkDelta>,
+    link: &LinkDelta,
     qr: &Loadable<QrGuard>,
     t: F,
 ) -> Node<Msg> {
-    let link = l.borrow();
     div![
         // close button top right
         C!["editdialog", "center"],
@@ -678,7 +676,7 @@ fn edit_or_create_link<F: Fn(&str) -> String>(
                 th![t("qr-code")],
                 if let Loadable::Data(Some(qr)) = qr {
                     td![a![
-                        span!["Download", /* raw!(&qr.svg) */],
+                        span!["Download", raw!(&qr.svg),],
                         attrs!(At::Href => qr.url, At::Download => "qr-code.png")
                     ]]
                 } else {
@@ -735,7 +733,5 @@ fn generate_qr_png(code: &str) -> Vec<u8> {
     DynamicImage::ImageLuma8(png)
         .write_to(&mut temporary_data, ImageOutputFormat::Png)
         .unwrap();
-    let image_data = temporary_data.into_inner();
-
-    image_data
+    temporary_data.into_inner()
 }
