@@ -92,7 +92,8 @@ impl QrGuard {
 
 impl Drop for QrGuard {
     fn drop(&mut self) {
-        let _ = web_sys::Url::revoke_object_url(&self.url);
+        web_sys::Url::revoke_object_url(&self.url)
+            .unwrap_or_else(|_| (log!("Failed to release url!")));
     }
 }
 
@@ -359,37 +360,7 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
             clear_all(model);
             model.dialog = Dialog::Question(link)
         }
-        EditMsg::DeleteSelected(link) => {
-            orders.perform_cmd(async {
-                let data = link;
-                // create the request
-                let request = unwrap_or_return!(
-                    Request::new("/admin/json/delete_link/")
-                        .method(Method::Post)
-                        .json(&data),
-                    Msg::SetMessage("serialization failed".to_string())
-                );
-                // perform the request and recieve a respnse
-                let response =
-                    unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToDeleteLink));
-
-                // check the status of the response
-                let response = unwrap_or_return!(
-                    response.check_status(),
-                    Msg::SetMessage("Wrong response code!".to_string())
-                );
-                // deserialize the response
-                let message: Status = unwrap_or_return!(
-                    response.json().await,
-                    Msg::SetMessage(
-                        "Failed to parse the response! The link might or might not be deleted!"
-                            .to_string()
-                    )
-                );
-
-                Msg::Edit(EditMsg::DeletedLink(message))
-            });
-        }
+        EditMsg::DeleteSelected(link) => delete_link(link, orders),
         EditMsg::FailedToDeleteLink => {
             log!("Failed to delete Link");
         }
@@ -432,6 +403,37 @@ fn save_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
         );
 
         Msg::Edit(EditMsg::Created(message))
+    });
+}
+
+/// Send a link delete request to the server.
+fn delete_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
+    orders.perform_cmd(async move {
+        // create the request
+        let request = unwrap_or_return!(
+            Request::new("/admin/json/delete_link/")
+                .method(Method::Post)
+                .json(&link_delta),
+            Msg::SetMessage("serialization failed".to_string())
+        );
+        // perform the request and recieve a respnse
+        let response =
+            unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToDeleteLink));
+
+        // check the status of the response
+        let response = unwrap_or_return!(
+            response.check_status(),
+            Msg::SetMessage("Wrong response code!".to_string())
+        );
+        // deserialize the response
+        let message: Status = unwrap_or_return!(
+            response.json().await,
+            Msg::SetMessage(
+                "Failed to parse the response! The link might or might not be deleted!".to_string()
+            )
+        );
+
+        Msg::Edit(EditMsg::DeletedLink(message))
     });
 }
 
