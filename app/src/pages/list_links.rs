@@ -38,7 +38,8 @@ pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
         formconfig: LinkRequestForm::default(), // when requesting links the form is stored here
         inputs: EnumMap::default(),             // the input fields for the searches
         dialog,
-        handle: None,
+        handle_render: None,
+        handle_timeout: None,
     }
 }
 
@@ -49,7 +50,8 @@ pub struct Model {
     formconfig: LinkRequestForm, // when requesting links the form is stored here
     inputs: EnumMap<LinkOverviewColumns, FilterInput>, // the input fields for the searches
     dialog: Dialog,              // User interaction - there can only ever be one dialog open.
-    handle: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
+    handle_render: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
+    handle_timeout: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
 }
 
 #[derive(Debug, Clone)]
@@ -124,7 +126,8 @@ pub enum QueryMsg {
 #[derive(Debug, Clone)]
 pub enum EditMsg {
     EditSelected(LinkDelta),
-    QrGeneration(Loadable<QrGuard>),
+    GenerateQr(String),
+    QrGenerated(Loadable<QrGuard>),
     CreateNewLink,
     Created(Status),
     EditCodeChanged(String),
@@ -269,6 +272,7 @@ fn load_links(model: &Model, orders: &mut impl Orders<Msg>) {
 }
 
 /// Process all the events related to editing links.
+#[allow(clippy::too_many_lines)]
 pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         EditMsg::EditSelected(link) => {
@@ -277,16 +281,20 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
                 link_delta: link_delta.clone(),
                 qr: Loadable::Data(None),
             };
-            log!("#loaded dialog");
-            model.handle = Some(orders.perform_cmd_with_handle(async move {
-                let qr_code = Loadable::Data(Some(QrGuard::new(&link_delta.code)));
-                Msg::Edit(EditMsg::QrGeneration(qr_code))
-            }));
-            orders.force_render_now();
-            log!("#after async");
+            let code = link_delta.code;
+            model.handle_render = None;
+            model.handle_timeout =
+                Some(orders.perform_cmd_with_handle(cmds::timeout(1000, || {
+                    Msg::Edit(EditMsg::GenerateQr(code))
+                })));
         }
-        EditMsg::QrGeneration(qr_code) => {
-            log!("#In generate");
+        EditMsg::GenerateQr(code) => {
+            model.handle_render = Some(orders.perform_cmd_with_handle(async move {
+                let qr_code = Loadable::Data(Some(QrGuard::new(&code)));
+                Msg::Edit(EditMsg::QrGenerated(qr_code))
+            }))
+        }
+        EditMsg::QrGenerated(qr_code) => {
             let new_dialog = if let Dialog::EditLink {
                 ref link_delta,
                 qr: _,
@@ -299,9 +307,6 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
             } else {
                 None
             };
-
-            log!("#done generating");
-
             if let Some(dialog) = new_dialog {
                 model.dialog = dialog;
             }
@@ -320,14 +325,20 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
         }
         EditMsg::EditCodeChanged(s) => {
             if let Dialog::EditLink {
-                ref mut link_delta, ..
-            } = model.dialog
+                mut link_delta,
+                qr: _,
+            } = model.dialog.clone()
             {
                 link_delta.code = s.clone();
-                model.handle = Some(orders.perform_cmd_with_handle(async move {
-                    let qr_code = Loadable::Data(Some(QrGuard::new(&s)));
-                    Msg::Edit(EditMsg::QrGeneration(qr_code))
-                }));
+                model.handle_render = None;
+                model.handle_timeout =
+                    Some(orders.perform_cmd_with_handle(cmds::timeout(2000, || {
+                        Msg::Edit(EditMsg::GenerateQr(s))
+                    })));
+                model.dialog = Dialog::EditLink {
+                    link_delta,
+                    qr: Loadable::Loading,
+                };
             }
         }
         EditMsg::EditDescriptionChanged(s) => {
@@ -361,9 +372,8 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
             model.dialog = Dialog::Question(link)
         }
         EditMsg::DeleteSelected(link) => delete_link(link, orders),
-        EditMsg::FailedToDeleteLink => {
-            log!("Failed to delete Link");
-        }
+        EditMsg::FailedToDeleteLink => log!("Failed to delete Link"),
+
         EditMsg::DeletedLink(message) => {
             clear_all(model);
             model.dialog = Dialog::Message(message);
