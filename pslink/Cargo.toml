@@ -32,7 +32,6 @@ qrcode = "0.12"
 rand = "0.8"
 rpassword = "5.0"
 serde = "1.0"
-tera = "1.6"
 thiserror = "1.0"
 tracing-actix-web = "0.2.1"
 tracing-bunyan-formatter = "0.2.0"
@@ -47,7 +46,6 @@ features = ["serde"]
 version = "0.4"
 
 [dependencies.fluent-templates]
-features = ["tera"]
 version = "0.6"
 
 [dependencies.sqlx]
