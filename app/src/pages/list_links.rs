@@ -283,10 +283,9 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
             };
             let code = link_delta.code;
             model.handle_render = None;
-            model.handle_timeout =
-                Some(orders.perform_cmd_with_handle(cmds::timeout(1000, || {
-                    Msg::Edit(EditMsg::GenerateQr(code))
-                })));
+            model.handle_timeout = Some(orders.perform_cmd_with_handle(cmds::timeout(300, || {
+                Msg::Edit(EditMsg::GenerateQr(code))
+            })));
         }
         EditMsg::GenerateQr(code) => {
             model.handle_render = Some(orders.perform_cmd_with_handle(async move {
@@ -332,7 +331,7 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
                 link_delta.code = s.clone();
                 model.handle_render = None;
                 model.handle_timeout =
-                    Some(orders.perform_cmd_with_handle(cmds::timeout(2000, || {
+                    Some(orders.perform_cmd_with_handle(cmds::timeout(300, || {
                         Msg::Edit(EditMsg::GenerateQr(s))
                     })));
                 model.dialog = Dialog::EditLink {
