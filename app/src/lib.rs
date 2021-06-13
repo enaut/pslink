@@ -7,9 +7,10 @@ use pages::list_users;
 use seed::window;
 use seed::{attrs, button, div, input, label, log, prelude::*, App, Url, C};
 use shared::apirequests::users::LoginUser;
+use shared::datatypes::Lang;
 use shared::datatypes::{Loadable, User};
 
-use crate::i18n::{I18n, Lang};
+use crate::i18n::I18n;
 
 // ------ ------
 //     Init
@@ -45,6 +46,17 @@ struct Model {
     user: Loadable<User>,
     login_form: LoginForm,
     login_data: LoginUser,
+}
+
+impl Model {
+    fn set_lang(&mut self, l: Lang) {
+        self.i18n.set_lang(l);
+        match &mut self.page {
+            Page::Home(ref mut m) => m.set_lang(l),
+            Page::ListUsers(ref mut m) => m.set_lang(l),
+            Page::NotFound => (),
+        }
+    }
 }
 
 #[derive(Default, Debug)]
@@ -104,6 +116,18 @@ impl Page {
             _other => Self::NotFound,
         };
 
+        orders.perform_cmd(async {
+            // create request
+            let request = Request::new("/admin/json/get_language/");
+            // perform and get response
+            let response = unwrap_or_return!(fetch(request).await, Msg::NoMessage);
+            // validate response status
+            let response = unwrap_or_return!(response.check_status(), Msg::NoMessage);
+            let lang: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
+
+            Msg::LanguageChanged(lang)
+        });
+
         log!("Page initialized");
         result
     }
@@ -125,6 +149,8 @@ pub enum Msg {
     Login,
     UsernameChanged(String),
     PasswordChanged(String),
+    SetLanguage(Lang),
+    LanguageChanged(Lang),
 }
 
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -163,6 +189,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             });
         }
         Msg::UserReceived(user) => {
+            model.set_lang(user.language);
             model.user = Loadable::Data(Some(user));
             model.page = Page::init(
                 model.location.current_url.clone(),
@@ -175,6 +202,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 model.user = Loadable::Data(None);
                 logout(orders)
             }
+            model.user = Loadable::Data(None);
         }
         Msg::Logout => {
             model.user = Loadable::Data(None);
@@ -183,7 +211,33 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::Login => login_user(model, orders),
         Msg::UsernameChanged(s) => model.login_data.username = s,
         Msg::PasswordChanged(s) => model.login_data.password = s,
+        Msg::SetLanguage(l) => {
+            change_language(l, orders);
+        }
+        Msg::LanguageChanged(l) => {
+            log!("Changed Language", &l);
+            model.set_lang(l);
+        }
     }
+}
+
+fn change_language(l: Lang, orders: &mut impl Orders<Msg>) {
+    orders.perform_cmd(async move {
+        // create request
+        let request = unwrap_or_return!(
+            Request::new("/admin/json/change_language/")
+                .method(Method::Post)
+                .json(&l),
+            Msg::NoMessage
+        );
+        // perform and get response
+        let response = unwrap_or_return!(fetch(request).await, Msg::NoMessage);
+        // validate response status
+        let response = unwrap_or_return!(response.check_status(), Msg::NoMessage);
+        let l: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
+
+        Msg::LanguageChanged(l)
+    });
 }
 
 fn logout(orders: &mut impl Orders<Msg>) {

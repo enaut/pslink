@@ -13,7 +13,7 @@ use shared::{
         general::{EditMode, Message, Operation, Status},
         links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
     },
-    datatypes::{FullLink, Loadable},
+    datatypes::{FullLink, Lang, Loadable},
 };
 
 use crate::{get_host, i18n::I18n, unwrap_or_return};
@@ -52,6 +52,12 @@ pub struct Model {
     dialog: Dialog,              // User interaction - there can only ever be one dialog open.
     handle_render: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
     handle_timeout: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
+}
+
+impl Model {
+    pub fn set_lang(&mut self, l: Lang) {
+        self.i18n.set_lang(l);
+    }
 }
 
 #[derive(Debug, Clone)]

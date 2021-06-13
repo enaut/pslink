@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use serde::{Deserialize, Serialize, Serializer};
+use strum_macros::{AsRefStr, EnumIter, EnumString, ToString};
 /// A generic list returntype containing the User and a Vec containing e.g. Links or Users
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ListWithOwner<T> {
@@ -23,7 +24,7 @@ pub struct User {
     pub email: String,
     pub password: Secret,
     pub role: i64,
-    pub language: String,
+    pub language: Lang,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -104,4 +105,27 @@ impl<T> Deref for Loadable<T> {
             Loadable::Loading => &None,
         }
     }
+}
+
+/// An `enum` containing the available languages.
+/// To add an additional language add it to this enum aswell as an appropriate file into the locales folder.
+#[allow(clippy::upper_case_acronyms)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    EnumIter,
+    EnumString,
+    ToString,
+    AsRefStr,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
+)]
+pub enum Lang {
+    #[strum(serialize = "en-US", serialize = "en", serialize = "enUS")]
+    EnUS,
+    #[strum(serialize = "de-DE", serialize = "de", serialize = "deDE")]
+    DeDE,
 }
