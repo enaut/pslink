@@ -10,7 +10,7 @@ use shared::{
         general::{EditMode, Status},
         users::{UserDelta, UserOverviewColumns, UserRequestForm},
     },
-    datatypes::User,
+    datatypes::{Lang, User},
 };
 /*
  * init
@@ -40,6 +40,12 @@ pub struct Model {
     inputs: EnumMap<UserOverviewColumns, FilterInput>,
     user_edit: Option<RefCell<UserDelta>>,
     last_message: Option<Status>,
+}
+
+impl Model {
+    pub fn set_lang(&mut self, l: Lang) {
+        self.i18n.set_lang(l);
+    }
 }
 
 impl Model {

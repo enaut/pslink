@@ -8,6 +8,7 @@ logout = Abmelden
 login = Login
 yes = Ja
 no = Nein
+language = Sprache:
 
 not-found = Dieser Link existiert nicht, oder wurde gelöscht.
 

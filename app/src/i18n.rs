@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fluent::{FluentArgs, FluentBundle, FluentResource};
 use seed::log;
-use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
+use shared::datatypes::Lang;
 use unic_langid::LanguageIdentifier;
 
 // A struct containing the functions and the current language to query the localized strings.
@@ -22,10 +22,8 @@ impl I18n {
     /// Create a new translator struct
     #[must_use]
     pub fn new(lang: Lang) -> Self {
-        Self {
-            lang,
-            ftl_bundle: Arc::new(lang.create_ftl_bundle()),
-        }
+        let ftl_bundle = Arc::new(Self::create_ftl_bundle(lang));
+        Self { lang, ftl_bundle }
     }
 
     /// Get the current language
@@ -35,10 +33,9 @@ impl I18n {
     }
 
     /// Set the current language
-    pub fn set_lang(&mut self, lang: Lang) -> &Self {
+    pub fn set_lang(&mut self, lang: Lang) {
         self.lang = lang;
-        self.ftl_bundle = Arc::new(lang.create_ftl_bundle());
-        self
+        self.ftl_bundle = Arc::new(Self::create_ftl_bundle(lang));
     }
 
     /// Get a localized string. Optionally with parameters provided in `args`.
@@ -57,55 +54,44 @@ impl I18n {
     }
 }
 
-/// An `enum` containing the available languages.
-/// To add an additional language add it to this enum aswell as an appropriate file into the locales folder.
-#[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Copy, Clone, Display, EnumIter, EnumString, AsRefStr, Eq, PartialEq)]
-pub enum Lang {
-    #[strum(serialize = "en-US")]
-    EnUS,
-    #[strum(serialize = "de-DE")]
-    DeDE,
-}
-
-impl Lang {
+impl I18n {
     /// Prettyprint the language name
     #[must_use]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::EnUS => "English (US)",
-            Self::DeDE => "Deutsch (Deutschland)",
+    pub const fn label(&self) -> &'static str {
+        match self.lang {
+            Lang::EnUS => "English (US)",
+            Lang::DeDE => "Deutsch (Deutschland)",
         }
     }
 
     /// include the fluent messages into the binary
     #[must_use]
-    pub const fn ftl_messages(self) -> &'static str {
+    pub const fn ftl_messages(lang: Lang) -> &'static str {
         macro_rules! include_ftl_messages {
             ( $lang_id:literal ) => {
                 include_str!(concat!("../../locales/", $lang_id, "/main.ftl"))
             };
         }
-        match self {
-            Self::EnUS => include_ftl_messages!("en"),
-            Self::DeDE => include_ftl_messages!("de"),
+        match lang {
+            Lang::EnUS => include_ftl_messages!("en"),
+            Lang::DeDE => include_ftl_messages!("de"),
         }
     }
 
     #[must_use]
-    pub fn to_language_identifier(self) -> LanguageIdentifier {
-        self.as_ref()
+    pub fn language_identifier(lang: Lang) -> LanguageIdentifier {
+        lang.as_ref()
             .parse()
             .expect("parse Lang to LanguageIdentifier")
     }
 
     /// Create and initialize a fluent bundle.
     #[must_use]
-    pub fn create_ftl_bundle(self) -> FluentBundle<FluentResource> {
-        let ftl_resource =
-            FluentResource::try_new(self.ftl_messages().to_owned()).expect("parse FTL messages");
+    pub fn create_ftl_bundle(lang: Lang) -> FluentBundle<FluentResource> {
+        let ftl_resource = FluentResource::try_new(Self::ftl_messages(lang).to_owned())
+            .expect("parse FTL messages");
 
-        let mut bundle = FluentBundle::new(vec![self.to_language_identifier()]);
+        let mut bundle = FluentBundle::new(vec![Self::language_identifier(lang)]);
         bundle.add_resource(ftl_resource).expect("add FTL resource");
         bundle
     }

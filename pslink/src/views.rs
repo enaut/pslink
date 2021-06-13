@@ -14,10 +14,13 @@ use fluent_templates::LanguageIdentifier;
 use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::QrCode;
 use queries::{authenticate, Role};
-use shared::apirequests::{
-    general::{Message, Status},
-    links::{LinkDelta, LinkRequestForm},
-    users::{LoginUser, UserDelta, UserRequestForm},
+use shared::{
+    apirequests::{
+        general::{Message, Status},
+        links::{LinkDelta, LinkRequestForm},
+        users::{LoginUser, UserDelta, UserRequestForm},
+    },
+    datatypes::Lang,
 };
 use tracing::{error, info, instrument, warn};
 
@@ -38,7 +41,7 @@ fn redirect_builder(target: &str) -> HttpResponse {
 }
 
 #[instrument]
-fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
+fn detect_language(request: &HttpRequest) -> Result<Lang, ServerError> {
     let requested = parse_accepted_languages(
         request
             .headers()
@@ -49,7 +52,9 @@ fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
                 ServerError::User("Failed to convert Accept_language to str".to_owned())
             })?,
     );
+    info!("accepted languages: {:?}", requested);
     let available = convert_vec_str_to_langids_lossy(&["de", "en"]);
+    info!("available languages: {:?}", available);
     let default: LanguageIdentifier = "en"
         .parse()
         .map_err(|_| ServerError::User("Failed to parse a langid.".to_owned()))?;
@@ -60,10 +65,18 @@ fn detect_language(request: &HttpRequest) -> Result<String, ServerError> {
         Some(&default),
         NegotiationStrategy::Filtering,
     );
-    let languagecode = supported
-        .get(0)
-        .map_or("en".to_string(), std::string::ToString::to_string);
-    Ok(languagecode)
+    info!("supported languages: {:?}", supported);
+
+    if let Some(languagecode) = supported.get(0) {
+        info!("Supported Language: {}", languagecode);
+        Ok(languagecode
+            .to_string()
+            .parse()
+            .expect("Failed to parse 2 language"))
+    } else {
+        info!("Unsupported language using default!");
+        Ok("enEN".parse::<Lang>().unwrap())
+    }
 }
 
 #[instrument()]
@@ -202,13 +215,34 @@ pub async fn toggle_admin(
 }
 
 #[instrument(skip(id))]
+pub async fn get_language(
+    id: Option<Identity>,
+    config: web::Data<crate::ServerConfig>,
+    req: HttpRequest,
+) -> Result<HttpResponse, ServerError> {
+    if let Some(id) = id {
+        let user = authenticate(&id, &config).await?;
+        match user {
+            Role::NotAuthenticated | Role::Disabled => {
+                Ok(HttpResponse::Ok().json2(&detect_language(&req)?))
+            }
+            Role::Regular { user } | Role::Admin { user } => {
+                Ok(HttpResponse::Ok().json2(&user.language))
+            }
+        }
+    } else {
+        Ok(HttpResponse::Ok().json2(&detect_language(&req)?))
+    }
+}
+
+#[instrument(skip(id))]
 pub async fn set_language(
-    data: web::Path<String>,
+    data: web::Json<Lang>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    queries::set_language(&id, &data.0, &config).await?;
-    Ok(redirect_builder("/admin/index/"))
+    queries::set_language(&id, data.0, &config).await?;
+    Ok(HttpResponse::Ok().json2(&data.0))
 }
 
 #[instrument(skip(id))]
@@ -257,6 +291,13 @@ pub async fn process_login_json(
             })))
         }
     }
+}
+
+#[instrument(skip(id))]
+pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
+    info!("Logging out the user");
+    id.forget();
+    Ok(redirect_builder("/app/"))
 }
 
 #[instrument()]

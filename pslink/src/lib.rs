@@ -234,6 +234,7 @@ pub async fn webservice(
             // admin block
             .service(
                 web::scope("/admin")
+                    .route("/logout/", web::to(views::logout))
                     .service(
                         web::scope("/download")
                             .route("/png/{redirect_id}", web::get().to(views::download_png)),
@@ -241,6 +242,8 @@ pub async fn webservice(
                     .service(
                         web::scope("/json")
                             .route("/list_links/", web::post().to(views::index_json))
+                            .route("/get_language/", web::get().to(views::get_language))
+                            .route("/change_language/", web::post().to(views::set_language))
                             .route(
                                 "/create_link/",
                                 web::post().to(views::process_create_link_json),
