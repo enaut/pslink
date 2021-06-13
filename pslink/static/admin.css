@@ -210,7 +210,14 @@ img.trashicon {
     width: 0.5cm;
 }
 
-qrdownload {
+.qrdownload {
     display: flex;
     vertical-align: middle;
+}
+
+.languageselector a {
+    height: 70%;
+    padding: 5px;
+    margin: 3px;
+    border-radius: 50%;
 }

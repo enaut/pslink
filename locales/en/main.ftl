@@ -8,6 +8,7 @@ logout = Logout
 login = Login
 yes = Ja
 no = Nein
+language = Language:
 
 not-found = This Link has not been found or has been deleted
 

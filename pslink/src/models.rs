@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::{forms::LinkForm, Secret, ServerConfig, ServerError};
 
 use argonautica::Hasher;
@@ -7,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use shared::{
     apirequests::links::LinkDelta,
-    datatypes::{Count, Link, User},
+    datatypes::{Count, Lang, Link, User},
 };
 use sqlx::Row;
 use tracing::{error, info, instrument};
@@ -22,7 +24,7 @@ pub trait UserDbOperations<T> {
     async fn set_language(
         self,
         server_config: &ServerConfig,
-        new_language: &str,
+        new_language: Lang,
     ) -> Result<(), ServerError>;
     async fn count_admins(server_config: &ServerConfig) -> Result<Count, ServerError>;
 }
@@ -40,7 +42,7 @@ impl UserDbOperations<Self> for User {
                 email: row.email,
                 password: Secret::new(row.password),
                 role: row.role,
-                language: row.language,
+                language: Lang::from_str(&row.language).expect("Should parse"),
             });
         user.map_err(ServerError::Database)
     }
@@ -63,7 +65,7 @@ impl UserDbOperations<Self> for User {
                 email: row.email,
                 password: Secret::new(row.password),
                 role: row.role,
-                language: row.language,
+                language: Lang::from_str(&row.language).expect("Should parse"),
             });
         user.map_err(ServerError::Database)
     }
@@ -81,7 +83,8 @@ impl UserDbOperations<Self> for User {
                         email: r.get("email"),
                         password: Secret::new(r.get("password")),
                         role: r.get("role"),
-                        language: r.get("language"),
+                        language: Lang::from_str(r.get("language"))
+                            .expect("should parse correctly"),
                     })
                     .collect()
             });
@@ -124,11 +127,12 @@ impl UserDbOperations<Self> for User {
     async fn set_language(
         self,
         server_config: &ServerConfig,
-        new_language: &str,
+        new_language: Lang,
     ) -> Result<(), ServerError> {
+        let lang_code = new_language.to_string();
         sqlx::query!(
             "UPDATE users SET language = ? where id = ?",
-            new_language,
+            lang_code,
             self.id
         )
         .execute(&server_config.db_pool)
