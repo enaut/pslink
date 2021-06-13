@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use actix_identity::Identity;
 use actix_web::web;
 use enum_map::EnumMap;
@@ -8,7 +10,7 @@ use shared::{
         links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
         users::{UserDelta, UserOverviewColumns, UserRequestForm},
     },
-    datatypes::{Count, FullLink, Link, Secret, User},
+    datatypes::{Count, FullLink, Lang, Link, Secret, User},
 };
 use sqlx::Row;
 use tracing::{info, instrument, warn};
@@ -129,7 +131,7 @@ pub async fn list_all_allowed(
                         email: v.get("uemail"),
                         password: Secret::new("invalid".to_string()),
                         role: v.get("urole"),
-                        language: v.get("ulang"),
+                        language: Lang::from_str(v.get("ulang")).expect("Should parse"),
                     },
                     clicks: Count {
                         number: v.get("counter"), /* count is never None */
@@ -242,7 +244,7 @@ pub async fn list_users(
                     email: v.get("email"),
                     password: Secret::new("".to_string()),
                     role: v.get("role"),
-                    language: v.get("language"),
+                    language: Lang::from_str(v.get("language")).expect("Should parse"),
                 })
                 .collect();
 
@@ -591,24 +593,14 @@ pub async fn toggle_admin(
 #[instrument(skip(id))]
 pub async fn set_language(
     id: &Identity,
-    lang_code: &str,
+    lang_code: Lang,
     server_config: &ServerConfig,
 ) -> Result<(), ServerError> {
-    match lang_code {
-        "de" | "en" => match authenticate(id, server_config).await? {
-            Role::Admin { user } | Role::Regular { user } => {
-                user.set_language(server_config, lang_code).await
-            }
-            Role::Disabled | Role::NotAuthenticated => {
-                Err(ServerError::User("Not Allowed".to_owned()))
-            }
-        },
-        _ => {
-            warn!("An invalid language was selected!");
-            Err(ServerError::User(
-                "This language is not supported!".to_owned(),
-            ))
+    match authenticate(id, server_config).await? {
+        Role::Admin { user } | Role::Regular { user } => {
+            user.set_language(server_config, lang_code).await
         }
+        Role::Disabled | Role::NotAuthenticated => Err(ServerError::User("Not Allowed".to_owned())),
     }
 }
 

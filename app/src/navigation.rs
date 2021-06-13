@@ -1,6 +1,6 @@
 use fluent::fluent_args;
-use seed::{a, attrs, div, li, nav, ol, prelude::*, Url};
-use shared::datatypes::User;
+use seed::{a, attrs, div, li, nav, ol, prelude::*, Url, C};
+use shared::datatypes::{Lang, User};
 
 use crate::{i18n::I18n, Msg};
 
@@ -50,6 +50,12 @@ pub fn navigation(i18n: &I18n, base_url: &Url, user: &User) -> Node<Msg> {
             ],],
         ],
         ol![
+            li![div![
+                C!("languageselector"),
+                t("language"),
+                a![ev(Ev::Click, |_| Msg::SetLanguage(Lang::DeDE)), "de"],
+                a![ev(Ev::Click, |_| Msg::SetLanguage(Lang::EnUS)), "en"]
+            ]],
             // The Welcome message
             li![div![welcome]],
             // The logout button
