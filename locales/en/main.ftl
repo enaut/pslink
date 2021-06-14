@@ -37,10 +37,13 @@ password = Password
 leave-password-empty-hint = Leave this empty to keep the current password
 save-user = Save this user
 edit-user = Edit this user
+edit-admin = Edit this administrator
 new-user = Neuer Benutzer
 create-user = Create user
+create-admin = Create administrator
 make-user-admin = Promote to admin
 make-user-regular = Demote to regular
+role = Role
 
 userid = User ID
 statistics = Statistics
