@@ -8,7 +8,7 @@ use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 
 use shared::{
-    apirequests::links::LinkDelta,
+    apirequests::{links::LinkDelta, users::Role},
     datatypes::{Count, Lang, Link, User},
 };
 use sqlx::Row;
@@ -41,7 +41,7 @@ impl UserDbOperations<Self> for User {
                 username: row.username,
                 email: row.email,
                 password: Secret::new(row.password),
-                role: row.role,
+                role: Role::convert(row.role),
                 language: Lang::from_str(&row.language).expect("Should parse"),
             });
         user.map_err(ServerError::Database)
@@ -64,7 +64,7 @@ impl UserDbOperations<Self> for User {
                 username: row.username,
                 email: row.email,
                 password: Secret::new(row.password),
-                role: row.role,
+                role: Role::convert(row.role),
                 language: Lang::from_str(&row.language).expect("Should parse"),
             });
         user.map_err(ServerError::Database)
@@ -82,7 +82,7 @@ impl UserDbOperations<Self> for User {
                         username: r.get("username"),
                         email: r.get("email"),
                         password: Secret::new(r.get("password")),
-                        role: r.get("role"),
+                        role: Role::convert(r.get("role")),
                         language: Lang::from_str(r.get("language"))
                             .expect("should parse correctly"),
                     })
@@ -93,6 +93,7 @@ impl UserDbOperations<Self> for User {
 
     #[instrument()]
     async fn update_user(&self, server_config: &ServerConfig) -> Result<(), ServerError> {
+        let role_i64 = self.role.to_i64();
         sqlx::query!(
             "UPDATE users SET
             username = ?,
@@ -102,7 +103,7 @@ impl UserDbOperations<Self> for User {
             self.username,
             self.email,
             self.password.secret,
-            self.role,
+            role_i64,
             self.id
         )
         .execute(&server_config.db_pool)
@@ -116,8 +117,13 @@ impl UserDbOperations<Self> for User {
     /// fails with [`ServerError`] if the database cannot be acessed. (the user should exist)
     #[instrument()]
     async fn toggle_admin(self, server_config: &ServerConfig) -> Result<(), ServerError> {
-        let new_role = 2 - (self.role + 1) % 2;
-        sqlx::query!("UPDATE users SET role = ? where id = ?", new_role, self.id)
+        let new_role = match self.role {
+            r @ Role::NotAuthenticated | r @ Role::Disabled => r,
+            Role::Regular => Role::Admin,
+            Role::Admin => Role::Regular,
+        };
+        let role_i64 = new_role.to_i64();
+        sqlx::query!("UPDATE users SET role = ? where id = ?", role_i64, self.id)
             .execute(&server_config.db_pool)
             .await?;
         Ok(())
