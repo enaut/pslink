@@ -76,6 +76,14 @@ table tr:nth-child(odd) {
     background-color: #fff;
 }
 
+table tr:nth-child(even).admin {
+    background-color: rgb(240, 142, 142);
+}
+
+table tr:nth-child(odd).admin {
+    background-color: rgb(255, 204, 169);
+}
+
 table tr.filters input {
     background-image: url("/static/search.svg");
     background-repeat: no-repeat;

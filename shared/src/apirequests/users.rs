@@ -39,6 +39,7 @@ pub struct UserDelta {
     pub username: String,
     pub email: String,
     pub password: Option<String>,
+    pub role: Role,
 }
 
 impl From<User> for UserDelta {
@@ -50,6 +51,7 @@ impl From<User> for UserDelta {
             username: u.username,
             email: u.email,
             password: None,
+            role: u.role,
         }
     }
 }
@@ -73,7 +75,8 @@ pub enum Role {
 }
 
 impl Role {
-    pub fn convert(i: i64) -> Self {
+    #[must_use]
+    pub const fn convert(i: i64) -> Self {
         match i {
             0 => Self::Disabled,
             1 => Self::Regular,
@@ -82,12 +85,19 @@ impl Role {
         }
     }
 
-    pub fn to_i64(&self) -> i64 {
+    #[must_use]
+    pub const fn to_i64(self) -> i64 {
         match self {
             Role::NotAuthenticated => 3,
             Role::Disabled => 0,
             Role::Regular => 1,
             Role::Admin => 2,
         }
+    }
+}
+
+impl Default for Role {
+    fn default() -> Self {
+        Self::Regular
     }
 }

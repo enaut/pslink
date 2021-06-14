@@ -36,10 +36,13 @@ password = Passwort
 leave-password-empty-hint = Leer lassen um das Passwort nicht zu ändern
 save-user = Benutzer speichern
 edit-user = Benutzer editieren
+edit-admin = Administrator editieren
 create-user = Benutzer Erstellen
 new-user = Neuer Benutzer
+new-admin = Neuer Administrator
 make-user-admin = Zum Administrator befördern
 make-user-regular = Zurückstufen zum normalen Nutzer
+role = Rolle
 
 userid = Benutzernummer
 statistics = Statistik

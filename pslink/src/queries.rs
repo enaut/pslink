@@ -32,12 +32,12 @@ pub enum RoleGuard {
 }
 
 impl RoleGuard {
-    fn create(user: User) -> Self {
+    fn create(user: &User) -> Self {
         match user.role {
             shared::apirequests::users::Role::NotAuthenticated => Self::NotAuthenticated,
             shared::apirequests::users::Role::Disabled => Self::Disabled,
-            shared::apirequests::users::Role::Regular => Self::Regular { user },
-            shared::apirequests::users::Role::Admin => Self::Admin { user },
+            shared::apirequests::users::Role::Regular => Self::Regular { user: user.clone() },
+            shared::apirequests::users::Role::Admin => Self::Admin { user: user.clone() },
         }
     }
     /// Determin if the user is admin or the given user id is his own. This is used for things where users can edit or view their own entries, whereas admins can do so for all entries.
@@ -64,7 +64,7 @@ pub async fn authenticate(
         let user = User::get_user_by_name(&username, server_config).await?;
         info!("Found user {:?}", user);
 
-        return Ok(RoleGuard::create(user));
+        return Ok(RoleGuard::create(&user));
     }
     Ok(RoleGuard::NotAuthenticated)
 }
