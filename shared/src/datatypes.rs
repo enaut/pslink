@@ -3,6 +3,7 @@ use std::ops::Deref;
 
 use serde::{Deserialize, Serialize, Serializer};
 use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
+use crate::apirequests::users::Role;
 /// A generic list returntype containing the User and a Vec containing e.g. Links or Users
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ListWithOwner<T> {
