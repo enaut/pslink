@@ -8,7 +8,7 @@ use shared::{
     apirequests::{
         general::{EditMode, Filter, Operation, Ordering},
         links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
-        users::{UserDelta, UserOverviewColumns, UserRequestForm},
+        users::{Role, UserDelta, UserOverviewColumns, UserRequestForm},
     },
     datatypes::{Count, FullLink, Lang, Link, Secret, User},
 };
@@ -24,14 +24,22 @@ use crate::{
 
 /// The possible roles a user could have.
 #[derive(Debug, Clone)]
-pub enum Role {
+pub enum RoleGuard {
     NotAuthenticated,
     Disabled,
     Regular { user: User },
     Admin { user: User },
 }
 
-impl Role {
+impl RoleGuard {
+    fn create(user: User) -> Self {
+        match user.role {
+            shared::apirequests::users::Role::NotAuthenticated => Self::NotAuthenticated,
+            shared::apirequests::users::Role::Disabled => Self::Disabled,
+            shared::apirequests::users::Role::Regular => Self::Regular { user },
+            shared::apirequests::users::Role::Admin => Self::Admin { user },
+        }
+    }
     /// Determin if the user is admin or the given user id is his own. This is used for things where users can edit or view their own entries, whereas admins can do so for all entries.
     const fn admin_or_self(&self, id: i64) -> bool {
         match self {
@@ -50,20 +58,15 @@ impl Role {
 pub async fn authenticate(
     id: &Identity,
     server_config: &ServerConfig,
-) -> Result<Role, ServerError> {
+) -> Result<RoleGuard, ServerError> {
     if let Some(username) = id.identity() {
         info!("Looking for user {}", username);
         let user = User::get_user_by_name(&username, server_config).await?;
         info!("Found user {:?}", user);
 
-        return Ok(match user.role {
-            0 => Role::Disabled,
-            1 => Role::Regular { user },
-            2 => Role::Admin { user },
-            _ => Role::NotAuthenticated,
-        });
+        return Ok(RoleGuard::create(user));
     }
-    Ok(Role::NotAuthenticated)
+    Ok(RoleGuard::NotAuthenticated)
 }
 
 /// A generic list returntype containing the User and a Vec containing e.g. Links or Users
@@ -85,7 +88,7 @@ pub async fn list_all_allowed(
 ) -> Result<ListWithOwner<FullLink>, ServerError> {
     use crate::sqlx::Row;
     match authenticate(id, server_config).await? {
-        Role::Admin { user } | Role::Regular { user } => {
+        RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             let mut querystring = "select
                         links.id as lid,
                         links.title as ltitle,
@@ -130,7 +133,7 @@ pub async fn list_all_allowed(
                         username: v.get("usern"),
                         email: v.get("uemail"),
                         password: Secret::new("invalid".to_string()),
-                        role: v.get("urole"),
+                        role: Role::convert(v.get("urole")),
                         language: Lang::from_str(v.get("ulang")).expect("Should parse"),
                     },
                     clicks: Count {
@@ -144,7 +147,9 @@ pub async fn list_all_allowed(
                 list: all_links,
             })
         }
-        Role::Disabled | Role::NotAuthenticated => Err(ServerError::User("Not allowed".to_owned())),
+        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
+            Err(ServerError::User("Not allowed".to_owned()))
+        }
     }
 }
 
@@ -225,7 +230,7 @@ pub async fn list_users(
     parameters: UserRequestForm,
 ) -> Result<ListWithOwner<User>, ServerError> {
     match authenticate(id, server_config).await? {
-        Role::Admin { user } => {
+        RoleGuard::Admin { user } => {
             let mut querystring = "Select * from users".to_string();
             querystring.push_str(&generate_filter_users_sql(&parameters.filter));
             if let Some(order) = parameters.order {
@@ -243,7 +248,7 @@ pub async fn list_users(
                     username: v.get("username"),
                     email: v.get("email"),
                     password: Secret::new("".to_string()),
-                    role: v.get("role"),
+                    role: Role::convert(v.get("role")),
                     language: Lang::from_str(v.get("language")).expect("Should parse"),
                 })
                 .collect();
@@ -324,14 +329,14 @@ pub async fn get_user(
         let auth = authenticate(id, server_config).await?;
         if auth.admin_or_self(uid) {
             match auth {
-                Role::Admin { user } | Role::Regular { user } => {
+                RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
                     let viewed_user = User::get_user(uid as i64, server_config).await?;
                     Ok(Item {
                         user,
                         item: viewed_user,
                     })
                 }
-                Role::Disabled | Role::NotAuthenticated => {
+                RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
                     unreachable!("should already be unreachable because of `admin_or_self`")
                 }
             }
@@ -369,7 +374,7 @@ pub async fn create_user(
     info!("Creating a User: {:?}", &data);
     let auth = authenticate(id, server_config).await?;
     match auth {
-        Role::Admin { user } => {
+        RoleGuard::Admin { user } => {
             let new_user = NewUser::new(
                 data.username.clone(),
                 data.email.clone(),
@@ -386,7 +391,7 @@ pub async fn create_user(
                 item: new_user,
             })
         }
-        Role::Regular { .. } | Role::Disabled | Role::NotAuthenticated => {
+        RoleGuard::Regular { .. } | RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
             Err(ServerError::User("Permission denied!".to_owned()))
         }
     }
@@ -417,7 +422,7 @@ pub async fn create_user_json(
         }
     };
     match auth {
-        Role::Admin { user } => {
+        RoleGuard::Admin { user } => {
             let new_user = NewUser::new(
                 data.username.clone(),
                 data.email.clone(),
@@ -434,7 +439,7 @@ pub async fn create_user_json(
                 item: new_user,
             })
         }
-        Role::Regular { .. } | Role::Disabled | Role::NotAuthenticated => {
+        RoleGuard::Regular { .. } | RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
             Err(ServerError::User("Permission denied!".to_owned()))
         }
     }
@@ -457,7 +462,7 @@ pub async fn update_user_json(
         let unmodified_user = User::get_user(uid, server_config).await?;
         if auth.admin_or_self(uid) {
             match auth {
-                Role::Admin { .. } | Role::Regular { .. } => {
+                RoleGuard::Admin { .. } | RoleGuard::Regular { .. } => {
                     info!("Updating userinfo: ");
                     let password = match &data.password {
                         Some(password) => {
@@ -480,7 +485,7 @@ pub async fn update_user_json(
                         item: changed_user,
                     })
                 }
-                Role::NotAuthenticated | Role::Disabled => {
+                RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
                     unreachable!("Should be unreachable because of the `admin_or_self`")
                 }
             }
@@ -511,7 +516,7 @@ pub async fn update_user(
         let unmodified_user = User::get_user(uid, server_config).await?;
         if auth.admin_or_self(uid) {
             match auth {
-                Role::Admin { .. } | Role::Regular { .. } => {
+                RoleGuard::Admin { .. } | RoleGuard::Regular { .. } => {
                     info!("Updating userinfo: ");
                     let password = if data.password.len() > 3 {
                         Secret::new(NewUser::hash_password(
@@ -536,7 +541,7 @@ pub async fn update_user(
                         item: changed_user,
                     })
                 }
-                Role::NotAuthenticated | Role::Disabled => {
+                RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
                     unreachable!("Should be unreachable because of the `admin_or_self`")
                 }
             }
@@ -560,7 +565,7 @@ pub async fn toggle_admin(
     if let Ok(uid) = user_id.parse::<i64>() {
         let auth = authenticate(id, server_config).await?;
         match auth {
-            Role::Admin { .. } => {
+            RoleGuard::Admin { .. } => {
                 info!("Changing administrator priviledges: ");
 
                 let unchanged_user = User::get_user(uid, server_config).await?;
@@ -568,16 +573,16 @@ pub async fn toggle_admin(
                 let old = unchanged_user.role;
                 unchanged_user.toggle_admin(server_config).await?;
 
-                info!("Toggling role: old was {}", old);
+                info!("Toggling role: old was {:?}", old);
 
                 let changed_user = User::get_user(uid, server_config).await?;
-                info!("Toggled role: new is {}", changed_user.role);
+                info!("Toggled role: new is {:?}", changed_user.role);
                 Ok(Item {
                     user: changed_user.clone(),
                     item: changed_user,
                 })
             }
-            Role::Regular { .. } | Role::NotAuthenticated | Role::Disabled => {
+            RoleGuard::Regular { .. } | RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
                 Err(ServerError::User("Permission denied".to_owned()))
             }
         }
@@ -597,10 +602,12 @@ pub async fn set_language(
     server_config: &ServerConfig,
 ) -> Result<(), ServerError> {
     match authenticate(id, server_config).await? {
-        Role::Admin { user } | Role::Regular { user } => {
+        RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             user.set_language(server_config, lang_code).await
         }
-        Role::Disabled | Role::NotAuthenticated => Err(ServerError::User("Not Allowed".to_owned())),
+        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
+            Err(ServerError::User("Not Allowed".to_owned()))
+        }
     }
 }
 
@@ -615,11 +622,11 @@ pub async fn get_link(
     server_config: &ServerConfig,
 ) -> Result<Item<Link>, ServerError> {
     match authenticate(id, server_config).await? {
-        Role::Admin { user } | Role::Regular { user } => {
+        RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             let link = Link::get_link_by_code(link_code, server_config).await?;
             Ok(Item { user, item: link })
         }
-        Role::Disabled | Role::NotAuthenticated => {
+        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
             warn!("User could not be authenticated!");
             Err(ServerError::User("Not Allowed".to_owned()))
         }
@@ -637,11 +644,11 @@ pub async fn get_link_by_id(
     server_config: &ServerConfig,
 ) -> Result<Item<Link>, ServerError> {
     match authenticate(id, server_config).await? {
-        Role::Admin { user } | Role::Regular { user } => {
+        RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             let link = Link::get_link_by_id(lid, server_config).await?;
             Ok(Item { user, item: link })
         }
-        Role::Disabled | Role::NotAuthenticated => {
+        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
             warn!("User could not be authenticated!");
             Err(ServerError::User("Not Allowed".to_owned()))
         }
@@ -710,7 +717,7 @@ pub async fn update_link(
     info!("Changing link to: {:?} {:?}", &data, &link_code);
     let auth = authenticate(id, server_config).await?;
     match auth {
-        Role::Admin { .. } | Role::Regular { .. } => {
+        RoleGuard::Admin { .. } | RoleGuard::Regular { .. } => {
             let query: Item<Link> = get_link(id, link_code, server_config).await?;
             if auth.admin_or_self(query.item.author) {
                 let mut link = query.item;
@@ -728,7 +735,9 @@ pub async fn update_link(
                 Err(ServerError::User("Not Allowed".to_owned()))
             }
         }
-        Role::Disabled | Role::NotAuthenticated => Err(ServerError::User("Not Allowed".to_owned())),
+        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
+            Err(ServerError::User("Not Allowed".to_owned()))
+        }
     }
 }
 
@@ -744,7 +753,7 @@ pub async fn create_link(
 ) -> Result<Item<Link>, ServerError> {
     let auth = authenticate(id, server_config).await?;
     match auth {
-        Role::Admin { user } | Role::Regular { user } => {
+        RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             let code = data.code.clone();
             info!("Creating link for: {}", &code);
             let new_link = NewLink::from_link_form(data.into_inner(), user.id);
@@ -757,7 +766,7 @@ pub async fn create_link(
                 item: new_link,
             })
         }
-        Role::Disabled | Role::NotAuthenticated => {
+        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
             Err(ServerError::User("Permission denied!".to_owned()))
         }
     }
@@ -775,7 +784,7 @@ pub async fn create_link_json(
 ) -> Result<Item<Link>, ServerError> {
     let auth = authenticate(id, server_config).await?;
     match auth {
-        Role::Admin { user } | Role::Regular { user } => {
+        RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             let code = data.code.clone();
             info!("Creating link for: {}", &code);
             let new_link = NewLink::from_link_delta(data.into_inner(), user.id);
@@ -788,7 +797,7 @@ pub async fn create_link_json(
                 item: new_link,
             })
         }
-        Role::Disabled | Role::NotAuthenticated => {
+        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
             Err(ServerError::User("Permission denied!".to_owned()))
         }
     }
@@ -806,7 +815,7 @@ pub async fn update_link_json(
 ) -> Result<Item<Link>, ServerError> {
     let auth = authenticate(ident, server_config).await?;
     match auth {
-        Role::Admin { .. } | Role::Regular { .. } => {
+        RoleGuard::Admin { .. } | RoleGuard::Regular { .. } => {
             if let Some(id) = data.id {
                 let query: Item<Link> = get_link_by_id(ident, id, server_config).await?;
                 if auth.admin_or_self(query.item.author) {
@@ -829,6 +838,8 @@ pub async fn update_link_json(
                 Err(ServerError::User("Not Allowed".to_owned()))
             }
         }
-        Role::Disabled | Role::NotAuthenticated => Err(ServerError::User("Not Allowed".to_owned())),
+        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
+            Err(ServerError::User("Not Allowed".to_owned()))
+        }
     }
 }

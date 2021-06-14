@@ -62,3 +62,32 @@ pub enum UserOverviewColumns {
     Email,
     Username,
 }
+
+/// The possible roles a user could have.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Copy)]
+pub enum Role {
+    NotAuthenticated,
+    Disabled,
+    Regular,
+    Admin,
+}
+
+impl Role {
+    pub fn convert(i: i64) -> Self {
+        match i {
+            0 => Self::Disabled,
+            1 => Self::Regular,
+            2 => Self::Admin,
+            _ => Self::NotAuthenticated,
+        }
+    }
+
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            Role::NotAuthenticated => 3,
+            Role::Disabled => 0,
+            Role::Regular => 1,
+            Role::Admin => 2,
+        }
+    }
+}
