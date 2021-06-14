@@ -1,6 +1,9 @@
 use fluent::fluent_args;
-use seed::{a, attrs, div, li, nav, ol, prelude::*, Url, C};
-use shared::datatypes::{Lang, User};
+use seed::{a, attrs, div, li, nav, nodes, ol, prelude::*, Url, C};
+use shared::{
+    apirequests::users::Role,
+    datatypes::{Lang, User},
+};
 
 use crate::{i18n::I18n, Msg};
 
@@ -33,21 +36,27 @@ pub fn navigation(i18n: &I18n, base_url: &Url, user: &User) -> Node<Msg> {
                 )),
                 t("add-link"),
             ],],
-            // A button to create a new user
-            li![a![
-                attrs! {At::Href => crate::Urls::new(base_url).create_user()},
-                ev(Ev::Click, |_| Msg::ListUsers(
-                    super::pages::list_users::Msg::Edit(
-                        super::pages::list_users::UserEditMsg::CreateNewUser
-                    )
-                )),
-                t("invite-user"),
-            ],],
-            // A button to list all users
-            li![a![
-                attrs! {At::Href => crate::Urls::new(base_url).list_users()},
-                t("list-users"),
-            ],],
+            if user.role == Role::Admin {
+                nodes![
+                    // A button to create a new user
+                    li![a![
+                        attrs! {At::Href => crate::Urls::new(base_url).create_user()},
+                        ev(Ev::Click, |_| Msg::ListUsers(
+                            super::pages::list_users::Msg::Edit(
+                                super::pages::list_users::UserEditMsg::CreateNewUser
+                            )
+                        )),
+                        t("invite-user"),
+                    ],],
+                    // A button to list all users
+                    li![a![
+                        attrs! {At::Href => crate::Urls::new(base_url).list_users()},
+                        t("list-users"),
+                    ],],
+                ]
+            } else {
+                nodes!()
+            },
         ],
         ol![
             li![div![

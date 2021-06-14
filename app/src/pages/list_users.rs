@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use enum_map::EnumMap;
 use seed::{
     a, attrs, button, div, h1, input, log, p, prelude::*, section, table, td, th, tr, Url, C, IF,
@@ -8,7 +6,7 @@ use shared::{
     apirequests::general::{Operation, Ordering},
     apirequests::{
         general::{EditMode, Status},
-        users::{UserDelta, UserOverviewColumns, UserRequestForm},
+        users::{Role, UserDelta, UserOverviewColumns, UserRequestForm},
     },
     datatypes::{Lang, User},
 };
@@ -20,7 +18,7 @@ use crate::{i18n::I18n, unwrap_or_return};
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
     orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
     let user_edit = match url.next_path_part() {
-        Some("create_user") => Some(RefCell::new(UserDelta::default())),
+        Some("create_user") => Some(UserDelta::default()),
         None | Some(_) => None,
     };
     Model {
@@ -38,7 +36,7 @@ pub struct Model {
     i18n: I18n,
     formconfig: UserRequestForm,
     inputs: EnumMap<UserOverviewColumns, FilterInput>,
-    user_edit: Option<RefCell<UserDelta>>,
+    user_edit: Option<UserDelta>,
     last_message: Option<Status>,
 }
 
@@ -87,6 +85,8 @@ pub enum UserEditMsg {
     EditUsernameChanged(String),
     EditEmailChanged(String),
     EditPasswordChanged(String),
+    MakeAdmin(UserDelta),
+    MakeRegular(UserDelta),
     SaveUser,
     FailedToCreateUser,
 }
@@ -203,38 +203,32 @@ pub fn process_user_edit_messages(
     match msg {
         UserEditMsg::EditUserSelected(user) => {
             model.clean_dialogs();
-            model.user_edit = Some(RefCell::new(user))
+            model.user_edit = Some(user)
         }
         UserEditMsg::CreateNewUser => {
             model.clean_dialogs();
-            model.user_edit = Some(RefCell::new(UserDelta::default()))
+            model.user_edit = Some(UserDelta::default())
         }
         UserEditMsg::EditUsernameChanged(s) => {
-            if let Some(ref ue) = model.user_edit {
-                ue.try_borrow_mut()
-                    .expect("Failed to borrow mutably")
-                    .username = s;
+            if let Some(ref mut ue) = model.user_edit {
+                ue.username = s;
             };
         }
         UserEditMsg::EditEmailChanged(s) => {
-            if let Some(ref ue) = model.user_edit {
-                ue.try_borrow_mut().expect("Failed to borrow mutably").email = s;
+            if let Some(ref mut ue) = model.user_edit {
+                ue.email = s;
             };
         }
         UserEditMsg::EditPasswordChanged(s) => {
-            if let Some(ref ue) = model.user_edit {
-                ue.try_borrow_mut()
-                    .expect("Failed to borrow mutably")
-                    .password = Some(s);
+            if let Some(ref mut ue) = model.user_edit {
+                ue.password = Some(s);
             };
         }
         UserEditMsg::SaveUser => {
             let data = model
                 .user_edit
-                .as_ref()
-                .expect("Somehow a user should exist!")
-                .borrow()
-                .clone(); // complicated way to move into the closure
+                .take()
+                .expect("A user should allways be there on save"); // complicated way to move into the closure
             log!("Saving User: ", &data.username);
             save_user(data, orders);
         }
@@ -247,6 +241,8 @@ pub fn process_user_edit_messages(
             model.user_edit = None;
             orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
         }
+        UserEditMsg::MakeAdmin(user) => todo!(),
+        UserEditMsg::MakeRegular(user) => todo!(),
     }
 }
 
@@ -315,7 +311,7 @@ pub fn view(model: &Model) -> Node<Msg> {
             // Add filter fields right below the headlines
             view_user_table_filter_input(model, &t),
             // Add all the users one line for each
-            model.users.iter().map(view_user)
+            model.users.iter().map(|u| { view_user(u, &t) })
         ],
         // A refresh button. This will be removed in future versions.
         button![
@@ -324,7 +320,7 @@ pub fn view(model: &Model) -> Node<Msg> {
         ],
         // Display the user edit dialog if available
         if let Some(l) = &model.user_edit {
-            edit_or_create_user(l, t)
+            edit_or_create_user(l.clone(), t)
         } else {
             section!()
         },
@@ -351,6 +347,7 @@ fn view_user_table_head<F: Fn(&str) -> String>(t: F) -> Node<Msg> {
             ))),
             t("username")
         ],
+        th![t("role")],
     ]
 }
 
@@ -392,30 +389,64 @@ fn view_user_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
             }),
             el_ref(&model.inputs[UserOverviewColumns::Username].filter_input),
         ]],
+        td![],
     ]
 }
 
-fn view_user(l: &User) -> Node<Msg> {
+fn view_user<F: Fn(&str) -> String>(l: &User, t: F) -> Node<Msg> {
     let user = UserDelta::from(l.clone());
     tr![
-        ev(Ev::Click, |_| Msg::Edit(UserEditMsg::EditUserSelected(
-            user
-        ))),
+        {
+            let user = user.clone();
+            ev(Ev::Click, |_| {
+                Msg::Edit(UserEditMsg::EditUserSelected(user))
+            })
+        },
+        match l.role {
+            Role::NotAuthenticated | Role::Disabled => C!("inactive"),
+            Role::Regular => C!("regular"),
+            Role::Admin => C!("admin"),
+        },
         td![&l.id],
         td![&l.email],
         td![&l.username],
+        match l.role {
+            Role::NotAuthenticated | Role::Disabled | Role::Regular => td![
+                ev(Ev::Click, |_| Msg::Edit(UserEditMsg::EditUserSelected(
+                    user
+                ))),
+                t("make-user-admin")
+            ],
+            Role::Admin => td![
+                ev(Ev::Click, |_| Msg::Edit(UserEditMsg::EditUserSelected(
+                    user
+                ))),
+                t("make-user-regular"),
+            ],
+        }
     ]
 }
 
-fn edit_or_create_user<F: Fn(&str) -> String>(l: &RefCell<UserDelta>, t: F) -> Node<Msg> {
-    let user = l.borrow();
+fn edit_or_create_user<F: Fn(&str) -> String>(l: UserDelta, t: F) -> Node<Msg> {
+    let user = l;
+    let headline: Node<Msg> = match &user.role {
+        Role::NotAuthenticated | Role::Disabled | Role::Regular => {
+            h1![match &user.edit {
+                EditMode::Edit => t("edit-user"),
+                EditMode::Create => t("new-user"),
+            }]
+        }
+        Role::Admin => {
+            h1![match &user.edit {
+                EditMode::Edit => t("edit-admin"),
+                EditMode::Create => t("new-admin"),
+            }]
+        }
+    };
     div![
         C!["editdialog", "center"],
         close_button(),
-        h1![match &user.edit {
-            EditMode::Edit => t("edit-user"),
-            EditMode::Create => t("new-user"),
-        }],
+        headline,
         table![
             tr![
                 th![
