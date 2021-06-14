@@ -2,6 +2,8 @@ use std::ops::Deref;
 
 use serde::{Deserialize, Serialize, Serializer};
 use strum_macros::{AsRefStr, EnumIter, EnumString, ToString};
+
+use crate::apirequests::users::Role;
 /// A generic list returntype containing the User and a Vec containing e.g. Links or Users
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ListWithOwner<T> {
@@ -23,7 +25,7 @@ pub struct User {
     pub username: String,
     pub email: String,
     pub password: Secret,
-    pub role: i64,
+    pub role: Role,
     pub language: Lang,
 }
 
