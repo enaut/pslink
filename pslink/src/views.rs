@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use actix_identity::Identity;
 use actix_web::{
     http::header::ContentType,
@@ -11,7 +13,7 @@ use fluent_langneg::{
 };
 use image::{DynamicImage, ImageFormat, Luma};
 use qrcode::QrCode;
-use queries::{authenticate, Role};
+use queries::{authenticate, RoleGuard};
 use shared::{
     apirequests::{
         general::{Message, Status},
@@ -97,7 +99,7 @@ pub async fn index_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Links to Json api");
     match queries::list_all_allowed(&id, &config, form.0).await {
-        Ok(links) => Ok(HttpResponse::Ok().json(&links.list)),
+        Ok(links) => Ok(HttpResponse::Ok().json2(&links.list)),
         Err(e) => {
             error!("Failed to access database: {:?}", e);
             warn!("Not logged in - redirecting to login page");
@@ -126,8 +128,12 @@ pub async fn get_logged_user_json(
 ) -> Result<HttpResponse, ServerError> {
     let user = authenticate(&id, &config).await?;
     match user {
-        Role::NotAuthenticated | Role::Disabled => Ok(HttpResponse::Unauthorized().finish()),
-        Role::Regular { user } | Role::Admin { user } => Ok(HttpResponse::Ok().json(&user)),
+        RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
+            Ok(HttpResponse::Unauthorized().finish())
+        }
+        RoleGuard::Regular { user } | RoleGuard::Admin { user } => {
+            Ok(HttpResponse::Ok().json(&user))
+        }
     }
 }
 
@@ -207,10 +213,10 @@ pub async fn get_language(
     if let Some(id) = id {
         let user = authenticate(&id, &config).await?;
         match user {
-            Role::NotAuthenticated | Role::Disabled => {
+            RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
                 Ok(HttpResponse::Ok().json(detect_language(&req)?))
             }
-            Role::Regular { user } | Role::Admin { user } => {
+            RoleGuard::Regular { user } | RoleGuard::Admin { user } => {
                 Ok(HttpResponse::Ok().json(user.language))
             }
         }
