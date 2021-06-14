@@ -13,7 +13,7 @@ use fluent_langneg::{
 use fluent_templates::LanguageIdentifier;
 use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::QrCode;
-use queries::{authenticate, Role};
+use queries::{authenticate, RoleGuard};
 use shared::{
     apirequests::{
         general::{Message, Status},
@@ -141,8 +141,12 @@ pub async fn get_logged_user_json(
 ) -> Result<HttpResponse, ServerError> {
     let user = authenticate(&id, &config).await?;
     match user {
-        Role::NotAuthenticated | Role::Disabled => Ok(HttpResponse::Unauthorized().finish()),
-        Role::Regular { user } | Role::Admin { user } => Ok(HttpResponse::Ok().json2(&user)),
+        RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
+            Ok(HttpResponse::Unauthorized().finish())
+        }
+        RoleGuard::Regular { user } | RoleGuard::Admin { user } => {
+            Ok(HttpResponse::Ok().json2(&user))
+        }
     }
 }
 
@@ -223,10 +227,10 @@ pub async fn get_language(
     if let Some(id) = id {
         let user = authenticate(&id, &config).await?;
         match user {
-            Role::NotAuthenticated | Role::Disabled => {
+            RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
                 Ok(HttpResponse::Ok().json2(&detect_language(&req)?))
             }
-            Role::Regular { user } | Role::Admin { user } => {
+            RoleGuard::Regular { user } | RoleGuard::Admin { user } => {
                 Ok(HttpResponse::Ok().json2(&user.language))
             }
         }
