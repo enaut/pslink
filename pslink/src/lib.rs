@@ -69,7 +69,7 @@ impl ServerError {
 }
 
 impl actix_web::error::ResponseError for ServerError {
-    fn error_response(&self) -> HttpResponse {
+    fn error_response2(&self) -> HttpResponse {
         match self {
             Self::Argonautica(e) => {
                 eprintln!("Argonautica Error happened: {:?}", e);
@@ -116,6 +116,21 @@ impl actix_web::error::ResponseError for ServerError {
                 ))
             }
         }
+    }
+
+    fn status_code(&self) -> reqwest::StatusCode {
+        reqwest::StatusCode::INTERNAL_SERVER_ERROR
+    }
+
+    fn error_response(&self) -> actix_web::BaseHttpResponse<actix_web::body::Body> {
+        let mut resp = actix_web::BaseHttpResponse::new(self.status_code());
+        let mut buf = web::BytesMut::new();
+        let _ = write!(Writer(&mut buf), "{}", self);
+        resp.headers_mut().insert(
+            reqwest::header::CONTENT_TYPE,
+            reqwest::header::HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
+        resp.set_body(actix_web::body::Body::from(buf))
     }
 }
 
@@ -220,7 +235,7 @@ pub async fn webservice(
         let generated = generate();
         App::new()
             .data(server_config.clone())
-            .wrap(TracingLogger)
+            .wrap(TracingLogger::default())
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&[0; 32])
                     .name("auth-cookie")
