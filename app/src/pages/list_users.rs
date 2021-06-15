@@ -429,47 +429,35 @@ fn view_user_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
 fn view_user<F: Fn(&str) -> String>(l: &User, logged_in_user: &User, t: F) -> Node<Msg> {
     let user = UserDelta::from(l.clone());
     tr![
+        {
+            let user = user.clone();
+            ev(Ev::Click, |_| {
+                Msg::Edit(UserEditMsg::EditUserSelected(user))
+            })
+        },
         match l.role {
             Role::NotAuthenticated | Role::Disabled => C!("inactive"),
             Role::Regular => C!("regular"),
             Role::Admin => C!("admin"),
         },
-        td![
-            {
-                let user = user.clone();
-                ev(Ev::Click, |_| {
-                    Msg::Edit(UserEditMsg::EditUserSelected(user))
-                })
-            },
-            &l.id
-        ],
-        td![
-            {
-                let user = user.clone();
-                ev(Ev::Click, |_| {
-                    Msg::Edit(UserEditMsg::EditUserSelected(user))
-                })
-            },
-            &l.email
-        ],
-        td![
-            {
-                let user = user.clone();
-                ev(Ev::Click, |_| {
-                    Msg::Edit(UserEditMsg::EditUserSelected(user))
-                })
-            },
-            &l.username
-        ],
+        td![&l.id],
+        td![&l.email],
+        td![&l.username],
         match logged_in_user.role {
             Role::Admin => {
                 match l.role {
                     Role::NotAuthenticated | Role::Disabled | Role::Regular => td![
-                        ev(Ev::Click, |_| Msg::Edit(UserEditMsg::MakeAdmin(user))),
+                        ev(Ev::Click, |event| {
+                            event.stop_propagation();
+                            Msg::Edit(UserEditMsg::MakeAdmin(user))
+                        }),
                         t("make-user-admin")
                     ],
                     Role::Admin => td![
-                        ev(Ev::Click, |_| Msg::Edit(UserEditMsg::MakeRegular(user))),
+                        ev(Ev::Click, |event| {
+                            event.stop_propagation();
+                            Msg::Edit(UserEditMsg::MakeRegular(user))
+                        }),
                         t("make-user-regular"),
                     ],
                 }

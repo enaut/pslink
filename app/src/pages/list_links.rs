@@ -4,7 +4,7 @@ use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use seed::{
     a, attrs, button, div, h1, img, input, log, nodes, prelude::*, raw, section, span, table, td,
-    th, tr, Url, C,
+    th, tr, Url, C, IF,
 };
 
 use shared::{
@@ -601,32 +601,22 @@ fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
 /// display a single table row containing one link
 fn view_link(l: &FullLink, logged_in_user: &User) -> Node<Msg> {
     use shared::apirequests::users::Role;
-    macro_rules! event_or_not {
-        ( $link:expr, $user:expr, $content:expr) => {
-            if $user.role == Role::Admin
-                || ($user.role == Role::Regular) && $link.user.id == $user.id
-            {
-                let link = LinkDelta::from($link.clone());
-                td![
-                    ev(Ev::Click, |_| Msg::Edit(EditMsg::EditSelected(link))),
-                    $content
-                ]
-            } else {
-                td![$content]
-            }
-        };
-    }
+    let link = LinkDelta::from(l.clone());
     tr![
-        event_or_not!(l, logged_in_user, &l.link.code),
-        event_or_not!(l, logged_in_user, &l.link.title),
-        event_or_not!(l, logged_in_user, &l.link.target),
-        event_or_not!(l, logged_in_user, &l.user.username),
-        event_or_not!(l, logged_in_user, &l.clicks.number),
+        IF! (logged_in_user.role == Role::Admin
+            || (logged_in_user.role == Role::Regular) && l.user.id == logged_in_user.id =>
+            ev(Ev::Click, |_| Msg::Edit(EditMsg::EditSelected(link)))),
+        td![&l.link.code],
+        td![&l.link.title],
+        td![&l.link.target],
+        td![&l.user.username],
+        td![&l.clicks.number],
         {
             td![
                 C!["table_qr"],
                 a![
-                    attrs![At::Href => format!["http://localhost:8080/admin/download/png/{}",  &l.link.code], At::Download => true.as_at_value()],
+                    ev(Ev::Click, |event| event.stop_propagation()),
+                    attrs![At::Href => format!["/admin/download/png/{}",  &l.link.code], At::Download => true.as_at_value()],
                     raw!(&generate_qr_from_code(&l.link.code))
                 ]
             ]
@@ -636,7 +626,10 @@ fn view_link(l: &FullLink, logged_in_user: &User) -> Node<Msg> {
         {
             let link = LinkDelta::from(l.clone());
             td![
-                ev(Ev::Click, |_| Msg::Edit(EditMsg::MayDeleteSelected(link))),
+                ev(Ev::Click, |event| {
+                    event.stop_propagation();
+                    Msg::Edit(EditMsg::MayDeleteSelected(link))
+                }),
                 img![C!["trashicon"], attrs!(At::Src => "/static/trash.svg")]
             ]
         } else {
