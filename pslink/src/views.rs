@@ -196,7 +196,7 @@ pub async fn process_update_user_json(
 
 #[instrument(skip(id))]
 pub async fn toggle_admin(
-    data: web::Path<String>,
+    user: web::Json<UserDelta>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
