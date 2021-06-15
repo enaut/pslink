@@ -241,9 +241,39 @@ pub fn process_user_edit_messages(
             model.user_edit = None;
             orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
         }
-        UserEditMsg::MakeAdmin(user) => todo!(),
-        UserEditMsg::MakeRegular(user) => todo!(),
+        UserEditMsg::MakeAdmin(user) => update_privileges(user, orders),
+        UserEditMsg::MakeRegular(user) => update_privileges(user, orders),
     }
+}
+
+fn update_privileges(user: UserDelta, orders: &mut impl Orders<Msg>) {
+    orders.perform_cmd(async {
+        let data = user;
+        // create the request
+        let request = unwrap_or_return!(
+            Request::new("/admin/json/update_privileges/")
+                .method(Method::Post)
+                .json(&data),
+            Msg::Edit(UserEditMsg::FailedToCreateUser)
+        );
+        // perform the request and get the response
+        let response = unwrap_or_return!(
+            fetch(request).await,
+            Msg::Edit(UserEditMsg::FailedToCreateUser)
+        );
+        // check for the status
+        let response = unwrap_or_return!(
+            response.check_status(),
+            Msg::Edit(UserEditMsg::FailedToCreateUser)
+        );
+        // deserialize the response
+        let message: Status = unwrap_or_return!(
+            response.json().await,
+            Msg::Edit(UserEditMsg::FailedToCreateUser)
+        );
+
+        Msg::Edit(UserEditMsg::UserCreated(message))
+    });
 }
 
 fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
@@ -281,7 +311,7 @@ fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
 
 #[must_use]
 /// View the users page.
-pub fn view(model: &Model) -> Node<Msg> {
+pub fn view(model: &Model, logged_in_user: &User) -> Node<Msg> {
     let lang = model.i18n.clone();
     // shortcut for easier translations
     let t = move |key: &str| lang.translate(key, None);
@@ -311,7 +341,10 @@ pub fn view(model: &Model) -> Node<Msg> {
             // Add filter fields right below the headlines
             view_user_table_filter_input(model, &t),
             // Add all the users one line for each
-            model.users.iter().map(|u| { view_user(u, &t) })
+            model
+                .users
+                .iter()
+                .map(|u| { view_user(u, logged_in_user, &t) })
         ],
         // A refresh button. This will be removed in future versions.
         button![
@@ -393,36 +426,59 @@ fn view_user_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
     ]
 }
 
-fn view_user<F: Fn(&str) -> String>(l: &User, t: F) -> Node<Msg> {
+fn view_user<F: Fn(&str) -> String>(l: &User, logged_in_user: &User, t: F) -> Node<Msg> {
     let user = UserDelta::from(l.clone());
     tr![
-        {
-            let user = user.clone();
-            ev(Ev::Click, |_| {
-                Msg::Edit(UserEditMsg::EditUserSelected(user))
-            })
-        },
         match l.role {
             Role::NotAuthenticated | Role::Disabled => C!("inactive"),
             Role::Regular => C!("regular"),
             Role::Admin => C!("admin"),
         },
-        td![&l.id],
-        td![&l.email],
-        td![&l.username],
-        match l.role {
-            Role::NotAuthenticated | Role::Disabled | Role::Regular => td![
-                ev(Ev::Click, |_| Msg::Edit(UserEditMsg::EditUserSelected(
-                    user
-                ))),
-                t("make-user-admin")
-            ],
-            Role::Admin => td![
-                ev(Ev::Click, |_| Msg::Edit(UserEditMsg::EditUserSelected(
-                    user
-                ))),
-                t("make-user-regular"),
-            ],
+        td![
+            {
+                let user = user.clone();
+                ev(Ev::Click, |_| {
+                    Msg::Edit(UserEditMsg::EditUserSelected(user))
+                })
+            },
+            &l.id
+        ],
+        td![
+            {
+                let user = user.clone();
+                ev(Ev::Click, |_| {
+                    Msg::Edit(UserEditMsg::EditUserSelected(user))
+                })
+            },
+            &l.email
+        ],
+        td![
+            {
+                let user = user.clone();
+                ev(Ev::Click, |_| {
+                    Msg::Edit(UserEditMsg::EditUserSelected(user))
+                })
+            },
+            &l.username
+        ],
+        match logged_in_user.role {
+            Role::Admin => {
+                match l.role {
+                    Role::NotAuthenticated | Role::Disabled | Role::Regular => td![
+                        ev(Ev::Click, |_| Msg::Edit(UserEditMsg::MakeAdmin(user))),
+                        t("make-user-admin")
+                    ],
+                    Role::Admin => td![
+                        ev(Ev::Click, |_| Msg::Edit(UserEditMsg::MakeRegular(user))),
+                        t("make-user-regular"),
+                    ],
+                }
+            }
+            Role::Regular => match l.role {
+                Role::NotAuthenticated | Role::Disabled | Role::Regular => td![t("user")],
+                Role::Admin => td![t("admin")],
+            },
+            Role::NotAuthenticated | Role::Disabled => td![],
         }
     ]
 }
