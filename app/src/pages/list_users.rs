@@ -285,6 +285,7 @@ fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
                 EditMode::Create => "/admin/json/create_user/",
                 EditMode::Edit => "/admin/json/update_user/",
             })
+            .method(Method::Post)
             .json(&data),
             Msg::Edit(UserEditMsg::FailedToCreateUser)
         );
@@ -428,6 +429,12 @@ fn view_user_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
 fn view_user<F: Fn(&str) -> String>(l: &User, logged_in_user: &User, t: F) -> Node<Msg> {
     let user = UserDelta::from(l.clone());
     tr![
+        {
+            let user = user.clone();
+            ev(Ev::Click, |_| {
+                Msg::Edit(UserEditMsg::EditUserSelected(user))
+            })
+        },
         match l.role {
             Role::NotAuthenticated | Role::Disabled => C!("inactive"),
             Role::Regular => C!("regular"),
