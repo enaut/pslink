@@ -207,7 +207,7 @@ pub async fn webservice(
 ) -> Result<actix_web::dev::Server, std::io::Error> {
     let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
     info!(
-        "Running on: {}://{}/admin/login/",
+        "Running on: {}://{}/apps/",
         &server_config.protocol, host_port
     );
     info!(
@@ -265,6 +265,7 @@ pub async fn webservice(
                                 "/update_user/",
                                 web::post().to(views::process_update_user_json),
                             )
+                            .route("/update_privileges/", web::post().to(views::toggle_admin))
                             .route(
                                 "/get_logged_user/",
                                 web::post().to(views::get_logged_user_json),

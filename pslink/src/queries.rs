@@ -255,6 +255,10 @@ pub async fn list_users(
 
             Ok(ListWithOwner { user, list: users })
         }
+        RoleGuard::Regular { user } => Ok(ListWithOwner {
+            user: user.clone(),
+            list: vec![user],
+        }),
         _ => Err(ServerError::User(
             "Administrator permissions required".to_owned(),
         )),
@@ -559,14 +563,14 @@ pub async fn update_user(
 #[instrument(skip(id))]
 pub async fn toggle_admin(
     id: &Identity,
-    user_id: &str,
+    user_id: Option<i64>,
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
-    if let Ok(uid) = user_id.parse::<i64>() {
+    if let Some(uid) = user_id {
         let auth = authenticate(id, server_config).await?;
         match auth {
             RoleGuard::Admin { .. } => {
-                info!("Changing administrator priviledges: ");
+                info!("Changing administrator privileges: ");
 
                 let unchanged_user = User::get_user(uid, server_config).await?;
 
