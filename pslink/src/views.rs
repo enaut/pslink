@@ -207,15 +207,17 @@ pub async fn process_update_user_json(
 
 #[instrument(skip(id))]
 pub async fn toggle_admin(
-    data: web::Path<String>,
+    user: web::Json<UserDelta>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    let update = queries::toggle_admin(&id, &data.0, &config).await?;
-    Ok(redirect_builder(&format!(
-        "/admin/view/profile/{}",
-        update.item.id
-    )))
+    let update = queries::toggle_admin(&id, user.id, &config).await?;
+    Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        message: format!(
+            "Successfully changed privileges or user: {}",
+            update.item.username
+        ),
+    })))
 }
 
 #[instrument(skip(id))]
