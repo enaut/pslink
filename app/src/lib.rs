@@ -335,7 +335,7 @@ fn view(model: &Model) -> Node<Msg> {
         match model.user {
             Loadable::Data(Some(ref user)) => div![
                 navigation::navigation(&model.i18n, &model.location.base_url, user),
-                view_content(&model.page, &model.location.base_url)
+                view_content(&model.page, &model.location.base_url, user)
             ],
             Loadable::Data(None) => view_login(&model.i18n, model),
             Loadable::Loading => div![C!("lds-ellipsis"), div!(), div!(), div!(), div!()],
@@ -344,12 +344,12 @@ fn view(model: &Model) -> Node<Msg> {
 }
 
 /// Render the subpages.
-fn view_content(page: &Page, url: &Url) -> Node<Msg> {
+fn view_content(page: &Page, url: &Url, user: &User) -> Node<Msg> {
     div![
         C!["container"],
         match page {
-            Page::Home(model) => pages::list_links::view(model).map_msg(Msg::ListLinks),
-            Page::ListUsers(model) => pages::list_users::view(model).map_msg(Msg::ListUsers),
+            Page::Home(model) => pages::list_links::view(model, user).map_msg(Msg::ListLinks),
+            Page::ListUsers(model) => pages::list_users::view(model, user).map_msg(Msg::ListUsers),
             Page::NotFound => div![div![url.to_string()], "Page not found!"],
         }
     ]

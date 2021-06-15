@@ -29,6 +29,8 @@ danger-zone-text = Do not change the code of links that are published. If you do
 save-edits = Save edits
 delete-link = Delete this link
 
+user = Benutzer
+admin = Administrator
 user-headline = User Settings of: {$username}
 edit-user-headline = Change Settings of: {$username}
 username = Username
