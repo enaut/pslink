@@ -1,3 +1,4 @@
+//! The admin interface of pslink. It communicates with the server mostly via https and json.
 pub mod i18n;
 pub mod navigation;
 pub mod pages;
