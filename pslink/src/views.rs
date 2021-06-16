@@ -178,11 +178,11 @@ pub async fn download_png(
 #[instrument(skip(id))]
 pub async fn process_create_user_json(
     config: web::Data<crate::ServerConfig>,
-    form: web::Json<UserDelta>,
+    data: web::Json<UserDelta>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
-    match queries::create_user_json(&id, &form, &config).await {
+    match queries::create_user(&id, data.into_inner(), &config).await {
         Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
         }))),
@@ -197,7 +197,7 @@ pub async fn process_update_user_json(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
-    match queries::update_user_json(&id, &form, &config).await {
+    match queries::update_user(&id, &form, &config).await {
         Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
         }))),
@@ -360,7 +360,7 @@ pub async fn process_create_link_json(
     data: web::Json<LinkDelta>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    let new_link = queries::create_link_json(&id, data, &config).await;
+    let new_link = queries::create_link(&id, data.into_inner(), &config).await;
     match new_link {
         Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
             message: format!("Successfully saved link: {}", item.item.code),
@@ -375,7 +375,7 @@ pub async fn process_update_link_json(
     data: web::Json<LinkDelta>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    let new_link = queries::update_link_json(&id, data, &config).await;
+    let new_link = queries::update_link(&id, data.into_inner(), &config).await;
     match new_link {
         Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
             message: format!("Successfully updated link: {}", item.item.code),
