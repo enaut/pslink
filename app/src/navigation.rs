@@ -1,3 +1,4 @@
+//! Create the top menu of the app
 use fluent::fluent_args;
 use seed::{a, attrs, div, li, nav, nodes, ol, prelude::*, Url, C};
 use shared::{

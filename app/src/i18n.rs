@@ -1,3 +1,4 @@
+//! This modules contains the parts for making the app translatable.
 use std::rc::Rc;
 
 use fluent::{FluentArgs, FluentBundle, FluentResource};
@@ -5,7 +6,7 @@ use gloo_console::log;
 use shared::datatypes::Lang;
 use unic_langid::LanguageIdentifier;
 
-// A struct containing the functions and the current language to query the localized strings.
+/// A struct containing the data, functions and the current language to query the localized strings.
 #[derive(Clone)]
 pub struct I18n {
     lang: Lang,
@@ -13,6 +14,7 @@ pub struct I18n {
 }
 
 impl std::fmt::Debug for I18n {
+    /// On debug print skip the bundle
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.lang)
     }
