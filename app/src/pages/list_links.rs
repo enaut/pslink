@@ -3,8 +3,8 @@ use fluent::fluent_args;
 use image::{DynamicImage, ImageOutputFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use seed::{
-    a, attrs, button, div, h1, img, input, log, nodes, prelude::*, raw, section, span, table, td,
-    th, tr, Url, C, IF,
+    a, attrs, div, h1, img, input, log, nodes, prelude::*, raw, section, span, table, td, th, tr,
+    Url, C, IF,
 };
 
 use shared::{

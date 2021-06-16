@@ -18,6 +18,7 @@ use thiserror::Error;
 use tracing::{error, info, trace};
 use tracing_actix_web::TracingLogger;
 
+/// The Error type that is returned by most function calls if anything failed.
 #[derive(Error, Debug)]
 pub enum ServerError {
     #[error("Failed to encrypt the password {0} - aborting!")]
@@ -42,6 +43,7 @@ impl From<argonautica::Error> for ServerError {
     }
 }
 
+/// Any error can be rendered to a html string.
 impl ServerError {
     fn render_error(title: &str, content: &str) -> String {
         format!(
@@ -68,6 +70,7 @@ impl ServerError {
     }
 }
 
+/// Make the error type work nicely with the actix server.
 impl actix_web::error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
@@ -119,6 +122,7 @@ impl actix_web::error::ResponseError for ServerError {
     }
 }
 
+/// The qr-code can contain two different protocolls
 #[derive(Debug, Clone)]
 pub enum Protocol {
     Http,
@@ -146,6 +150,7 @@ impl FromStr for Protocol {
     }
 }
 
+/// The configuration of the server. It is accessible by the views and other parts of the program. Globally valid settings should be stored here.
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
     pub secret: Secret,
@@ -159,6 +164,7 @@ pub struct ServerConfig {
     pub brand_name: String,
 }
 
+/// The configuration can be serialized into an environment-file.
 impl ServerConfig {
     #[must_use]
     pub fn to_env_strings(&self) -> Vec<String> {
@@ -186,6 +192,7 @@ impl ServerConfig {
     }
 }
 
+// include the static files into the binary
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 static_loader! {
