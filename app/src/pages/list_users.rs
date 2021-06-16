@@ -1,3 +1,5 @@
+//! List all users in case an admin views it, list the "self" user otherwise.
+
 use enum_map::EnumMap;
 use seed::{a, attrs, div, h1, input, log, p, prelude::*, section, table, td, th, tr, Url, C, IF};
 use shared::{
@@ -39,23 +41,27 @@ pub struct Model {
 }
 
 impl Model {
+    /// set the language of this page (part)
     pub fn set_lang(&mut self, l: Lang) {
         self.i18n.set_lang(l);
     }
 }
 
 impl Model {
+    /// removing all open dialogs (often to open another afterwards).
     fn clean_dialogs(&mut self) {
         self.last_message = None;
         self.user_edit = None;
     }
 }
 
+/// A type containing one input field for later use.
 #[derive(Default, Debug, Clone)]
 struct FilterInput {
     filter_input: ElRef<web_sys::HtmlInputElement>,
 }
 
+/// The message splits the contained message into messages related to querrying and messages related to editing.
 #[derive(Clone)]
 pub enum Msg {
     Query(UserQueryMsg),
@@ -101,6 +107,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
+/// Update all
 pub fn process_query_messages(msg: UserQueryMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         UserQueryMsg::Fetch => {
