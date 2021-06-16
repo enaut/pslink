@@ -1,7 +1,5 @@
 use enum_map::EnumMap;
-use seed::{
-    a, attrs, button, div, h1, input, log, p, prelude::*, section, table, td, th, tr, Url, C, IF,
-};
+use seed::{a, attrs, div, h1, input, log, p, prelude::*, section, table, td, th, tr, Url, C, IF};
 use shared::{
     apirequests::general::{Operation, Ordering},
     apirequests::{
