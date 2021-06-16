@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use actix_identity::Identity;
-use actix_web::web;
 use enum_map::EnumMap;
 use serde::Serialize;
 use shared::{
@@ -17,12 +16,11 @@ use tracing::{info, instrument, warn};
 
 use super::models::NewUser;
 use crate::{
-    forms::LinkForm,
     models::{LinkDbOperations, NewClick, NewLink, UserDbOperations},
     ServerConfig, ServerError,
 };
 
-/// The possible roles a user could have.
+/// This type is used to guard the Roles. The typesystem enforces that the user can only be extracted if permissions are considered.
 #[derive(Debug, Clone)]
 pub enum RoleGuard {
     NotAuthenticated,
@@ -34,10 +32,10 @@ pub enum RoleGuard {
 impl RoleGuard {
     fn create(user: &User) -> Self {
         match user.role {
-            shared::apirequests::users::Role::NotAuthenticated => Self::NotAuthenticated,
-            shared::apirequests::users::Role::Disabled => Self::Disabled,
-            shared::apirequests::users::Role::Regular => Self::Regular { user: user.clone() },
-            shared::apirequests::users::Role::Admin => Self::Admin { user: user.clone() },
+            Role::NotAuthenticated => Self::NotAuthenticated,
+            Role::Disabled => Self::Disabled,
+            Role::Regular => Self::Regular { user: user.clone() },
+            Role::Admin => Self::Admin { user: user.clone() },
         }
     }
     /// Determin if the user is admin or the given user id is his own. This is used for things where users can edit or view their own entries, whereas admins can do so for all entries.
@@ -50,7 +48,7 @@ impl RoleGuard {
     }
 }
 
-/// queries the user matching the given [`actix_identity::Identity`] and determins its authentication and permission level. Returns a [`Role`] containing the user if it is authenticated.
+/// queries the user matching the given [`actix_identity::Identity`] and determins its authentication and permission level. Returns a [`RoleGuard`] containing the user if it is authenticated.
 ///
 /// # Errors
 /// Fails only if there are issues using the database.
@@ -77,6 +75,8 @@ pub struct ListWithOwner<T> {
 }
 
 /// Returns a List of `FullLink` meaning `Links` enriched by their author and statistics. This returns all links if the user is either Admin or Regular user.
+///
+/// Todo: this function only naively protects agains SQL-injections use better variants.
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails.
@@ -153,6 +153,9 @@ pub async fn list_all_allowed(
     }
 }
 
+/// Generate a filter statement for the SQL-Query according to the parameters...
+///
+/// Todo: this function only naively protects agains SQL-injections use better variants.
 fn generate_filter_sql(filters: &EnumMap<LinkOverviewColumns, Filter>) -> String {
     let mut result = String::new();
     let filterstring = filters
@@ -190,6 +193,8 @@ fn generate_filter_sql(filters: &EnumMap<LinkOverviewColumns, Filter>) -> String
     }
     result
 }
+
+/// A macro to translate the Ordering Type into a sql ordering string.
 macro_rules! ts {
     ($ordering:expr) => {
         match $ordering {
@@ -198,6 +203,8 @@ macro_rules! ts {
         }
     };
 }
+
+/// Generate a order statement for the SQL-Query according to the parameters...
 fn generate_order_sql(order: &Operation<LinkOverviewColumns, Ordering>) -> String {
     match order.column {
         LinkOverviewColumns::Code => {
@@ -218,10 +225,10 @@ fn generate_order_sql(order: &Operation<LinkOverviewColumns, Ordering>) -> Strin
     }
 }
 
-/// Only admins can list all users
+/// Only admins can list all users other users will only see themselves.
 ///
 /// # Errors
-/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+/// Fails with [`ServerError`] if access to the database fails.
 #[instrument(skip(id))]
 pub async fn list_users(
     id: &Identity,
@@ -264,6 +271,9 @@ pub async fn list_users(
     }
 }
 
+/// Generate a filter statement for the SQL-Query according to the parameters...
+///
+/// Todo: this function only naively protects agains SQL-injections use better variants.
 fn generate_filter_users_sql(filters: &EnumMap<UserOverviewColumns, Filter>) -> String {
     let mut result = String::new();
     let filterstring = filters
@@ -295,6 +305,8 @@ fn generate_filter_users_sql(filters: &EnumMap<UserOverviewColumns, Filter>) -> 
     }
     result
 }
+
+/// Generate a order statement for the SQL-Query according to the parameters...
 fn generate_order_users_sql(order: &Operation<UserOverviewColumns, Ordering>) -> String {
     match order.column {
         UserOverviewColumns::Id => {
@@ -370,42 +382,7 @@ pub async fn get_user_by_name(
 #[instrument(skip(id))]
 pub async fn create_user(
     id: &Identity,
-    data: &web::Form<NewUser>,
-    server_config: &ServerConfig,
-) -> Result<Item<User>, ServerError> {
-    info!("Creating a User: {:?}", &data);
-    let auth = authenticate(id, server_config).await?;
-    match auth {
-        RoleGuard::Admin { user } => {
-            let new_user = NewUser::new(
-                data.username.clone(),
-                data.email.clone(),
-                &data.password,
-                &server_config.secret,
-            )?;
-
-            new_user.insert_user(server_config).await?;
-
-            // querry the new user
-            let new_user = get_user_by_name(&data.username, server_config).await?;
-            Ok(Item {
-                user,
-                item: new_user,
-            })
-        }
-        RoleGuard::Regular { .. } | RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
-            Err(ServerError::User("Permission denied!".to_owned()))
-        }
-    }
-}
-/// Create a new user and save it to the database
-///
-/// # Errors
-/// Fails with [`ServerError`] if access to the database fails, this user does not have permissions or the user already exists.
-#[instrument(skip(id))]
-pub async fn create_user_json(
-    id: &Identity,
-    data: &web::Json<UserDelta>,
+    data: UserDelta,
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
     info!("Creating a User: {:?}", &data);
@@ -446,6 +423,7 @@ pub async fn create_user_json(
         }
     }
 }
+
 /// Take a [`actix_web::web::Form<NewUser>`] and update the corresponding entry in the database.
 /// The password is only updated if a new password of at least 4 characters is provided.
 /// The `user_id` is never changed.
@@ -454,9 +432,9 @@ pub async fn create_user_json(
 /// Fails with [`ServerError`] if access to the database fails, this user does not have permissions, or the given data is malformed.
 
 #[instrument(skip(id))]
-pub async fn update_user_json(
+pub async fn update_user(
     id: &Identity,
-    data: &web::Json<UserDelta>,
+    data: &UserDelta,
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
     let auth = authenticate(id, server_config).await?;
@@ -467,10 +445,10 @@ pub async fn update_user_json(
                 RoleGuard::Admin { .. } | RoleGuard::Regular { .. } => {
                     info!("Updating userinfo: ");
                     let password = match &data.password {
-                        Some(password) => {
+                        Some(password) if password.len() > 4 => {
                             Secret::new(NewUser::hash_password(password, &server_config.secret)?)
                         }
-                        None => unmodified_user.password,
+                        _ => unmodified_user.password,
                     };
                     let new_user = User {
                         id: uid,
@@ -499,61 +477,6 @@ pub async fn update_user_json(
     }
 }
 
-/// Take a [`actix_web::web::Form<NewUser>`] and update the corresponding entry in the database.
-/// The password is only updated if a new password of at least 4 characters is provided.
-/// The `user_id` is never changed.
-///
-/// # Errors
-/// Fails with [`ServerError`] if access to the database fails, this user does not have permissions, or the given data is malformed.
-#[allow(clippy::missing_panics_doc)]
-#[instrument(skip(id))]
-pub async fn update_user(
-    id: &Identity,
-    user_id: &str,
-    server_config: &ServerConfig,
-    data: &web::Form<NewUser>,
-) -> Result<Item<User>, ServerError> {
-    if let Ok(uid) = user_id.parse::<i64>() {
-        let auth = authenticate(id, server_config).await?;
-        let unmodified_user = User::get_user(uid, server_config).await?;
-        if auth.admin_or_self(uid) {
-            match auth {
-                RoleGuard::Admin { .. } | RoleGuard::Regular { .. } => {
-                    info!("Updating userinfo: ");
-                    let password = if data.password.len() > 3 {
-                        Secret::new(NewUser::hash_password(
-                            &data.password,
-                            &server_config.secret,
-                        )?)
-                    } else {
-                        unmodified_user.password
-                    };
-                    let new_user = User {
-                        id: uid,
-                        username: data.username.clone(),
-                        email: data.email.clone(),
-                        password,
-                        role: unmodified_user.role,
-                        language: unmodified_user.language,
-                    };
-                    new_user.update_user(server_config).await?;
-                    let changed_user = User::get_user(uid, server_config).await?;
-                    Ok(Item {
-                        user: changed_user.clone(),
-                        item: changed_user,
-                    })
-                }
-                RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
-                    unreachable!("Should be unreachable because of the `admin_or_self`")
-                }
-            }
-        } else {
-            Err(ServerError::User("Not a valid UID".to_owned()))
-        }
-    } else {
-        Err(ServerError::User("Permission denied".to_owned()))
-    }
-}
 /// Demote an admin user to a normal user or promote a normal user to admin privileges.
 ///
 /// # Errors
@@ -703,44 +626,6 @@ pub async fn delete_link(
     }
 }
 
-/// Update a link if the user is admin or it is its own link.
-///
-/// # Errors
-/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
-#[instrument(skip(id))]
-pub async fn update_link(
-    id: &Identity,
-    link_code: &str,
-    data: web::Form<LinkForm>,
-    server_config: &ServerConfig,
-) -> Result<Item<Link>, ServerError> {
-    info!("Changing link to: {:?} {:?}", &data, &link_code);
-    let auth = authenticate(id, server_config).await?;
-    match auth {
-        RoleGuard::Admin { .. } | RoleGuard::Regular { .. } => {
-            let query: Item<Link> = get_link(id, link_code, server_config).await?;
-            if auth.admin_or_self(query.item.author) {
-                let mut link = query.item;
-                let LinkForm {
-                    title,
-                    target,
-                    code,
-                } = data.into_inner();
-                link.code = code.clone();
-                link.target = target;
-                link.title = title;
-                link.update_link(server_config).await?;
-                get_link(id, &code, server_config).await
-            } else {
-                Err(ServerError::User("Not Allowed".to_owned()))
-            }
-        }
-        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
-            Err(ServerError::User("Not Allowed".to_owned()))
-        }
-    }
-}
-
 /// Create a new link
 ///
 /// # Errors
@@ -748,7 +633,7 @@ pub async fn update_link(
 #[instrument(skip(id))]
 pub async fn create_link(
     id: &Identity,
-    data: web::Form<LinkForm>,
+    data: LinkDelta,
     server_config: &ServerConfig,
 ) -> Result<Item<Link>, ServerError> {
     let auth = authenticate(id, server_config).await?;
@@ -756,38 +641,7 @@ pub async fn create_link(
         RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             let code = data.code.clone();
             info!("Creating link for: {}", &code);
-            let new_link = NewLink::from_link_form(data.into_inner(), user.id);
-            info!("Creating link for: {:?}", &new_link);
-
-            new_link.insert(server_config).await?;
-            let new_link: Link = get_link_simple(&code, server_config).await?;
-            Ok(Item {
-                user,
-                item: new_link,
-            })
-        }
-        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
-            Err(ServerError::User("Permission denied!".to_owned()))
-        }
-    }
-}
-
-/// Create a new link
-///
-/// # Errors
-/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
-#[instrument(skip(id))]
-pub async fn create_link_json(
-    id: &Identity,
-    data: web::Json<LinkDelta>,
-    server_config: &ServerConfig,
-) -> Result<Item<Link>, ServerError> {
-    let auth = authenticate(id, server_config).await?;
-    match auth {
-        RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
-            let code = data.code.clone();
-            info!("Creating link for: {}", &code);
-            let new_link = NewLink::from_link_delta(data.into_inner(), user.id);
+            let new_link = NewLink::from_link_delta(data, user.id);
             info!("Creating link for: {:?}", &new_link);
 
             new_link.insert(server_config).await?;
@@ -808,9 +662,9 @@ pub async fn create_link_json(
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
 #[instrument(skip(ident))]
-pub async fn update_link_json(
+pub async fn update_link(
     ident: &Identity,
-    data: web::Json<LinkDelta>,
+    data: LinkDelta,
     server_config: &ServerConfig,
 ) -> Result<Item<Link>, ServerError> {
     let auth = authenticate(ident, server_config).await?;
@@ -825,7 +679,7 @@ pub async fn update_link_json(
                         target,
                         code,
                         ..
-                    } = data.into_inner();
+                    } = data;
                     link.code = code.clone();
                     link.target = target;
                     link.title = title;
