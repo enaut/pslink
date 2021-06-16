@@ -42,7 +42,7 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 #[instrument]
 #[actix_web::main]
 async fn main() -> std::result::Result<(), std::io::Error> {
-    let subscriber = get_subscriber("fhs.li", "info");
+    let subscriber = get_subscriber("pslink", "info");
     init_subscriber(subscriber);
 
     match cli::setup().await {
