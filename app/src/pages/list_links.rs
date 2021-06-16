@@ -500,11 +500,6 @@ pub fn view(model: &Model, logged_in_user: &User) -> Node<Msg> {
             // Add all the content lines
             model.links.iter().map(|l| { view_link(l, logged_in_user) })
         ],
-        // A fetch button - this should not be needed and will be removed in future.
-        button![
-            ev(Ev::Click, |_| Msg::Query(QueryMsg::Fetch)),
-            "Fetch links"
-        ],
     ]
 }
 
