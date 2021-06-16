@@ -1,6 +1,5 @@
 extern crate sqlx;
 
-pub mod forms;
 pub mod models;
 pub mod queries;
 mod views;
@@ -223,7 +222,6 @@ static_loader! {
 ///
 /// # Errors
 /// This produces a [`ServerError`] if:
-///   * Tera failed to build its templates
 ///   * The server failed to bind to the designated port.
 #[allow(clippy::future_not_send, clippy::too_many_lines)]
 pub async fn webservice(

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{forms::LinkForm, Secret, ServerConfig, ServerError};
+use crate::{Secret, ServerConfig, ServerError};
 
 use async_trait::async_trait;
 use dotenv::dotenv;
@@ -14,6 +14,7 @@ use shared::{
 use sqlx::Row;
 use tracing::{error, info, instrument};
 
+/// The operations a User should support.
 #[async_trait]
 pub trait UserDbOperations<T> {
     async fn get_user(id: i64, server_config: &ServerConfig) -> Result<T, ServerError>;
@@ -31,6 +32,10 @@ pub trait UserDbOperations<T> {
 
 #[async_trait]
 impl UserDbOperations<Self> for User {
+    /// get a user by its id
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the user does not exist or the database cannot be acessed.
     #[instrument()]
     async fn get_user(id: i64, server_config: &ServerConfig) -> Result<Self, ServerError> {
         let user = sqlx::query!("Select * from users where id = ? ", id)
@@ -70,6 +75,10 @@ impl UserDbOperations<Self> for User {
         user.map_err(ServerError::Database)
     }
 
+    /// get all users
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed.
     #[instrument()]
     async fn get_all_users(server_config: &ServerConfig) -> Result<Vec<Self>, ServerError> {
         let user = sqlx::query("Select * from users")
@@ -91,6 +100,10 @@ impl UserDbOperations<Self> for User {
         user.map_err(ServerError::Database)
     }
 
+    /// change a user
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the user does not exist, some constraints are not satisfied or the database cannot be acessed.
     #[instrument()]
     async fn update_user(&self, server_config: &ServerConfig) -> Result<(), ServerError> {
         let role_i64 = self.role.to_i64();
@@ -129,6 +142,10 @@ impl UserDbOperations<Self> for User {
         Ok(())
     }
 
+    /// set the language setting of a user
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the user does not exist or the database cannot be acessed.
     #[instrument()]
     async fn set_language(
         self,
@@ -161,6 +178,8 @@ impl UserDbOperations<Self> for User {
     }
 }
 
+/// Relevant parameters when creating a new user
+/// Use the [`NewUser::new`] constructor to store the password encrypted. Otherwise it will not work.
 #[derive(Debug, Deserialize)]
 pub struct NewUser {
     pub username: String,
@@ -170,6 +189,8 @@ pub struct NewUser {
 
 impl NewUser {
     /// Create a new user that can then be inserted in the database
+    ///
+    /// The password is encrypted using the secret before creating.
     ///
     /// # Errors
     /// fails with [`ServerError`] if the password could not be encrypted.
@@ -189,6 +210,9 @@ impl NewUser {
         })
     }
 
+    /// encrypt the password.
+    ///
+    /// This function uses the Secret from the config settings to encrypt the password
     #[instrument()]
     pub(crate) fn hash_password(password: &str, secret: &Secret) -> Result<String, ServerError> {
         dotenv().ok();
@@ -222,6 +246,7 @@ impl NewUser {
     }
 }
 
+/// Operations that should be supported by links
 #[async_trait]
 pub trait LinkDbOperations<T> {
     async fn get_link_by_code(code: &str, server_config: &ServerConfig) -> Result<T, ServerError>;
@@ -235,6 +260,10 @@ pub trait LinkDbOperations<T> {
 
 #[async_trait]
 impl LinkDbOperations<Self> for Link {
+    /// Get a link by its code (the short url code)
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed or the link is not found.
     #[instrument()]
     async fn get_link_by_code(
         code: &str,
@@ -250,6 +279,11 @@ impl LinkDbOperations<Self> for Link {
         tracing::info!("Found link: {:?}", &link);
         link.map_err(ServerError::Database)
     }
+
+    /// Get a link by its id
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed or the link is not found.
     #[instrument()]
     async fn get_link_by_id(id: i64, server_config: &ServerConfig) -> Result<Self, ServerError> {
         let link = sqlx::query_as!(Self, "Select * from links where id = ? ", id)
@@ -259,6 +293,10 @@ impl LinkDbOperations<Self> for Link {
         link.map_err(ServerError::Database)
     }
 
+    /// Delete a link by its code
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed or the link is not found.
     #[instrument()]
     async fn delete_link_by_code(
         code: &str,
@@ -270,6 +308,11 @@ impl LinkDbOperations<Self> for Link {
         Ok(())
     }
 
+    /// Update a link with new values, carful when changing the code the old link becomes invalid.
+    /// This could be a problem when it is printed or published somewhere.
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed or the link is not found.
     #[instrument()]
     async fn update_link(&self, server_config: &ServerConfig) -> Result<(), ServerError> {
         info!("{:?}", self);
@@ -298,6 +341,7 @@ impl LinkDbOperations<Self> for Link {
     }
 }
 
+/// Relevant parameters when creating a new link.
 #[derive(Serialize, Debug)]
 pub struct NewLink {
     pub title: String,
@@ -308,15 +352,7 @@ pub struct NewLink {
 }
 
 impl NewLink {
-    pub(crate) fn from_link_form(form: LinkForm, uid: i64) -> Self {
-        Self {
-            title: form.title,
-            target: form.target,
-            code: form.code,
-            author: uid,
-            created_at: chrono::Local::now().naive_utc(),
-        }
-    }
+    /// Take a [`LinkDelta`] and create a [`NewLink`] instance. `created_at` is populated with the current time.
     pub(crate) fn from_link_delta(link: LinkDelta, uid: i64) -> Self {
         Self {
             title: link.title,
@@ -327,6 +363,10 @@ impl NewLink {
         }
     }
 
+    /// Insert the new link into the database
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed or constraints are not met.
     pub(crate) async fn insert(self, server_config: &ServerConfig) -> Result<(), ServerError> {
         sqlx::query!(
             "Insert into links (
@@ -347,6 +387,7 @@ impl NewLink {
     }
 }
 
+/// Whenever a link is clicked the click is registered for statistical purposes.
 #[derive(Serialize)]
 pub struct NewClick {
     pub link: i64,
