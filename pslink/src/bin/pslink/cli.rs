@@ -17,6 +17,7 @@ use tracing::{error, info, trace, warn};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 
+/// generate the commandline options available
 #[allow(clippy::too_many_lines)]
 fn generate_cli() -> Command {
     command!()
@@ -200,7 +201,12 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
     }
 }
 
+/// Setup and launch the command
+///
+/// # Panics
+/// This funcion panics if preconditions like the availability of the database are not met.
 pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
+    // load the environment .env file if available.
     dotenv().ok();
 
     // Print launch info
@@ -330,6 +336,7 @@ async fn create_admin(config: &ServerConfig) -> Result<(), ServerError> {
     Ok(())
 }
 
+/// Apply any pending migrations to the database. The migrations are embedded in the binary and don't need any addidtional files.
 async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerError> {
     info!(
         "Creating a database file and running the migrations in the file {}:",
@@ -339,6 +346,7 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerError> {
     Ok(())
 }
 
+/// The commandline parameters provided or if missing the default parameters can be converted and written to a .env file. That way the configuration is saved and automatically reused for subsequent launches.
 fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerError> {
     if std::path::Path::new(".env").exists() {
         return Err(ServerError::User(
