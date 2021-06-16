@@ -346,11 +346,6 @@ pub fn view(model: &Model, logged_in_user: &User) -> Node<Msg> {
                 .iter()
                 .map(|u| { view_user(u, logged_in_user, &t) })
         ],
-        // A refresh button. This will be removed in future versions.
-        button![
-            ev(Ev::Click, |_| Msg::Query(UserQueryMsg::Fetch)),
-            "Refresh"
-        ],
         // Display the user edit dialog if available
         if let Some(l) = &model.user_edit {
             edit_or_create_user(l.clone(), t)
