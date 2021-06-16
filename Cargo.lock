@@ -197,19 +197,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "actix-slog"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c697a62a2f51c5c26af6b1dded0622f15bec690da191615947e0c1b2b7b75198"
-dependencies = [
- "actix-web",
- "chrono",
- "futures 0.3.15",
- "pin-project 0.4.28",
- "slog",
-]
-
-[[package]]
 name = "actix-testing"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -452,12 +439,6 @@ checksum = "d52a9bb7ec0cf484c551830a7ce27bd20d67eac647e1befb56b0be4ee39a55d2"
 dependencies = [
  "winapi 0.3.9",
 ]
-
-[[package]]
-name = "anyhow"
-version = "1.0.41"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15af2628f6890fe2609a3b91bef4c83450512802e59489f9c1cb1fa5df064a61"
 
 [[package]]
 name = "app"
@@ -1534,16 +1515,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gethostname"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e692e296bfac1d2533ef168d0b60ff5897b8b70a4009276834014dd8924cc028"
-dependencies = [
- "libc",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "getopts"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1612,9 +1583,9 @@ checksum = "8be18de09a56b60ed0edf84bc9df007e30040691af7acd1c41874faac5895bfb"
 
 [[package]]
 name = "globset"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c152169ef1e421390738366d2f796655fec62621dabbd0fd476f905934061e4a"
+checksum = "f0fc1b9fa0e64ffb1aa5b95daa0f0f167734fd528b7c02eabc581d9d843649b1"
 dependencies = [
  "aho-corasick",
  "bstr",
@@ -1874,9 +1845,9 @@ dependencies = [
 
 [[package]]
 name = "ignore"
-version = "0.4.17"
+version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b287fb45c60bb826a0dc68ff08742b9d88a2fea13d6e0c286b3172065aaf878c"
+checksum = "713f1b139373f96a2e0ce3ac931cd01ee973c3c5dd7c40c0c2efe96ad2b6751d"
 dependencies = [
  "crossbeam-utils",
  "globset",
@@ -2733,10 +2704,8 @@ dependencies = [
  "actix-identity",
  "actix-rt",
  "actix-server",
- "actix-slog",
  "actix-web",
  "actix-web-static-files",
- "anyhow",
  "argonautica",
  "async-trait",
  "chrono",
@@ -2761,7 +2730,6 @@ dependencies = [
  "tokio 0.2.25",
  "tracing",
  "tracing-actix-web",
- "tracing-bunyan-formatter",
  "tracing-opentelemetry",
  "tracing-subscriber",
 ]
@@ -3470,12 +3438,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f173ac3d1a7e3b28003f40de0b5ce7fe2710f9b9dc3fc38664cebee46b3b6527"
 
 [[package]]
-name = "slog"
-version = "2.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8347046d4ebd943127157b94d63abb990fcf729dc4e9978927fdf4ac3c998d06"
-
-[[package]]
 name = "smallvec"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4098,23 +4060,6 @@ dependencies = [
  "proc-macro2 1.0.27",
  "quote 1.0.9",
  "syn",
-]
-
-[[package]]
-name = "tracing-bunyan-formatter"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dce1eae70720bd6bb3944f7cf501761aeae658bd1f9293aa373c71a195064910"
-dependencies = [
- "chrono",
- "gethostname",
- "log",
- "serde",
- "serde_json",
- "tracing",
- "tracing-core",
- "tracing-log",
- "tracing-subscriber",
 ]
 
 [[package]]
