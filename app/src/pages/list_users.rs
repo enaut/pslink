@@ -101,6 +101,8 @@ pub enum UserEditMsg {
 /*
  * update
  */
+
+/// Split the update to Query updates and Edit updates
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Query(msg) => process_query_messages(msg, model, orders),
@@ -111,7 +113,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
-/// Update all
+/// Process all updates related to getting data from the server.
 pub fn process_query_messages(msg: UserQueryMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         UserQueryMsg::Fetch => {
@@ -174,6 +176,7 @@ pub fn process_query_messages(msg: UserQueryMsg, model: &mut Model, orders: &mut
     }
 }
 
+/// Load the list of users from the server.
 fn load_users(data: UserRequestForm, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
         let data = data;
@@ -202,6 +205,7 @@ fn load_users(data: UserRequestForm, orders: &mut impl Orders<Msg>) {
     });
 }
 
+/// Process all the messages related to editing users.
 pub fn process_user_edit_messages(
     msg: UserEditMsg,
     model: &mut Model,
@@ -235,7 +239,7 @@ pub fn process_user_edit_messages(
             let data = model
                 .user_edit
                 .take()
-                .expect("A user should allways be there on save"); // complicated way to move into the closure
+                .expect("A user should allways be there on save");
             log!("Saving User: ", &data.username);
             save_user(data, orders);
         }
@@ -253,6 +257,7 @@ pub fn process_user_edit_messages(
     }
 }
 
+/// Update the role of a user - this toggles between admin and regular.
 fn update_privileges(user: UserDelta, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
         let data = user;
@@ -283,6 +288,7 @@ fn update_privileges(user: UserDelta, orders: &mut impl Orders<Msg>) {
     });
 }
 
+/// Save a new user or edit an existing user
 fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
         let data = user;
@@ -362,6 +368,7 @@ pub fn view(model: &Model, logged_in_user: &User) -> Node<Msg> {
     ]
 }
 
+/// View the headlines of the table
 fn view_user_table_head<F: Fn(&str) -> String>(t: F) -> Node<Msg> {
     tr![
         th![
@@ -386,6 +393,7 @@ fn view_user_table_head<F: Fn(&str) -> String>(t: F) -> Node<Msg> {
     ]
 }
 
+/// Display the filterboxes below the headlines
 fn view_user_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> Node<Msg> {
     tr![
         C!["filters"],
@@ -428,6 +436,7 @@ fn view_user_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
     ]
 }
 
+/// Display one user-line of the table
 fn view_user<F: Fn(&str) -> String>(l: &User, logged_in_user: &User, t: F) -> Node<Msg> {
     let user = UserDelta::from(l.clone());
     tr![
@@ -473,6 +482,7 @@ fn view_user<F: Fn(&str) -> String>(l: &User, logged_in_user: &User, t: F) -> No
     ]
 }
 
+/// display the edit and create dialog
 fn edit_or_create_user<F: Fn(&str) -> String>(l: UserDelta, t: F) -> Node<Msg> {
     let user = l;
     let headline: Node<Msg> = match &user.role {
