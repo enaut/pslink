@@ -1,3 +1,4 @@
+//! The more generic datatypes used in pslink
 use std::ops::Deref;
 
 use serde::{Deserialize, Serialize, Serializer};
@@ -19,6 +20,7 @@ pub struct FullLink {
     pub clicks: Count,
 }
 
+/// A User of the pslink service
 #[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct User {
     pub id: i64,
@@ -29,6 +31,7 @@ pub struct User {
     pub language: Lang,
 }
 
+/// A short url of the link service
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Link {
     pub id: i64,
@@ -39,10 +42,13 @@ pub struct Link {
     pub created_at: chrono::NaiveDateTime,
 }
 
+/// When statistics are counted
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Count {
     pub number: i32,
 }
+
+/// Everytime a shor url is clicked record it for statistical evaluation.
 #[derive(Serialize, Debug)]
 pub struct Click {
     pub id: i64,
@@ -50,6 +56,7 @@ pub struct Click {
     pub created_at: chrono::NaiveDateTime,
 }
 
+/// The Password: Display, Debug and serialize do not include the Password to prevent leaks of sensible information in logs or similar.
 #[derive(PartialEq, Clone, Deserialize)]
 #[serde(from = "String")]
 pub struct Secret {
@@ -92,6 +99,7 @@ impl std::fmt::Display for Secret {
     }
 }
 
+/// Loadable is a type that has not been loaded but will be in future. It can be used to indicate the loading process.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Loadable<T> {
     Data(Option<T>),
