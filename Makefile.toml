@@ -75,9 +75,9 @@ clear = true
 install_crate = { rustup_component_name = "clippy", binary = "cargo-clippy", test_arg = "--help" }
 command = "cargo"
 args = ["clippy", "--all-features", "--",
-    "--deny", "warnings",
-    "--deny", "clippy::pedantic",
-    "--deny", "clippy::nursery",
+    "--warn", "warnings",
+    "--warn", "clippy::pedantic",
+    "--warn", "clippy::nursery",
     "--allow", "clippy::wildcard_imports", # for `use seed::{prelude::*, *};`
     "--allow", "clippy::future_not_send", # JS/WASM is single threaded
     "--allow", "clippy::used_underscore_binding", # some libraries break this rule

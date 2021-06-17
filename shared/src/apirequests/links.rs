@@ -53,7 +53,7 @@ impl From<Link> for LinkDelta {
 }
 
 impl From<FullLink> for LinkDelta {
-    /// Automatically create a `LinkDelta` from a FullLink.
+    /// Automatically create a `LinkDelta` from a `FullLink`.
     fn from(l: FullLink) -> Self {
         Self {
             edit: EditMode::Edit,
