@@ -98,8 +98,8 @@ pub fn get_host() -> String {
 }
 
 /// The pages:
-///   * Home for listing of links
-///   * ListUsers for listing of users
+///   * `Home` for listing of links
+///   * `ListUsers` for listing of users
 #[derive(Debug)]
 enum Page {
     Home(pages::list_links::Model),
