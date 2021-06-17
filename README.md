@@ -4,11 +4,10 @@ The target audience of this tool are small entities that need a url shortener. T
 
 So in general this is more a shared short url bookmark webpage than a shorturl service.
 
-![Screenshot](./doc/img/pslinkscreenshot.png)
+![Screenshot](./doc/img/screenshot.png)
+![Screenshot](./doc/img/screenshot_edit.png)
 
 The Page comes with a basic commandline interface to setup the environment.
-
-> This branch is under development the commands below are slightly different. To build use: `cargo make build` to use pslink use the `target/debug/pslink` file.
 
 ## Usage
 
@@ -33,7 +32,10 @@ Pslink can be compiled and installed with cargo. Setup cargo as guided here: htt
 After that install pslink using:
 
 ```bash
-$ cargo install pslink
+$ cargo install cargo-make
+$ cargo make build_release
+# or
+$ cargo make start_release
 ```
 
 If that succeeds you should now be able to call pslink.
@@ -43,10 +45,10 @@ If that succeeds you should now be able to call pslink.
 When building manually with cargo you have to have a sqlite database present or build it in offline mode. So on your first build you will most likely need to call:
 
 ```bash
-SQLX_OFFLINE=1 cargo run
+SQLX_OFFLINE=1 cargo make build_release
 # or
 $ export SQLX_OFFLINE=1
-$ cargo run
+$ cargo make build_release
 ```
 
 If pslink is built with `cargo build release --target=x86_64-unknown-linux-musl` everything is embedded and it should be portable to any 64bit linux system.

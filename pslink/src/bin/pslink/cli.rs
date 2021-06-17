@@ -205,7 +205,7 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
 ///
 /// # Panics
 /// This funcion panics if preconditions like the availability of the database are not met.
-pub(crate) async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
+pub async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
     // load the environment .env file if available.
     dotenv().ok();
 

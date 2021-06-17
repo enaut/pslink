@@ -252,8 +252,9 @@ pub fn process_user_edit_messages(
             model.user_edit = None;
             orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
         }
-        UserEditMsg::MakeAdmin(user) => update_privileges(user, orders),
-        UserEditMsg::MakeRegular(user) => update_privileges(user, orders),
+        UserEditMsg::MakeAdmin(user) | UserEditMsg::MakeRegular(user) => {
+            update_privileges(user, orders)
+        }
     }
 }
 
