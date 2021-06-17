@@ -1,3 +1,5 @@
+//! types for link requesting and saving.
+
 use enum_map::{Enum, EnumMap};
 use serde::{Deserialize, Serialize};
 
@@ -5,7 +7,7 @@ use crate::datatypes::{FullLink, Link};
 
 use super::general::{EditMode, Filter, Operation, Ordering};
 
-/// A generic list returntype containing the User and a Vec containing e.g. Links or Users
+/// Request a list of users respecting the filter and ordering.
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct LinkRequestForm {
     pub filter: EnumMap<LinkOverviewColumns, Filter>,
@@ -23,7 +25,7 @@ impl Default for LinkRequestForm {
     }
 }
 
-/// The Struct that is responsible for creating and editing users.
+/// The Struct that is responsible for creating and editing links.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct LinkDelta {
     pub edit: EditMode,
@@ -36,7 +38,7 @@ pub struct LinkDelta {
 }
 
 impl From<Link> for LinkDelta {
-    /// Automatically create a `UserDelta` from a User.
+    /// Automatically create a `LinkDelta` from a Link.
     fn from(l: Link) -> Self {
         Self {
             edit: EditMode::Edit,
@@ -51,7 +53,7 @@ impl From<Link> for LinkDelta {
 }
 
 impl From<FullLink> for LinkDelta {
-    /// Automatically create a `UserDelta` from a User.
+    /// Automatically create a `LinkDelta` from a FullLink.
     fn from(l: FullLink) -> Self {
         Self {
             edit: EditMode::Edit,
@@ -65,6 +67,7 @@ impl From<FullLink> for LinkDelta {
     }
 }
 
+/// An enumeration of the filterable columns
 #[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq, Hash, Enum)]
 pub enum LinkOverviewColumns {
     Code,
@@ -74,17 +77,20 @@ pub enum LinkOverviewColumns {
     Statistics,
 }
 
+/// A struct to request a qr-code from the server
 #[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct QrCodeRequest {
     pub link_id: String,
     pub format: QrCodeFormat,
 }
 
+/// The response to a qr-request
 #[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct SvgQrCodeResponse {
     pub svg: String,
 }
 
+/// Available formats of qr-codes
 #[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub enum QrCodeFormat {
     Svg,

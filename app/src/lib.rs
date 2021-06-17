@@ -60,12 +60,14 @@ impl Model {
     }
 }
 
+/// The input fields of the login dialog.
 #[derive(Default, Debug)]
 struct LoginForm {
     username: ElRef<web_sys::HtmlInputElement>,
     password: ElRef<web_sys::HtmlInputElement>,
 }
 
+/// All information regarding the current location
 #[derive(Debug)]
 struct Location {
     host: String,
@@ -84,6 +86,7 @@ impl Location {
     }
 }
 
+/// Get the url from the address bar.
 #[must_use]
 pub fn get_host() -> String {
     window()
@@ -92,6 +95,9 @@ pub fn get_host() -> String {
         .expect("Failed to extract the host of the url")
 }
 
+/// The pages:
+///   * Home for listing of links
+///   * ListUsers for listing of users
 #[derive(Debug)]
 enum Page {
     Home(pages::list_links::Model),
@@ -137,6 +143,8 @@ impl Page {
 // ------ ------
 //    Update
 // ------ ------
+
+/// The messages regarding authentication and settings.
 #[derive(Clone)]
 pub enum Msg {
     UrlChanged(subs::UrlChanged),
@@ -154,6 +162,7 @@ pub enum Msg {
     LanguageChanged(Lang),
 }
 
+/// react to settings and authentication changes.
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::UrlChanged(url) => {
@@ -222,6 +231,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
 }
 
+/// switch the language
 fn change_language(l: Lang, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async move {
         // create request
@@ -241,6 +251,7 @@ fn change_language(l: Lang, orders: &mut impl Orders<Msg>) {
     });
 }
 
+/// logout on the server
 fn logout(orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
         let request = Request::new("/admin/logout/");
@@ -249,6 +260,7 @@ fn logout(orders: &mut impl Orders<Msg>) {
     });
 }
 
+/// login using username and password
 fn login_user(model: &mut Model, orders: &mut impl Orders<Msg>) {
     model.user = Loadable::Loading;
     let data = model.login_data.clone();
@@ -272,6 +284,7 @@ fn login_user(model: &mut Model, orders: &mut impl Orders<Msg>) {
     });
 }
 
+/// to create urls for different subpages
 pub struct Urls<'a> {
     base_url: std::borrow::Cow<'a, Url>,
 }
@@ -356,6 +369,7 @@ fn view_content(page: &Page, url: &Url, user: &User) -> Node<Msg> {
     ]
 }
 
+/// If not logged in render the login form
 fn view_login(lang: &I18n, model: &Model) -> Node<Msg> {
     let t = move |key: &str| lang.translate(key, None);
 
