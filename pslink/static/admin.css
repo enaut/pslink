@@ -220,7 +220,8 @@ img.trashicon {
 
 .qrdownload {
     display: flex;
-    vertical-align: middle;
+    align-items: center;
+    justify-content: space-evenly;
 }
 
 .languageselector a {
