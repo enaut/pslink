@@ -1,5 +1,4 @@
 //! Containing the individual pages for the admin app so far one to list the links and one to list the users.
-pub mod home;
 pub mod list_links;
 pub mod list_users;
 

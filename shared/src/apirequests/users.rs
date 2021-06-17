@@ -1,3 +1,4 @@
+//! Types for user requesting and saving
 use enum_map::{Enum, EnumMap};
 use serde::{Deserialize, Serialize};
 
@@ -5,6 +6,7 @@ use crate::datatypes::User;
 
 use super::general::{EditMode, Filter, Operation, Ordering};
 
+/// Request an ordered and filtered list of users from the server.
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct UserRequestForm {
     // The filters up to one for each column
@@ -25,6 +27,7 @@ impl Default for UserRequestForm {
     }
 }
 
+/// Data to login.
 #[derive(Debug, Deserialize, Default, Serialize, Clone)]
 pub struct LoginUser {
     pub username: String,
@@ -65,7 +68,7 @@ pub enum UserOverviewColumns {
     Username,
 }
 
-/// The possible roles a user could have.
+/// The possible roles a user could have. They are stored as i64 in the database
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Copy)]
 pub enum Role {
     NotAuthenticated,

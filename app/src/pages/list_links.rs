@@ -1,3 +1,4 @@
+//! List all the links the own links editable or if an admin is logged in all links editable.
 use enum_map::EnumMap;
 use fluent::fluent_args;
 use gloo_console::log;
@@ -62,6 +63,7 @@ impl Model {
     }
 }
 
+/// There can allways be only one dialog.
 #[derive(Debug, Clone)]
 enum Dialog {
     EditLink {
@@ -73,6 +75,7 @@ enum Dialog {
     None,
 }
 
+/// A qr-code with `new` for creating a blob url and `Drop` for releasing the blob url.
 #[derive(Debug, Clone)]
 pub struct QrGuard {
     svg: String,
@@ -100,17 +103,20 @@ impl QrGuard {
 }
 
 impl Drop for QrGuard {
+    /// release the blob url
     fn drop(&mut self) {
         web_sys::Url::revoke_object_url(&self.url)
             .unwrap_or_else(|_| (log!("Failed to release url!")));
     }
 }
 
+/// Filter one column of the row.
 #[derive(Default, Debug, Clone)]
 struct FilterInput {
     filter_input: ElRef<web_sys::HtmlInputElement>,
 }
 
+/// A message can either edit or query. (or set a dialog)
 #[derive(Clone)]
 pub enum Msg {
     Query(QueryMsg),    // Messages related to querying links
@@ -119,6 +125,7 @@ pub enum Msg {
     SetMessage(String), // Set a message to the user
 }
 
+/// All the messages related to requesting information from the server.
 #[derive(Clone)]
 pub enum QueryMsg {
     Fetch,
@@ -129,7 +136,8 @@ pub enum QueryMsg {
     TargetFilterChanged(String),
     AuthorFilterChanged(String),
 }
-/// All the messages on link editing
+
+/// All the messages on storing information on the server.
 #[derive(Debug, Clone)]
 pub enum EditMsg {
     EditSelected(LinkDelta),
@@ -153,7 +161,7 @@ fn clear_all(model: &mut Model) {
     model.dialog = Dialog::None;
 }
 
-/// React to environment changes
+/// Split the update to Query updates and Edit updates.
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::Query(msg) => process_query_messages(msg, model, orders),
@@ -705,10 +713,12 @@ fn edit_or_create_link<F: Fn(&str) -> String>(
     ]
 }
 
+/// generate a qr-code for a code
 fn generate_qr_from_code(code: &str) -> String {
     generate_qr_from_link(&format!("https://{}/{}", get_host(), code))
 }
 
+/// generate a svg qr-code for a url
 fn generate_qr_from_link(url: &str) -> String {
     if let Ok(qr) = QrCode::with_error_correction_level(url, qrcode::EcLevel::L) {
         let svg = qr
@@ -719,6 +729,7 @@ fn generate_qr_from_link(url: &str) -> String {
             .build();
         svg
     } else {
+        // should never (only on very huge codes) happen.
         "".to_string()
     }
 }
@@ -732,6 +743,7 @@ fn close_button() -> Node<Msg> {
     ]
 }
 
+/// generate a png qr-code for a url
 fn generate_qr_png(code: &str) -> Vec<u8> {
     let qr = QrCode::with_error_correction_level(
         format!("http://{}/{}", get_host(), code),
