@@ -7,7 +7,47 @@ So in general this is more a shared short url bookmark webpage than a shorturl s
 ![Screenshot](./doc/img/screenshot.png)
 ![Screenshot](./doc/img/screenshot_edit.png)
 
+## Page-Features
+
+  ### Guests
+
+  * click on link get redirected to the page
+  * error on invalid or deleted link
+
+  ### Users
+
+  * view all existing links
+  * modify all own links
+  * create new links
+  * download qr-codes of the links
+  * modify own "profile" settings
+
+  ### Admins
+
+  * everything from users
+  * modify all links
+  * list all users
+  * modify all profiles
+  * create new users
+  * make users administrators
+  * make administrators normal users
+
+## Server-Features
+
 The Page comes with a basic commandline interface to setup the environment.
+
+### Commandline features
+
+* create and read from a `.env` file in the current directory
+* create and migrate the database
+* create an admin user
+* run the webserver
+
+### Service features
+
+* admin interface via wasm
+* Rest+Json server
+* Tracing via Jaeger
 
 ## Usage
 
