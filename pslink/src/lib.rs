@@ -14,7 +14,7 @@ use shared::datatypes::Secret;
 use sqlx::{Pool, Sqlite};
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thiserror::Error;
-use tracing::{error, info, trace};
+use tracing::{error, info};
 use tracing_actix_web::TracingLogger;
 
 /// The Error type that is returned by most function calls if anything failed.
@@ -217,14 +217,13 @@ pub async fn webservice(
 ) -> Result<actix_web::dev::Server, std::io::Error> {
     let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
     info!(
-        "Running on: {}://{}/apps/",
+        "Running on: {}://{}/app/",
         &server_config.protocol, host_port
     );
     info!(
-        "If the public url is set up correctly it should be accessible via: {}://{}/admin/login/",
+        "If the public url is set up correctly it should be accessible via: {}://{}/app/",
         &server_config.protocol, &server_config.public_url
     );
-    trace!("The tera templates are ready");
 
     let server = HttpServer::new(move || {
         let generated = generate();
