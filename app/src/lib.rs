@@ -171,12 +171,12 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::ListLinks(msg) => {
             if let Page::Home(model) = &mut model.page {
-                list_links::update(msg, model, &mut orders.proxy(Msg::ListLinks))
+                list_links::update(msg, model, &mut orders.proxy(Msg::ListLinks));
             }
         }
         Msg::ListUsers(msg) => {
             if let Page::ListUsers(model) = &mut model.page {
-                list_users::update(msg, model, &mut orders.proxy(Msg::ListUsers))
+                list_users::update(msg, model, &mut orders.proxy(Msg::ListUsers));
             }
         }
         Msg::NoMessage => (),
@@ -211,13 +211,13 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::NotAuthenticated => {
             if model.user.is_some() {
                 model.user = Loadable::Data(None);
-                logout(orders)
+                logout(orders);
             }
             model.user = Loadable::Data(None);
         }
         Msg::Logout => {
             model.user = Loadable::Data(None);
-            logout(orders)
+            logout(orders);
         }
         Msg::Login => login_user(model, orders),
         Msg::UsernameChanged(s) => model.login_data.username = s,
