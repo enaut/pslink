@@ -223,7 +223,12 @@ static_loader! {
 /// # Errors
 /// This produces a [`ServerError`] if:
 ///   * The server failed to bind to the designated port.
-#[allow(clippy::future_not_send, clippy::too_many_lines)]
+#[allow(
+    clippy::future_not_send,
+    clippy::too_many_lines,
+    unknown_lints,
+    clippy::unused_async
+)]
 pub async fn webservice(
     server_config: ServerConfig,
 ) -> Result<actix_web::dev::Server, std::io::Error> {

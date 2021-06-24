@@ -222,7 +222,7 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
                 LinkOverviewColumns::Statistics => {
                     |o: &FullLink, t: &FullLink| o.clicks.number.cmp(&t.clicks.number)
                 }
-            })
+            });
         }
         QueryMsg::Received(response) => {
             model.links = response;
@@ -304,7 +304,7 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
             model.handle_render = Some(orders.perform_cmd_with_handle(async move {
                 let qr_code = Loadable::Data(Some(QrGuard::new(&code)));
                 Msg::Edit(EditMsg::QrGenerated(qr_code))
-            }))
+            }));
         }
         EditMsg::QrGenerated(qr_code) => {
             let new_dialog = if let Dialog::EditLink {
@@ -381,7 +381,7 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
         // capture including the message part
         link @ EditMsg::MayDeleteSelected(..) => {
             clear_all(model);
-            model.dialog = Dialog::Question(link)
+            model.dialog = Dialog::Question(link);
         }
         EditMsg::DeleteSelected(link) => delete_link(link, orders),
         EditMsg::FailedToDeleteLink => log!("Failed to delete Link"),
