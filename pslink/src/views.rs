@@ -83,8 +83,8 @@ pub async fn wasm_app(config: web::Data<crate::ServerConfig>) -> Result<HttpResp
         <body>
           <section id="app"><div class="lds-ellipsis">Loading: <div></div><div></div><div></div><div></div></div></section>
           <script type="module">
-            import init from '/app/pkg/app.js';
-            init('/app/pkg/app_bg.wasm');
+            import init from '/static/wasm/app.js';
+            init('/static/wasm/app_bg.wasm');
           </script>
         </body>
         </html>"#,
