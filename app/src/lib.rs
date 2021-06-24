@@ -6,6 +6,7 @@ pub mod pages;
 use pages::list_links;
 use pages::list_users;
 use seed::window;
+use seed::IF;
 use seed::{attrs, button, div, input, label, log, prelude::*, App, Url, C};
 use shared::apirequests::users::LoginUser;
 use shared::datatypes::Lang;
@@ -391,11 +392,14 @@ fn view_login(lang: &I18n, model: &Model) -> Node<Msg> {
             label![t("password")],
             input![
                 input_ev(Ev::Input, |s| { Msg::PasswordChanged(s) }),
+                keyboard_ev(Ev::KeyDown, |keyboard_event| {
+                    IF!(keyboard_event.key() == "Enter" => Msg::Login)
+                }),
                 attrs![
-            At::Type => "password",
-            At::Placeholder => t("password"),
-        At::Name => "password",
-        At::Value => model.login_data.password],
+                At::Type => "password",
+                At::Placeholder => t("password"),
+            At::Name => "password",
+            At::Value => model.login_data.password],
                 el_ref(&model.login_form.password)
             ]
         ],
