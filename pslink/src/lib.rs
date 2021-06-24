@@ -234,14 +234,13 @@ pub async fn webservice(
 ) -> Result<actix_web::dev::Server, std::io::Error> {
     let host_port = format!("{}:{}", &server_config.internal_ip, &server_config.port);
     info!(
-        "Running on: {}://{}/apps/",
+        "Running on: {}://{}/app/",
         &server_config.protocol, host_port
     );
     info!(
-        "If the public url is set up correctly it should be accessible via: {}://{}/admin/login/",
+        "If the public url is set up correctly it should be accessible via: {}://{}/app/",
         &server_config.protocol, &server_config.public_url
     );
-    trace!("The tera templates are ready");
     let cookie_secret = Key::generate();
 
     let server = HttpServer::new(move || {
@@ -316,6 +315,7 @@ pub async fn webservice(
     .bind(host_port)
     .inspect_err(|_| {
         error!("Failed to bind to port!");
+        e
     })?
     .run();
     Ok(server)

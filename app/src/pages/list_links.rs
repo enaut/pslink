@@ -1,4 +1,6 @@
 //! List all the links the own links editable or if an admin is logged in all links editable.
+use std::ops::Deref;
+
 use enum_map::EnumMap;
 use fluent::fluent_args;
 use gloo_console::log;
@@ -48,11 +50,11 @@ pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
 
 #[derive(Debug)]
 pub struct Model {
-    links: Vec<FullLink>,        // will contain the links to display
-    i18n: I18n,                  // to translate
-    formconfig: LinkRequestForm, // when requesting links the form is stored here
+    links: Vec<Cached<FullLink>>, // will contain the links to display
+    i18n: I18n,                   // to translate
+    formconfig: LinkRequestForm,  // when requesting links the form is stored here
     inputs: EnumMap<LinkOverviewColumns, FilterInput>, // the input fields for the searches
-    dialog: Dialog,              // User interaction - there can only ever be one dialog open.
+    dialog: Dialog,               // User interaction - there can only ever be one dialog open.
     handle_render: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
     handle_timeout: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
 }
@@ -60,6 +62,20 @@ pub struct Model {
 impl Model {
     pub fn set_lang(&mut self, l: Lang) {
         self.i18n.set_lang(l);
+    }
+}
+
+#[derive(Debug)]
+pub struct Cached<T> {
+    data: T,
+    cache: String,
+}
+
+impl<T> Deref for Cached<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
     }
 }
 
@@ -208,24 +224,30 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
             // Also sort the links locally - can probably removed...
             model.links.sort_by(match column {
                 LinkOverviewColumns::Code => {
-                    |o: &FullLink, t: &FullLink| o.link.code.cmp(&t.link.code)
+                    |o: &Cached<FullLink>, t: &Cached<FullLink>| o.link.code.cmp(&t.link.code)
                 }
                 LinkOverviewColumns::Description => {
-                    |o: &FullLink, t: &FullLink| o.link.title.cmp(&t.link.title)
+                    |o: &Cached<FullLink>, t: &Cached<FullLink>| o.link.title.cmp(&t.link.title)
                 }
                 LinkOverviewColumns::Target => {
-                    |o: &FullLink, t: &FullLink| o.link.target.cmp(&t.link.target)
+                    |o: &Cached<FullLink>, t: &Cached<FullLink>| o.link.target.cmp(&t.link.target)
                 }
-                LinkOverviewColumns::Author => {
-                    |o: &FullLink, t: &FullLink| o.user.username.cmp(&t.user.username)
-                }
-                LinkOverviewColumns::Statistics => {
-                    |o: &FullLink, t: &FullLink| o.clicks.number.cmp(&t.clicks.number)
-                }
+                LinkOverviewColumns::Author => |o: &Cached<FullLink>, t: &Cached<FullLink>| {
+                    o.user.username.cmp(&t.user.username)
+                },
+                LinkOverviewColumns::Statistics => |o: &Cached<FullLink>, t: &Cached<FullLink>| {
+                    o.clicks.number.cmp(&t.clicks.number)
+                },
             });
         }
         QueryMsg::Received(response) => {
-            model.links = response;
+            model.links = response
+                .into_iter()
+                .map(|l| {
+                    let cache = generate_qr_from_code(&l.link.code);
+                    Cached { data: l, cache }
+                })
+                .collect();
         }
         QueryMsg::CodeFilterChanged(s) => {
             log!("Filter is: ", &s);
@@ -601,9 +623,9 @@ fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
 }
 
 /// display a single table row containing one link
-fn view_link(l: &FullLink, logged_in_user: &User) -> Node<Msg> {
+fn view_link(l: &Cached<FullLink>, logged_in_user: &User) -> Node<Msg> {
     use shared::apirequests::users::Role;
-    let link = LinkDelta::from(l.clone());
+    let link = LinkDelta::from(l.data.clone());
     tr![
         IF! (logged_in_user.role == Role::Admin
             || (logged_in_user.role == Role::Regular) && l.user.id == logged_in_user.id =>
@@ -619,14 +641,14 @@ fn view_link(l: &FullLink, logged_in_user: &User) -> Node<Msg> {
                 a![
                     ev(Ev::Click, |event| event.stop_propagation()),
                     attrs![At::Href => format!["/admin/download/png/{}",  &l.link.code], At::Download => true.as_at_value()],
-                    raw!(&generate_qr_from_code(&l.link.code))
+                    raw!(&l.cache)
                 ]
             ]
         },
         if logged_in_user.role == Role::Admin
             || (logged_in_user.role == Role::Regular) && l.user.id == logged_in_user.id
         {
-            let link = LinkDelta::from(l.clone());
+            let link = LinkDelta::from(l.data.clone());
             td![
                 ev(Ev::Click, |event| {
                     event.stop_propagation();
