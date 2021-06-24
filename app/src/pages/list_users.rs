@@ -145,7 +145,7 @@ pub fn process_query_messages(msg: UserQueryMsg, model: &mut Model, orders: &mut
                 UserOverviewColumns::Id => |o: &User, t: &User| o.id.cmp(&t.id),
                 UserOverviewColumns::Username => |o: &User, t: &User| o.username.cmp(&t.username),
                 UserOverviewColumns::Email => |o: &User, t: &User| o.email.cmp(&t.email),
-            })
+            });
         }
         UserQueryMsg::Received(response) => {
             model.users = response;
@@ -214,11 +214,11 @@ pub fn process_user_edit_messages(
     match msg {
         UserEditMsg::EditUserSelected(user) => {
             model.clean_dialogs();
-            model.user_edit = Some(user)
+            model.user_edit = Some(user);
         }
         UserEditMsg::CreateNewUser => {
             model.clean_dialogs();
-            model.user_edit = Some(UserDelta::default())
+            model.user_edit = Some(UserDelta::default());
         }
         UserEditMsg::EditUsernameChanged(s) => {
             if let Some(ref mut ue) = model.user_edit {
@@ -253,7 +253,7 @@ pub fn process_user_edit_messages(
             orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
         }
         UserEditMsg::MakeAdmin(user) | UserEditMsg::MakeRegular(user) => {
-            update_privileges(user, orders)
+            update_privileges(user, orders);
         }
     }
 }
