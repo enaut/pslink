@@ -395,11 +395,14 @@ fn view_login(lang: &I18n, model: &Model) -> Node<Msg> {
             label![t("password")],
             input![
                 input_ev(Ev::Input, |s| { Msg::PasswordChanged(s) }),
+                keyboard_ev(Ev::KeyDown, |keyboard_event| {
+                    IF!(keyboard_event.key() == "Enter" => Msg::Login)
+                }),
                 attrs![
-            At::Type => "password",
-            At::Placeholder => t("password"),
-        At::Name => "password",
-        At::Value => model.login_data.password],
+                At::Type => "password",
+                At::Placeholder => t("password"),
+            At::Name => "password",
+            At::Value => model.login_data.password],
                 el_ref(&model.login_form.password)
             ]
         ],

@@ -17,12 +17,12 @@ dependencies = ["build_client_release", "build_server_release"]
 description = "Build client"
 install_crate = { crate_name = "wasm-pack", binary = "wasm-pack", test_arg = "-V" }
 command = "wasm-pack"
-args = ["build", "app", "--target", "web", "--out-name", "app", "--dev"]
+args = ["build", "app", "--target", "web", "--out-name", "app", "--out-dir", "../pslink/static/wasm/", "--dev"]
 
 [tasks.build_client_release]
 extend = "build_client"
 description = "Build client in release mode"
-args = ["build", "app", "--target", "web", "--out-name", "app", "--release"]
+args = ["build", "app", "--target", "web", "--out-name", "app", "--out-dir", "../pslink/static/wasm/", "--release"]
 
 [tasks.build_server]
 env = { SQLX_OFFLINE = 1 }
