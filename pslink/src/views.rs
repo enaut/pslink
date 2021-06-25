@@ -78,7 +78,7 @@ pub async fn wasm_app(config: web::Data<crate::ServerConfig>) -> Result<HttpResp
           <meta http-equiv="robots" content="[noindex|nofollow]">
           <link rel="stylesheet" href="/static/style.css">
           <link rel="stylesheet" href="/static/admin.css">
-          <title>Server integration example</title>
+          <title>Pslink your urls</title>
         </head>
         <body>
           <section id="app"><div class="lds-ellipsis">Loading: <div></div><div></div><div></div><div></div></div></section>
