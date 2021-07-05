@@ -12,8 +12,8 @@ use fluent_langneg::{
 };
 use fluent_templates::LanguageIdentifier;
 use image::{DynamicImage, ImageOutputFormat, Luma};
+use pslink::queries::{authenticate, RoleGuard};
 use qrcode::QrCode;
-use queries::{authenticate, RoleGuard};
 use shared::{
     apirequests::{
         general::{Message, Status},
@@ -24,8 +24,8 @@ use shared::{
 };
 use tracing::{error, info, instrument, warn};
 
-use crate::queries;
-use crate::ServerError;
+use pslink::queries;
+use pslink::ServerError;
 
 #[instrument]
 fn redirect_builder(target: &str) -> HttpResponse {

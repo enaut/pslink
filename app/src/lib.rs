@@ -295,7 +295,7 @@ impl<'a> Urls<'a> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```ignore
     /// Urls::new(base_url).home()
     /// ```
     pub fn new(base_url: impl Into<std::borrow::Cow<'a, Url>>) -> Self {
@@ -308,7 +308,7 @@ impl<'a> Urls<'a> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```ignore
     /// pub fn admin_urls(self) -> page::admin::Urls<'a> {
     ///     page::admin::Urls::new(self.base_url().add_path_part(ADMIN))
     /// }
