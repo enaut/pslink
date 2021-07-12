@@ -53,7 +53,7 @@ $ export SQLX_OFFLINE=1
 $ cargo make build_release
 ```
 
-If pslink is built with `cargo build release --target=x86_64-unknown-linux-musl` everything is embedded and it should be portable to any 64bit linux system. Otherwise the same or newer version of libc needs to be installed on the target linux system.
+If pslink is built with `cargo make build_standalone` everything is embedded and it should be portable to any 64bit linux system. Otherwise the same or newer version of libc needs to be installed on the target linux system. Note that you need to install `musl-gcc` for this to work using: `sudo dnf install musl-libc musl-gcc` or `sudo apt-get install musl-tools`.
 
 Templates and migrations are allways embedded in the binary so it should run standalone without anything extra.
 
