@@ -1,5 +1,3 @@
-extern crate sqlx;
-
 pub mod models;
 pub mod queries;
 

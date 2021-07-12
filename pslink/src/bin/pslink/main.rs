@@ -82,7 +82,7 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 static_loader! {
     static LOCALES = {
-        locales: "./locales",
+        locales: "../locales",
         fallback_language: "en",
     };
 }

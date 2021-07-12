@@ -86,7 +86,7 @@ pub async fn list_all_allowed(
     server_config: &ServerConfig,
     parameters: LinkRequestForm,
 ) -> Result<ListWithOwner<FullLink>, ServerError> {
-    use crate::sqlx::Row;
+    use sqlx::Row;
     match authenticate(id, server_config).await? {
         RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             let mut querystring = "select
