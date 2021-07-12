@@ -34,11 +34,13 @@ After that install pslink using:
 ```bash
 $ cargo install cargo-make
 $ cargo make build_release
-# or
+# or to immediately start the server after building but
+# as you probably do not yet have a .env file or database
+# this will fail.
 $ cargo make start_release
 ```
 
-If that succeeds you should now be able to call pslink.
+If that succeeds you should now be able to call pslink. The binary is located in `target/release/pslink` and can be moved anywhere you want.
 
 ### Build from source
 
@@ -51,8 +53,9 @@ $ export SQLX_OFFLINE=1
 $ cargo make build_release
 ```
 
-If pslink is built with `cargo build release --target=x86_64-unknown-linux-musl` everything is embedded and it should be portable to any 64bit linux system.
-Templates and migrations are embedded in the binary so it should run standalone without anything extra.
+If pslink is built with `cargo build release --target=x86_64-unknown-linux-musl` everything is embedded and it should be portable to any 64bit linux system. Otherwise the same or newer version of libc needs to be installed on the target linux system.
+
+Templates and migrations are allways embedded in the binary so it should run standalone without anything extra.
 
 ### Setup
 
@@ -61,15 +64,18 @@ To get Pslink up and running use the commands in the following order:
 1. `pslink generate-env`
 
     this will generate a `.env` file in the curent directory with the default settings. Edit this file to your liking. You can however skip this step and provide all the parameters via commandline or environmentvariable. It is **not** recommended to provide PSLINK_SECRET with commandline parameters as they can be read by every user on the system.
+
 2. `pslink migrate-database`
 
     will create a sqlite database in the location specified.
+
 3. `pslink create-admin`
 
-    create an initial admin user. As the page has no "register" function this is required to do anything usefull.
+    create an initial admin user. As the page has no "register" function this is required to do anything usefull. The command is interactive so you will be asked the username and password of the new admin user.
+
 4. `pslink runserver`
 
-    If everything is set up correctly this command will start the service.
+    If everything is set up correctly this command will start the service. You should now be able to go to your url at [http://localhost/app/] and be presented with a login screen.
 
 ### Run the service
 
@@ -80,7 +86,7 @@ If everything is correctly set up just do `pslink runserver` to launch the serve
 To update to a newer version execute the commands in the following order
 
 1. stop the service
-2. download and install the new binary
+2. download and install or build the new binary
 3. run `pslink migrate-database`
 4. run the server again `pslink runserver`
 
