@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 name = "shared"
 readme = "../pslink/README.md"
 repository = "https://github.com/enaut/pslink/"
-version = "0.3.1"
+version = "0.4.0"
 
 [dependencies]
 serde = "1.0"
