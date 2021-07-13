@@ -1,12 +1,10 @@
 use assert_cmd::prelude::*; // Add methods on commands
-use predicates::prelude::*;
+use reqwest::header::HeaderMap;
 use std::{
+    collections::HashMap,
     io::Read,
     process::{Child, Command},
 };
-use tempdir::TempDir; // Used for writing assertions
-
-use shared::datatypes::Secret;
 
 #[test]
 fn test_help_of_command_for_breaking_changes() {
@@ -167,7 +165,6 @@ async fn test_migrate_database() {
 struct RunningServer {
     server: Child,
     port: i32,
-    dir: TempDir,
 }
 
 impl Drop for RunningServer {
@@ -181,13 +178,14 @@ async fn run_server() -> RunningServer {
 
     use rand::thread_rng;
     use rand::Rng;
-    let mut rng = thread_rng();
-    let port = rng.gen_range(12000..20000);
 
     #[derive(serde::Serialize, Debug)]
     pub struct Count {
         pub number: i32,
     }
+
+    let mut rng = thread_rng();
+    let port = rng.gen_range(12000..20000);
     let tmp_dir = tempdir::TempDir::new("pslink_test_env").expect("create temp dir");
     // generate .env file
     let _output = Command::cargo_bin("pslink")
@@ -266,16 +264,12 @@ async fn run_server() -> RunningServer {
         }
     }
 
-    RunningServer {
-        server,
-        port,
-        dir: tmp_dir,
-    }
+    RunningServer { server, port }
 }
 
 #[actix_rt::test]
 async fn test_web_paths() {
-    let mut server = run_server().await;
+    let server = run_server().await;
 
     // We need to bring in `reqwest`
     // to perform HTTP requests against our application.
@@ -295,110 +289,271 @@ async fn test_web_paths() {
         .await
         .expect("Failed to execute request.");
 
-    // // The basic redirection is working!
-    // assert!(response.status().is_redirection());
-    // let location = response.headers().get("location").unwrap();
-    // assert!(location.to_str().unwrap().contains("github"));
+    // The basic redirection is working!
+    assert!(response.status().is_redirection());
+    let location = response.headers().get("location").unwrap();
+    assert!(location.to_str().unwrap().contains("github"));
 
-    // let login_url = base_url.clone() + "/admin/login/";
-    // // Act
-    // let response = client
-    //     .get(login_url.clone())
-    //     .send()
-    //     .await
-    //     .expect("Failed to execute request.");
+    let app_url = base_url.clone() + "app/";
+    // Act
+    let response = client
+        .get(&app_url.clone())
+        .send()
+        .await
+        .expect("Failed to execute request.");
 
-    // // The Loginpage is reachable and contains a password field!
-    // assert!(response.status().is_success());
-    // let content = response.text().await.unwrap();
-    // assert!(
-    //     content.contains(r#"<input type="password"#),
-    //     "No password field was found!"
-    // );
+    println!("{:?}", response);
 
-    // // Act
-    // let formdata = &[("username", "test"), ("password", "testpw")];
-    // let response = client
-    //     .post(login_url)
-    //     .form(formdata)
-    //     .send()
-    //     .await
-    //     .expect("Failed to execute request.");
+    // The app page is reachable and contains the wasm file!
+    assert!(response.status().is_success());
+    let content = response.text().await.unwrap();
+    assert!(
+        content.contains(r#"init('/static/wasm/app_bg.wasm');"#),
+        "The app page has unexpected content!"
+    );
 
-    // // It is possible to login
-    // assert!(response.status().is_redirection());
-    // let location = response.headers().get("location").unwrap();
-    // assert_eq!("/admin/index/", location.to_str().unwrap());
-    // assert!(
-    //     response.headers().get("set-cookie").is_some(),
-    //     "A auth cookie is not set even though authentication succeeds"
-    // );
+    // Act
+    let mut formdata = HashMap::new();
+    formdata.insert("username", "test");
+    formdata.insert("password", "testpw");
+    let response = client
+        .post(&(base_url.clone() + "admin/json/login_user/"))
+        .json(&formdata)
+        .send()
+        .await
+        .expect("Failed to execute request.");
 
-    // // After login this should return a redirect
-    // let response = client
-    //     .get("http://localhost:8080/admin/login/")
-    //     .send()
-    //     .await
-    //     .expect("Failed to execute request.");
+    println!("Login response:\n {:?}", response);
 
-    // // The Loginpage redirects to link index when logged in
-    // assert!(
-    //     response.status().is_redirection(),
-    //     "/admin/login/ is not redirecting correctly when logged in!"
-    // );
-    // let location = response.headers().get("location").unwrap();
-    // assert_eq!("/admin/index/", location.to_str().unwrap());
+    // It is possible to login
+    assert!(response.status().is_success());
 
-    // // After login this should return a redirect
-    // let response = client
-    //     .get("http://localhost:8080/admin/index/")
-    //     .send()
-    //     .await
-    //     .expect("Failed to execute request.");
+    // Extract the cookie as it is not automatically saved for some reason.
+    let cookie = {
+        response
+            .headers()
+            .get("set-cookie")
+            .expect("A auth cookie is not set even though authentication succeeds")
+            .to_str()
+            .unwrap()
+            .split(';')
+            .next()
+            .unwrap()
+            .to_string()
+    };
+    println!("{:?}", cookie);
+    assert!(cookie.starts_with("auth-cookie="));
 
-    // // The Loginpage redirects to link index when logged in
-    // assert!(
-    //     response.status().is_success(),
-    //     "Could not access /admin/index/"
-    // );
-    // let content = response.text().await.unwrap();
-    // assert!(
-    //     content.contains(r#"<a href="/admin/logout/">"#),
-    //     "No Logout Button was found on /admin/index/!"
-    // );
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(content.contains(r#""id":1"#), "id missing in content");
 
-    // // Act title=haupt&target=http%3A%2F%2Fdas.geht%2Fjetzt%2F&code=tpuah
-    // let formdata = &[
-    //     ("title", "haupt"),
-    //     ("target", "https://das.geht/jetzt/"),
-    //     ("code", "tpuah"),
-    // ];
-    // let response = client
-    //     .post("http://localhost:8080/admin/submit/")
-    //     .form(formdata)
-    //     .send()
-    //     .await
-    //     .expect("Failed to execute request.");
+    let mut custom_headers = HeaderMap::new();
+    custom_headers.insert("content-type", "application/json".parse().unwrap());
+    custom_headers.insert("Cookie", cookie.parse().unwrap());
 
-    // // It is possible to login
-    // assert!(response.status().is_redirection());
-    // let location = response.headers().get("location").unwrap();
-    // assert_eq!("/admin/view/link/tpuah", location.to_str().unwrap());
+    // After login this should return an empty list
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_links/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20}"#).build().unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
 
-    // // Act
-    // let response = client
-    //     .get("http://localhost:8080/tpuah")
-    //     .send()
-    //     .await
-    //     .expect("Failed to execute request.");
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
 
-    // // The basic redirection is working!
-    // assert!(response.status().is_redirection());
-    // let location = response.headers().get("location").unwrap();
-    // assert!(location
-    //     .to_str()
-    //     .unwrap()
-    //     .contains("https://das.geht/jetzt/"));
+    // Make sure that the content is an empty list as until now no links were created.
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(content.contains(r#"[]"#), "id missing in content");
+
+    // Create a link
+    let query = client
+        .post(&(base_url.clone() + "admin/json/create_link/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"edit":"Create","id":null,"title":"ein testlink","target":"https://github.com/enaut/pslink","code":"test","author":0,"created_at":null}"#)
+        .build()
+        .unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content is a success message
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#""Success":"#),
+        "Make sure the link creation response contains Success"
+    );
+
+    // After inserting a link make sure the link is saved
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_links/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20}"#).build().unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content now contains the newly created link
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#""target":"https://github.com/enaut/pslink","code":"test""#),
+        "the new target and the new code are not in the result"
+    );
+
+    // Create a duplicate which should fail
+    let query = client
+        .post(&(base_url.clone() + "admin/json/create_link/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"edit":"Create","id":null,"title":"ein testlink","target":"https://github.com/enaut/pslink","code":"test","author":0,"created_at":null}"#)
+        .build()
+        .unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the status codes are correct
+    assert!(response.status().is_server_error());
+
+    // Make sure that the content is a error message
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#"error"#),
+        "Make sure the link creation response contains error"
+    );
+
+    // Create a second link
+    let query = client
+        .post(&(base_url.clone() + "admin/json/create_link/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"edit":"Create","id":null,"title":"ein second testlink","target":"https://crates.io/crates/pslink","code":"x","author":0,"created_at":null}"#)
+        .build()
+        .unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content is a success message
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#""Success":"#),
+        "Make sure the link creation response contains Success"
+    );
+
+    // After inserting a link make sure the link is saved
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_links/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20}"#).build().unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content now contains the newly created link
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#""target":"https://crates.io/crates/pslink","code":"x""#),
+        "the new target and the new code are not in the result"
+    );
+    assert!(
+        content.contains(r#""target":"https://github.com/enaut/pslink","code":"test""#),
+        "the new target and the new code are not in the result"
+    );
+
+    // After inserting two links make sure the filters work (searching for a description containing se)
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_links/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":"se"},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20}"#).build().unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content now contains the newly created link
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    // Code x should be in the result but not code test
+    assert!(
+        content.contains(r#""target":"https://crates.io/crates/pslink","code":"x""#),
+        "the new target and the new code are not in the result"
+    );
+    assert!(
+        !content.contains(r#""target":"https://github.com/enaut/pslink","code":"test""#),
+        "the new target and the new code are not in the result"
+    );
+
+    // Make sure we are redirected correctly.
+    let response = client
+        .get(&(base_url.clone() + "test"))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // The basic redirection is working!
+    assert!(response.status().is_redirection());
+    let location = response.headers().get("location").unwrap();
+    assert!(location
+        .to_str()
+        .unwrap()
+        .contains("https://github.com/enaut/pslink"));
+
+    // And for the second link - also check that casing is correctly ignored
+    let response = client
+        .get(&(base_url.clone() + "X"))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // The basic redirection is working!
+    assert!(response.status().is_redirection());
+    let location = response.headers().get("location").unwrap();
+    assert!(location
+        .to_str()
+        .unwrap()
+        .contains("https://crates.io/crates/pslink"));
 
     drop(server);
 }
