@@ -309,6 +309,15 @@ pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
 }
 
 #[instrument()]
+pub async fn to_admin() -> Result<HttpResponse, ServerError> {
+    let response = HttpResponse::PermanentRedirect()
+        .set_header(actix_web::http::header::LOCATION, "/app/")
+        .body(r#"The admin interface moved to <a href="/app/">/app/</a>"#);
+
+    Ok(response)
+}
+
+#[instrument()]
 pub async fn redirect(
     config: web::Data<crate::ServerConfig>,
     data: web::Path<String>,

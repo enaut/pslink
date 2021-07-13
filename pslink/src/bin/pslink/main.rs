@@ -166,7 +166,8 @@ pub async fn webservice(
                                 web::post().to(views::get_logged_user_json),
                             )
                             .route("/login_user/", web::post().to(views::process_login_json)),
-                    ),
+                    )
+                    .default_service(web::to(views::to_admin)),
             )
             // Serve the Wasm App for the admin interface.
             .service(
