@@ -68,5 +68,5 @@ predicates = "2.0.0"
 
 
 [dev-dependencies.reqwest]
-features = ["cookies"]
+features = ["cookies", "json"]
 version = "0.10.10"

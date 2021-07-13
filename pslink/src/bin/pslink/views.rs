@@ -281,7 +281,9 @@ pub async fn process_login_json(
                     Ok(HttpResponse::Ok().json2(&u))
                 } else {
                     info!("Invalid password for user: {}", &u.username);
-                    Ok(redirect_builder("/admin/login/"))
+                    Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
+                        message: "Failed to Login".to_string(),
+                    })))
                 }
             } else {
                 // should fail earlier if secret is missing.
