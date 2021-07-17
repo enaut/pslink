@@ -27,3 +27,11 @@ qrcode = "0.12"
 image = "0.23"
 
 shared = { path = "../shared" }
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "IntersectionObserver",
+    "IntersectionObserverInit",
+    "IntersectionObserverEntry",
+]
