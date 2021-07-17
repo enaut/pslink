@@ -2,7 +2,6 @@
 use std::sync::Arc;
 
 use fluent::{FluentArgs, FluentBundle, FluentResource};
-use seed::log;
 use shared::datatypes::Lang;
 use unic_langid::LanguageIdentifier;
 
