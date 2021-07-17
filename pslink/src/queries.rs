@@ -113,6 +113,7 @@ pub async fn list_all_allowed(
                 querystring.push_str(&generate_order_sql(&order));
             }
             querystring.push_str(&format!("\n LIMIT {}", parameters.amount));
+            querystring.push_str(&format!("\n OFFSET {}", parameters.offset));
             info!("{}", querystring);
 
             let links = sqlx::query(&querystring)

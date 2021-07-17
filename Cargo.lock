@@ -454,6 +454,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "unic-langid",
+ "web-sys",
 ]
 
 [[package]]

@@ -12,6 +12,8 @@ language = Sprache:
 
 not-found = Dieser Link existiert nicht, oder wurde gelöscht.
 
+load-more-links = Lade mehr Links
+no-more-links = Es gibt keine weiteren Links
 edit-link-headline = Zu editierender Link: {$linktitle}
 edit-link = Link Editieren
 create-link = Link Erstellen

@@ -131,7 +131,7 @@ impl UserDbOperations<Self> for User {
     #[instrument()]
     async fn toggle_admin(self, server_config: &ServerConfig) -> Result<(), ServerError> {
         let new_role = match self.role {
-            r @ Role::NotAuthenticated | r @ Role::Disabled => r,
+            r @ (Role::NotAuthenticated | Role::Disabled) => r,
             Role::Regular => Role::Admin,
             Role::Admin => Role::Regular,
         };
