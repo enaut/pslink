@@ -218,6 +218,7 @@ a {
 
 img.trashicon {
     width: 0.5cm;
+    user-select: none;
 }
 
 .qrdownload {
