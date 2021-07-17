@@ -9,6 +9,7 @@ use seed::{
     a, attrs, div, h1, img, input, log, nodes, prelude::*, raw, section, span, table, td, th, tr,
     Url, C, IF,
 };
+use web_sys::{IntersectionObserver, IntersectionObserverEntry, IntersectionObserverInit};
 
 use shared::{
     apirequests::general::Ordering,
@@ -25,6 +26,7 @@ use crate::{get_host, i18n::I18n, unwrap_or_return};
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
     // fetch the links to fill the list.
     orders.send_msg(Msg::Query(QueryMsg::Fetch));
+    orders.perform_cmd(cmds::timeout(50, || Msg::SetupObserver));
     // if the url contains create_link set the edit_link variable.
     // This variable then opens the create link dialog.
     let dialog = match url.next_path_part() {
@@ -37,24 +39,35 @@ pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
 
     Model {
         links: Vec::new(),                      // will contain the links to display
-        i18n,                                   // to translate
+        load_more: ElRef::new(), // will contain a reference to the load more button to be able to load more links after scrolling to the bottom.
+        i18n,                    // to translate
         formconfig: LinkRequestForm::default(), // when requesting links the form is stored here
-        inputs: EnumMap::default(),             // the input fields for the searches
+        inputs: EnumMap::default(), // the input fields for the searches
         dialog,
         handle_render: None,
         handle_timeout: None,
+        observer: None, // load more on scroll - this is used to see if the load-more button is completely visible
+        observer_callback: None,
+        observer_entries: None,
+        everything_loaded: false,
     }
 }
 
 #[derive(Debug)]
 pub struct Model {
     links: Vec<Cached<FullLink>>, // will contain the links to display
-    i18n: I18n,                   // to translate
-    formconfig: LinkRequestForm,  // when requesting links the form is stored here
+    load_more: ElRef<web_sys::Element>,
+    i18n: I18n,                                        // to translate
+    formconfig: LinkRequestForm, // when requesting links the form is stored here
     inputs: EnumMap<LinkOverviewColumns, FilterInput>, // the input fields for the searches
-    dialog: Dialog,               // User interaction - there can only ever be one dialog open.
+    dialog: Dialog,              // User interaction - there can only ever be one dialog open.
     handle_render: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
     handle_timeout: Option<CmdHandle>, // Rendering qr-codes takes time... it is aborted when this handle is dropped and replaced.
+
+    observer: Option<IntersectionObserver>,
+    observer_callback: Option<Closure<dyn Fn(Vec<JsValue>)>>,
+    observer_entries: Option<Vec<IntersectionObserverEntry>>,
+    everything_loaded: bool,
 }
 
 impl Model {
@@ -133,9 +146,11 @@ struct FilterInput {
 /// A message can either edit or query. (or set a dialog)
 #[derive(Clone)]
 pub enum Msg {
-    Query(QueryMsg),    // Messages related to querying links
-    Edit(EditMsg),      // Messages related to editing links
-    ClearAll,           // Clear all messages
+    Query(QueryMsg), // Messages related to querying links
+    Edit(EditMsg),   // Messages related to editing links
+    ClearAll,        // Clear all messages
+    SetupObserver,   // Make an observer for endles scroll
+    Observed(Vec<IntersectionObserverEntry>),
     SetMessage(String), // Set a message to the user
 }
 
@@ -143,8 +158,10 @@ pub enum Msg {
 #[derive(Clone)]
 pub enum QueryMsg {
     Fetch,
+    FetchAdditional,
     OrderBy(LinkOverviewColumns),
     Received(Vec<FullLink>),
+    ReceivedAdditional(Vec<FullLink>),
     CodeFilterChanged(String),
     DescriptionFilterChanged(String),
     TargetFilterChanged(String),
@@ -181,9 +198,53 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::Query(msg) => process_query_messages(msg, model, orders),
         Msg::Edit(msg) => process_edit_messages(msg, model, orders),
         Msg::ClearAll => clear_all(model),
+        Msg::Observed(entries) => {
+            if let Some(entry) = entries.first() {
+                log!(entry);
+                if entry.is_intersecting() {
+                    orders.send_msg(Msg::Query(QueryMsg::FetchAdditional));
+                }
+            }
+        }
         Msg::SetMessage(msg) => {
             clear_all(model);
             model.dialog = Dialog::Message(Status::Error(Message { message: msg }));
+        }
+        Msg::SetupObserver => {
+            orders.skip();
+
+            // ---- observer callback ----
+            let sender = orders.msg_sender();
+            let callback = move |entries: Vec<JsValue>| {
+                let entries = entries
+                    .into_iter()
+                    .map(IntersectionObserverEntry::from)
+                    .collect();
+                sender(Some(Msg::Observed(entries)));
+            };
+            let callback = Closure::wrap(Box::new(callback) as Box<dyn Fn(Vec<JsValue>)>);
+
+            // ---- observer options ----
+            let mut options = IntersectionObserverInit::new();
+            options.threshold(&JsValue::from(1));
+            // ---- observer ----
+            log!("Trying to register observer");
+            if let Ok(observer) =
+                IntersectionObserver::new_with_options(callback.as_ref().unchecked_ref(), &options)
+            {
+                if let Some(element) = model.load_more.get() {
+                    log!("element registered! ", element);
+                    observer.observe(&element);
+
+                    // Note: Drop `observer` is not enough. We have to call `observer.disconnect()`.
+                    model.observer = Some(observer);
+                    model.observer_callback = Some(callback);
+                } else {
+                    log!("element not yet registered! ");
+                };
+            } else {
+                log!("Failed to get observer!")
+            };
         }
     }
 }
@@ -193,7 +254,11 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
     match msg {
         QueryMsg::Fetch => {
             orders.skip(); // No need to rerender
-            load_links(model, orders)
+            initial_load(model, orders)
+        }
+        QueryMsg::FetchAdditional => {
+            orders.skip(); // No need to rerender
+            consecutive_load(model, orders)
         }
         // Default to ascending ordering but if the links are already sorted according to this collumn toggle between ascending and descending ordering.
         QueryMsg::OrderBy(column) => {
@@ -247,6 +312,20 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
                 })
                 .collect();
         }
+        QueryMsg::ReceivedAdditional(response) => {
+            if response.len() < model.formconfig.amount {
+                log!("There are no more links! ");
+                model.everything_loaded = true
+            };
+            let mut new_links = response
+                .into_iter()
+                .map(|l| {
+                    let cache = generate_qr_from_code(&l.link.code);
+                    Cached { data: l, cache }
+                })
+                .collect();
+            model.links.append(&mut new_links);
+        }
         QueryMsg::CodeFilterChanged(s) => {
             log!("Filter is: ", &s);
             let sanit = s.chars().filter(|x| x.is_alphanumeric()).collect();
@@ -274,9 +353,19 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
     }
 }
 
+fn initial_load(model: &Model, orders: &mut impl Orders<Msg>) {
+    let mut data = model.formconfig.clone();
+    data.offset = 0;
+    load_links(orders, data);
+}
+fn consecutive_load(model: &Model, orders: &mut impl Orders<Msg>) {
+    let mut data = model.formconfig.clone();
+    data.offset = model.links.len();
+    load_links(orders, data);
+}
+
 /// Perform a request to the server to load the links from the server.
-fn load_links(model: &Model, orders: &mut impl Orders<Msg>) {
-    let data = model.formconfig.clone();
+fn load_links(orders: &mut impl Orders<Msg>, data: LinkRequestForm) {
     orders.perform_cmd(async {
         let data = data;
         // create a request
@@ -302,7 +391,11 @@ fn load_links(model: &Model, orders: &mut impl Orders<Msg>) {
             Msg::SetMessage("Invalid response".to_string())
         );
         // The message that is sent by perform_cmd after this async block is completed
-        Msg::Query(QueryMsg::Received(links))
+        match data.offset.cmp(&0) {
+            std::cmp::Ordering::Less => unreachable!(),
+            std::cmp::Ordering::Equal => Msg::Query(QueryMsg::Received(links)),
+            std::cmp::Ordering::Greater => Msg::Query(QueryMsg::ReceivedAdditional(links)),
+        }
     });
 }
 
@@ -530,6 +623,17 @@ pub fn view(model: &Model, logged_in_user: &User) -> Node<Msg> {
             // Add all the content lines
             model.links.iter().map(|l| { view_link(l, logged_in_user) })
         ],
+        if not(model.everything_loaded) {
+            a![
+                C!["loadmore", "button"],
+                el_ref(&model.load_more),
+                ev(Ev::Click, move |_| Msg::Query(QueryMsg::FetchAdditional)),
+                img![C!["reloadicon"], attrs!(At::Src => "/static/reload.svg")],
+                t("load-more-links")
+            ]
+        } else {
+            a![C!["loadmore", "button"], t("no-more-links")]
+        }
     ]
 }
 

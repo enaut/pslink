@@ -26,8 +26,8 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
 
     Model {
         index: 0,
-        location: Location::new(url.clone()),
-        page: Page::init(url, orders, lang.clone()),
+        location: Location::new(url),
+        page: Page::NotFound,
         i18n: lang,
         user: Loadable::Data(None),
         login_form: LoginForm::default(),
