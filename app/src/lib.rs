@@ -5,12 +5,13 @@ pub mod pages;
 
 use pages::list_links;
 use pages::list_users;
+use pslink_shared::{
+    apirequests::users::LoginUser,
+    datatypes::{Lang, Loadable, User},
+};
 use seed::window;
 use seed::IF;
 use seed::{attrs, button, div, input, label, log, prelude::*, App, Url, C};
-use shared::apirequests::users::LoginUser;
-use shared::datatypes::Lang;
-use shared::datatypes::{Loadable, User};
 
 use crate::i18n::I18n;
 
