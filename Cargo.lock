@@ -2714,7 +2714,7 @@ dependencies = [
 
 [[package]]
 name = "pslink"
-version = "0.4.0"
+version = "0.4.1-beta.1"
 dependencies = [
  "actix-files",
  "actix-identity",
@@ -2754,7 +2754,7 @@ dependencies = [
 
 [[package]]
 name = "pslink-app"
-version = "0.4.1-alpha.0"
+version = "0.4.1-beta.1"
 dependencies = [
  "enum-map",
  "fluent 0.15.0",
@@ -2771,7 +2771,7 @@ dependencies = [
 
 [[package]]
 name = "pslink-shared"
-version = "0.4.1-alpha.0"
+version = "0.4.1-beta.1"
 dependencies = [
  "chrono",
  "enum-map",
