@@ -26,7 +26,7 @@ enum-map = "1"
 qrcode = "0.12"
 image = "0.23"
 
-shared = { path = "../shared" }
+pslink-shared = { path = "../shared" }
 
 [dependencies.web-sys]
 version = "0.3"
