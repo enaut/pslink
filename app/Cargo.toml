@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "pslink-app"
 authors = ["Dietrich <dietrich@teilgedanken.de>"]
 categories = ["web-programming", "network-programming", "web-programming::http-server", "command-line-utilities"]
 description = "A wasm frontend for pslink. The frontend communicates via json API."
