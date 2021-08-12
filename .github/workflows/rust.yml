@@ -23,6 +23,11 @@ jobs:
     - uses: davidB/rust-cargo-make@v1
       with:
         version: 'latest'
+    - uses: jetli/wasm-pack-action@v0.3.0
+      with:
+        version: 'latest'
     - uses: actions/checkout@v2
+    - name: Install xmllint
+      run: sudo apt-get install musl-gcc-dev
     - name: Build
       run: cargo make build_standalone
