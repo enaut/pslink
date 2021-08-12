@@ -1,10 +1,10 @@
 //! Create the top menu of the app
 use fluent::fluent_args;
-use seed::{a, attrs, div, li, nav, nodes, ol, prelude::*, Url, C};
-use shared::{
+use pslink_shared::{
     apirequests::users::Role,
     datatypes::{Lang, User},
 };
+use seed::{a, attrs, div, li, nav, nodes, ol, prelude::*, Url, C};
 
 use crate::{i18n::I18n, Msg};
 

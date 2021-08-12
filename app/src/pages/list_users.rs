@@ -1,8 +1,7 @@
 //! List all users in case an admin views it, list the "self" user otherwise.
 
 use enum_map::EnumMap;
-use seed::{a, attrs, div, h1, input, log, p, prelude::*, section, table, td, th, tr, Url, C, IF};
-use shared::{
+use pslink_shared::{
     apirequests::general::{Operation, Ordering},
     apirequests::{
         general::{EditMode, Status},
@@ -10,6 +9,7 @@ use shared::{
     },
     datatypes::{Lang, User},
 };
+use seed::{a, attrs, div, h1, input, log, p, prelude::*, section, table, td, th, tr, Url, C, IF};
 /*
  * init
  */

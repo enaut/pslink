@@ -11,7 +11,7 @@ use seed::{
 };
 use web_sys::{IntersectionObserver, IntersectionObserverEntry, IntersectionObserverInit};
 
-use shared::{
+use pslink_shared::{
     apirequests::general::Ordering,
     apirequests::{
         general::{EditMode, Message, Operation, Status},
@@ -729,7 +729,7 @@ fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
 
 /// display a single table row containing one link
 fn view_link(l: &Cached<FullLink>, logged_in_user: &User) -> Node<Msg> {
-    use shared::apirequests::users::Role;
+    use pslink_shared::apirequests::users::Role;
     let link = LinkDelta::from(l.data.clone());
     tr![
         IF! (logged_in_user.role == Role::Admin

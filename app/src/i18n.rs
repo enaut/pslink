@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use fluent::{FluentArgs, FluentBundle, FluentResource};
-use shared::datatypes::Lang;
+use pslink_shared::datatypes::Lang;
 use unic_langid::LanguageIdentifier;
 
 /// A struct containing the data, functions and the current language to query the localized strings.
