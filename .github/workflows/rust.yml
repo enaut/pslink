@@ -28,6 +28,6 @@ jobs:
         version: 'latest'
     - uses: actions/checkout@v2
     - name: Install xmllint
-      run: sudo apt-get install musl-gcc-dev
+      run: sudo apt-get install musl-tools
     - name: Build
       run: cargo make build_standalone
