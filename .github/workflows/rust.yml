@@ -22,7 +22,7 @@ jobs:
         override: true
     - uses: davidB/rust-cargo-make@v1
       with:
-        version: '0.23.0'
+        version: 'latest'
     - uses: actions/checkout@v2
     - name: Build
       run: cargo make build_standalone
