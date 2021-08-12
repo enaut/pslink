@@ -441,23 +441,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "app"
-version = "0.4.0"
-dependencies = [
- "enum-map",
- "fluent 0.15.0",
- "image",
- "qrcode",
- "seed",
- "serde",
- "shared",
- "strum",
- "strum_macros",
- "unic-langid",
- "web-sys",
-]
-
-[[package]]
 name = "arc-swap"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2767,6 +2750,23 @@ dependencies = [
  "tracing-actix-web",
  "tracing-opentelemetry",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "pslink-app"
+version = "0.4.0"
+dependencies = [
+ "enum-map",
+ "fluent 0.15.0",
+ "image",
+ "qrcode",
+ "seed",
+ "serde",
+ "shared",
+ "strum",
+ "strum_macros",
+ "unic-langid",
+ "web-sys",
 ]
 
 [[package]]
