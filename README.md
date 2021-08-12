@@ -7,14 +7,14 @@ So in general this is more a shared short url bookmark webpage than a shorturl s
 ![Screenshot](./doc/img/screenshot.png)
 ![Screenshot](./doc/img/screenshot_edit.png)
 
-## Page-Features
+## What users can do
 
-  ### Guests
+  ### Guests (no account)
 
   * click on link get redirected to the page
   * error on invalid or deleted link
 
-  ### Users
+  ### Users (regular account)
 
   * view all existing links
   * modify all own links
@@ -22,7 +22,7 @@ So in general this is more a shared short url bookmark webpage than a shorturl s
   * download qr-codes of the links
   * modify own "profile" settings
 
-  ### Admins
+  ### Admins (priviledged account)
 
   * everything from users
   * modify all links
@@ -32,18 +32,18 @@ So in general this is more a shared short url bookmark webpage than a shorturl s
   * make users administrators
   * make administrators normal users
 
-## Server-Features
+## What the program can do
 
 The Page comes with a basic commandline interface to setup the environment.
 
-### Commandline features
+### Commandline
 
 * create and read from a `.env` file in the current directory
 * create and migrate the database
 * create an admin user
 * run the webserver
 
-### Service features
+### Service
 
 * admin interface via wasm
 * Rest+Json server
@@ -71,6 +71,11 @@ Pslink can be compiled and installed with cargo. Setup cargo as guided here: htt
 
 After that install pslink using:
 
+
+### Build from source
+
+Checkout the git repository and within its root folder issue the following commands. Internet es required and some packages will be installed during the process.
+
 ```bash
 $ cargo install cargo-make
 $ cargo make build_release
@@ -80,11 +85,9 @@ $ cargo make build_release
 $ cargo make start_release
 ```
 
-If that succeeds you should now be able to call pslink. The binary is located in `target/release/pslink` and can be moved anywhere you want.
+If that succeeds you should now be able to call pslink. The binary is located at `target/release/pslink` and can be moved anywhere you want.
 
-### Build from source
-
-When building manually with cargo you have to have a sqlite database present or build it in offline mode. So on your first build you will most likely need to call:
+When building manually with cargo you may have to have a sqlite database present or build it in offline mode. So on your first build you will most likely need to call:
 
 ```bash
 SQLX_OFFLINE=1 cargo make build_release
