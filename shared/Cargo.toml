@@ -11,7 +11,7 @@ repository = "https://github.com/enaut/pslink/"
 version = "0.4.1-alpha.0"
 
 [dependencies]
-serde = "1.0"
+serde = {version="1.0", features = ["derive"]}
 chrono = {version = "0.4", features = ["serde"] }
 enum-map = {version="1", features = ["serde"]}
 strum_macros = "0.21"
