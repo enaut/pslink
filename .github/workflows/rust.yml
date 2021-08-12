@@ -15,8 +15,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+    - uses: davidB/rust-cargo-make@v1
+      with:
+        version: '0.23.0'
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      run: cargo make build_standalone
