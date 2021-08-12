@@ -2,8 +2,8 @@ pub mod models;
 pub mod queries;
 
 use actix_web::HttpResponse;
+use pslink_shared::datatypes::Secret;
 use qrcode::types::QrError;
-use shared::datatypes::Secret;
 use sqlx::{Pool, Sqlite};
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thiserror::Error;

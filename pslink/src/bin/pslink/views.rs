@@ -13,8 +13,7 @@ use fluent_langneg::{
 use fluent_templates::LanguageIdentifier;
 use image::{DynamicImage, ImageOutputFormat, Luma};
 use pslink::queries::{authenticate, RoleGuard};
-use qrcode::QrCode;
-use shared::{
+use pslink_shared::{
     apirequests::{
         general::{Message, Status},
         links::{LinkDelta, LinkRequestForm},
@@ -22,6 +21,7 @@ use shared::{
     },
     datatypes::Lang,
 };
+use qrcode::QrCode;
 use tracing::{error, info, instrument, warn};
 
 use pslink::queries;
