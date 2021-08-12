@@ -3,7 +3,7 @@ use clap::{
     ArgMatches, SubCommand,
 };
 use dotenv::dotenv;
-use shared::datatypes::{Secret, User};
+use pslink_shared::datatypes::{Secret, User};
 use sqlx::{migrate::Migrator, Pool, Sqlite};
 use std::{
     fs::File,

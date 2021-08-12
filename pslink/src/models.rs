@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 
-use shared::{
+use pslink_shared::{
     apirequests::{links::LinkDelta, users::Role},
     datatypes::{Count, Lang, Link, User},
 };

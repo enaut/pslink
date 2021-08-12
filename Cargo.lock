@@ -2735,12 +2735,12 @@ dependencies = [
  "opentelemetry 0.14.0",
  "opentelemetry-jaeger",
  "predicates",
+ "pslink-shared",
  "qrcode",
  "rand 0.8.4",
  "reqwest",
  "rpassword",
  "serde",
- "shared",
  "sqlx",
  "tempdir",
  "test_bin",
@@ -2754,19 +2754,30 @@ dependencies = [
 
 [[package]]
 name = "pslink-app"
-version = "0.4.0"
+version = "0.4.1-alpha.0"
 dependencies = [
  "enum-map",
  "fluent 0.15.0",
  "image",
+ "pslink-shared",
  "qrcode",
  "seed",
  "serde",
- "shared",
  "strum",
  "strum_macros",
  "unic-langid",
  "web-sys",
+]
+
+[[package]]
+name = "pslink-shared"
+version = "0.4.1-alpha.0"
+dependencies = [
+ "chrono",
+ "enum-map",
+ "serde",
+ "strum",
+ "strum_macros",
 ]
 
 [[package]]
@@ -3455,17 +3466,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79c719719ee05df97490f80a45acfc99e5a30ce98a1e4fb67aee422745ae14e3"
 dependencies = [
  "lazy_static",
-]
-
-[[package]]
-name = "shared"
-version = "0.4.0"
-dependencies = [
- "chrono",
- "enum-map",
- "serde",
- "strum",
- "strum_macros",
 ]
 
 [[package]]

@@ -2,8 +2,7 @@ use std::str::FromStr;
 
 use actix_identity::Identity;
 use enum_map::EnumMap;
-use serde::Serialize;
-use shared::{
+use pslink_shared::{
     apirequests::{
         general::{EditMode, Filter, Operation, Ordering},
         links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
@@ -11,6 +10,7 @@ use shared::{
     },
     datatypes::{Count, FullLink, Lang, Link, Secret, User},
 };
+use serde::Serialize;
 use sqlx::Row;
 use tracing::{info, instrument, warn};
 

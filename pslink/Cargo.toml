@@ -37,7 +37,7 @@ tracing-opentelemetry = "0.12"
 async-trait = "0.1"
 enum-map = {version="1", features = ["serde"]}
 
-shared = { path = "../shared" }
+pslink-shared = { path = "../shared" }
 
 [dependencies.chrono]
 features = ["serde"]
