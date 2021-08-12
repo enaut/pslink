@@ -30,7 +30,7 @@ opentelemetry-jaeger = "0.12"
 qrcode = "0.12"
 rand = "0.8"
 rpassword = "5.0"
-serde = "1.0"
+serde = {version="1.0", features = ["derive"]}
 thiserror = "1.0"
 tracing-actix-web = "0.2.1"
 tracing-opentelemetry = "0.12"
