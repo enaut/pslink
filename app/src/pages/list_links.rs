@@ -4,6 +4,7 @@ use std::ops::Deref;
 use enum_map::EnumMap;
 use fluent::fluent_args;
 use image::{DynamicImage, ImageOutputFormat, Luma};
+use pslink_locales::I18n;
 use qrcode::{render::svg, QrCode};
 use seed::{
     a, attrs, div, h1, img, input, log, nodes, prelude::*, raw, section, span, table, td, th, tr,
@@ -20,7 +21,7 @@ use pslink_shared::{
     datatypes::{FullLink, Lang, Loadable, User},
 };
 
-use crate::{get_host, i18n::I18n, unwrap_or_return};
+use crate::{get_host, unwrap_or_return};
 
 /// Setup the page
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {

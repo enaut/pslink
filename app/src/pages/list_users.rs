@@ -1,6 +1,7 @@
 //! List all users in case an admin views it, list the "self" user otherwise.
 
 use enum_map::EnumMap;
+use pslink_locales::I18n;
 use pslink_shared::{
     apirequests::general::{Operation, Ordering},
     apirequests::{
@@ -13,7 +14,7 @@ use seed::{a, attrs, div, h1, input, log, p, prelude::*, section, table, td, th,
 /*
  * init
  */
-use crate::{i18n::I18n, unwrap_or_return};
+use crate::unwrap_or_return;
 #[must_use]
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
     orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
