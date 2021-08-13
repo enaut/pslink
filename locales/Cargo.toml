@@ -8,7 +8,7 @@ keywords = ["url", "link", "webpage", "actix", "web"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/enaut/pslink/"
-version = "0.4.1-beta.2"
+version = "0.4.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,4 +18,4 @@ fluent = "0.15"
 serde = {version="1.0", features = ["derive"]}
 unic-langid = "0.9"
 
-pslink-shared = { version="0.4.1-alpha.0", path = "../shared" }
+pslink-shared = { version="0.4", path = "../shared" }
