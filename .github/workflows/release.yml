@@ -23,6 +23,8 @@ jobs:
       run: sudo apt-get install musl-tools
     - name: Build
       run: cargo make build_standalone
+    - name: Rename
+      run: mv /home/runner/work/pslink/pslink/target/x86_64-unknown-linux-musl/release/pslink pslink_linux_64bit
     - name: Upload the artifacts
       uses: skx/github-action-publish-binaries@master
       env:
