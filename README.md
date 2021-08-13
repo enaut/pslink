@@ -55,11 +55,11 @@ The Page comes with a basic commandline interface to setup the environment.
 
 The pslink binary can be downloaded from the latest release at: https://github.com/enaut/pslink/releases
 
-These binaries are selfcontained and should run on any linux 64bit system. Just put them where you like them to be and make them executable. A sample install might be:
+These binaries are selfcontained and should run on any linux 64bit sy"stem. Just put them where you like them to be and make them executable. A sample install might be:
 
 ```bash
 # mkdir -p /opt/pslink
-# wget -o /opt/pslink/pslink https://github.com/enaut/pslink/releases/latest/download/pslink.linux.64bit
+# wget -o /opt/pslink/pslink https://github.com/enaut/pslink/releases/latest/download/pslink_linux_64bit
 # chmod +x /opt/pslink/pslink
 ```
 
@@ -67,10 +67,7 @@ You could now adjust your `PATH` or setup an alias or just call the binary with 
 
 ### Install with cargo
 
-Pslink can be compiled and installed with cargo. Setup cargo as guided here: https://doc.rust-lang.org/cargo/getting-started/installation.html
-
-After that install pslink using:
-
+`cargo install pslink` does not (yet) produce a working binary! Use the "install binary" or "build from source" approach
 
 ### Build from source
 
