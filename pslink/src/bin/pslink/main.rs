@@ -6,7 +6,6 @@ mod views;
 use actix_files::Files;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpServer};
-use fluent_templates::static_loader;
 use pslink::ServerConfig;
 
 use tracing::instrument;
@@ -79,13 +78,6 @@ async fn main() -> std::result::Result<(), std::io::Error> {
 
 // include the static files into the binary
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
-
-static_loader! {
-    static LOCALES = {
-        locales: "../locales",
-        fallback_language: "en",
-    };
-}
 
 /// Launch the pslink-webservice
 ///
