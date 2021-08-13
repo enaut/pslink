@@ -1,5 +1,4 @@
 //! The admin interface of pslink. It communicates with the server mostly via https and json.
-pub mod i18n;
 pub mod navigation;
 pub mod pages;
 
@@ -13,7 +12,7 @@ use seed::window;
 use seed::IF;
 use seed::{attrs, button, div, input, label, log, prelude::*, App, Url, C};
 
-use crate::i18n::I18n;
+use pslink_locales::I18n;
 
 // ------ ------
 //     Init
@@ -45,7 +44,7 @@ struct Model {
     index: usize,
     location: Location,
     page: Page,
-    i18n: i18n::I18n,
+    i18n: I18n,
     user: Loadable<User>,
     login_form: LoginForm,
     login_data: LoginUser,
