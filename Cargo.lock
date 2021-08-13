@@ -2759,6 +2759,7 @@ dependencies = [
  "enum-map",
  "fluent 0.15.0",
  "image",
+ "pslink-locales",
  "pslink-shared",
  "qrcode",
  "seed",
@@ -2767,6 +2768,16 @@ dependencies = [
  "strum_macros",
  "unic-langid",
  "web-sys",
+]
+
+[[package]]
+name = "pslink-locales"
+version = "0.4.1-beta.2"
+dependencies = [
+ "fluent 0.15.0",
+ "pslink-shared",
+ "serde",
+ "unic-langid",
 ]
 
 [[package]]
