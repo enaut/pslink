@@ -99,6 +99,10 @@ Templates and migrations are allways embedded in the binary so it should run sta
 
 ### Setup
 
+To read the help and documentation of additional options call:
+
+```pslink help```
+
 To get Pslink up and running use the commands in the following order:
 
 1. `pslink generate-env`
