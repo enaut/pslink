@@ -79,7 +79,7 @@ async fn main() -> std::result::Result<(), std::io::Error> {
 // include the static files into the binary
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
-/// Launch the pslink-webservice
+/// Launch the pslink-web-service
 ///
 /// # Errors
 /// This produces a [`ServerError`] if:
