@@ -16,7 +16,7 @@ use crate::Msg;
 pub fn navigation(i18n: &I18n, base_url: &Url, user: &User) -> Node<Msg> {
     // A shortcut for translating strings.
     let t = move |key: &str| i18n.translate(key, None);
-    // Translate the wellcome message
+    // Translate the welcome message
     let welcome = i18n.translate(
         "welcome-user",
         Some(&fluent_args![ "username" => user.username.clone()]),

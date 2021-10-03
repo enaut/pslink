@@ -91,7 +91,7 @@ impl<T> Deref for Cached<T> {
     }
 }
 
-/// There can allways be only one dialog.
+/// There can always be only one dialog.
 #[derive(Debug, Clone)]
 enum Dialog {
     EditLink {
@@ -150,7 +150,7 @@ pub enum Msg {
     Query(QueryMsg), // Messages related to querying links
     Edit(EditMsg),   // Messages related to editing links
     ClearAll,        // Clear all messages
-    SetupObserver,   // Make an observer for endles scroll
+    SetupObserver,   // Make an observer for endless scroll
     Observed(Vec<IntersectionObserverEntry>),
     SetMessage(String), // Set a message to the user
 }
@@ -244,7 +244,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                     log!("element not yet registered! ");
                 };
             } else {
-                log!("Failed to get observer!")
+                log!("Failed to get observer!");
             };
         }
     }
@@ -255,13 +255,13 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
     match msg {
         QueryMsg::Fetch => {
             orders.skip(); // No need to rerender
-            initial_load(model, orders)
+            initial_load(model, orders);
         }
         QueryMsg::FetchAdditional => {
             orders.skip(); // No need to rerender
-            consecutive_load(model, orders)
+            consecutive_load(model, orders);
         }
-        // Default to ascending ordering but if the links are already sorted according to this collumn toggle between ascending and descending ordering.
+        // Default to ascending ordering but if the links are already sorted according to this column toggle between ascending and descending ordering.
         QueryMsg::OrderBy(column) => {
             model.formconfig.order = model.formconfig.order.as_ref().map_or_else(
                 || {
@@ -316,7 +316,7 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
         QueryMsg::ReceivedAdditional(response) => {
             if response.len() < model.formconfig.amount {
                 log!("There are no more links! ");
-                model.everything_loaded = true
+                model.everything_loaded = true;
             };
             let mut new_links = response
                 .into_iter()
@@ -376,7 +376,7 @@ fn load_links(orders: &mut impl Orders<Msg>, data: LinkRequestForm) {
                 .json(&data),
             Msg::SetMessage("Failed to parse data".to_string())
         );
-        // send the request and recieve a response
+        // send the request and receive a response
         let response = unwrap_or_return!(
             fetch(request).await,
             Msg::SetMessage("Failed to send data".to_string())
@@ -554,7 +554,7 @@ fn delete_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
                 .json(&link_delta),
             Msg::SetMessage("serialization failed".to_string())
         );
-        // perform the request and recieve a respnse
+        // perform the request and receive a response
         let response =
             unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToDeleteLink));
 
@@ -746,7 +746,8 @@ fn view_link(l: &Cached<FullLink>, logged_in_user: &User) -> Node<Msg> {
                 C!["table_qr"],
                 a![
                     ev(Ev::Click, |event| event.stop_propagation()),
-                    attrs![At::Href => format!["/admin/download/png/{}",  &l.link.code], At::Download => true.as_at_value()],
+                    attrs![At::Href => format!("/admin/download/png/{}", &l.link.code),
+                    At::Download => true.as_at_value()],
                     raw!(&l.cache)
                 ]
             ]
