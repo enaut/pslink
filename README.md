@@ -168,3 +168,26 @@ ExecStart=/var/pslink/pslink runserver
 [Install]
 WantedBy=multi-user.target
 ```
+
+### Setup a demo container
+
+First build the standalone binary:
+
+```bash
+$ cargo make build_standalone
+```
+
+Create a temporary directory and copy the binary from above:
+
+```bash
+$ mkdir /tmp/pslink-container/
+$ cp target/x86_64-unknown-linux-musl/release/pslink /tmp/pslink-container/
+```
+
+Run the container (podman is used here but docker could be used exactly the same):
+
+```bash
+$ podman run --expose 8080 -p=8080:8080 -it pslink-container ./pslink demo -i 0.0.0.0
+```
+
+Note that this is **absolutely not for a production use** and only for demo purposes as the links are **deleted on every restart**.

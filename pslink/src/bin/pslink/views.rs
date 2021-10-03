@@ -67,9 +67,9 @@ fn detect_language(request: &HttpRequest) -> Result<Lang, ServerError> {
     );
     info!("supported languages: {:?}", supported);
 
-    if let Some(languagecode) = supported.get(0) {
-        info!("Supported Language: {}", languagecode);
-        Ok(languagecode
+    if let Some(language_code) = supported.get(0) {
+        info!("Supported Language: {}", language_code);
+        Ok(language_code
             .to_string()
             .parse()
             .expect("Failed to parse 2 language"))

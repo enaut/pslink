@@ -368,7 +368,7 @@ impl NewLink {
     ///
     /// # Errors
     /// fails with [`ServerError`] if the database cannot be acessed or constraints are not met.
-    pub(crate) async fn insert(self, server_config: &ServerConfig) -> Result<(), ServerError> {
+    pub async fn insert(self, server_config: &ServerConfig) -> Result<(), ServerError> {
         sqlx::query!(
             "Insert into links (
                 title,

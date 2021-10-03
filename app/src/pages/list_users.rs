@@ -62,7 +62,7 @@ struct FilterInput {
     filter_input: ElRef<web_sys::HtmlInputElement>,
 }
 
-/// The message splits the contained message into messages related to querrying and messages related to editing.
+/// The message splits the contained message into messages related to querying and messages related to editing.
 #[derive(Clone)]
 pub enum Msg {
     Query(UserQueryMsg),
@@ -161,7 +161,7 @@ pub fn process_query_messages(msg: UserQueryMsg, model: &mut Model, orders: &mut
         }
         UserQueryMsg::EmailFilterChanged(s) => {
             log!("Filter is: ", &s);
-            // FIXME: Sanitazion does not work for @
+            // FIXME: Sanitation does not work for @
             let sanit = s.chars().filter(|x| x.is_alphanumeric()).collect();
             model.formconfig.filter[UserOverviewColumns::Email].sieve = sanit;
             orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
@@ -238,7 +238,7 @@ pub fn process_user_edit_messages(
             let data = model
                 .user_edit
                 .take()
-                .expect("A user should allways be there on save");
+                .expect("A user should always be there on save");
             log!("Saving User: ", &data.username);
             save_user(data, orders);
         }
