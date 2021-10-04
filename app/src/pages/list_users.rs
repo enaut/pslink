@@ -393,7 +393,7 @@ fn view_user_table_head<F: Fn(&str) -> String>(t: F) -> Node<Msg> {
     ]
 }
 
-/// Display the filterboxes below the headlines
+/// Display the filter-boxes below the headlines
 fn view_user_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> Node<Msg> {
     tr![
         C!["filters"],

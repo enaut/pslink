@@ -821,14 +821,7 @@ fn edit_or_create_link<F: Fn(&str) -> String>(
             ],
             tr![
                 th![t("qr-code")],
-                if let Loadable::Data(Some(qr)) = qr {
-                    td![a![
-                        span![C!["qrdownload"], "Download", raw!(&qr.svg),],
-                        attrs!(At::Href => qr.url, At::Download => "qr-code.png")
-                    ]]
-                } else {
-                    td!["Loading..."]
-                }
+                qr.as_ref().map_or_else(|| td!["Loading..."], render_qr),
             ]
         ],
         a![
@@ -840,6 +833,13 @@ fn edit_or_create_link<F: Fn(&str) -> String>(
             ev(Ev::Click, |_| Msg::Edit(EditMsg::SaveLink))
         ]
     ]
+}
+
+fn render_qr(qr: &QrGuard) -> Node<Msg> {
+    td![a![
+        span![C!["qrdownload"], "Download", raw!(&qr.svg),],
+        attrs!(At::Href => qr.url, At::Download => "qr-code.png")
+    ]]
 }
 
 /// generate a qr-code for a code
