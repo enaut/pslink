@@ -12,14 +12,14 @@ repository = "https://github.com/enaut/pslink/"
 version = "0.4.4"
 
 [build-dependencies]
-actix-web-static-files = { path = "../../actix-web-static-files" }
+actix-web-static-files = { git = "https://github.com/enaut/actix-web-static-files.git", branch="master" }
 static-files = { version = "0.2", default-features = false }
 
 [dependencies]
 actix-identity = "0.4.0-beta.2"
 actix-rt = "2.2"
 actix-web = "4.0.0-beta.9"
-actix-web-static-files = { path = "../../actix-web-static-files" }
+actix-web-static-files = { git = "https://github.com/enaut/actix-web-static-files.git", branch="master" }
 actix-files = "0.6.0-beta.7"
 argonautica = "0.2"
 clap = "2.33"
