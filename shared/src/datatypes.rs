@@ -1,11 +1,11 @@
-//! The more generic datatypes used in pslink
+//! The more generic data-types used in pslink
 use std::ops::Deref;
 
 use serde::{Deserialize, Serialize, Serializer};
-use strum_macros::{AsRefStr, EnumIter, EnumString, ToString};
+use strum_macros::{AsRefStr, EnumIter, EnumString};
 
 use crate::apirequests::users::Role;
-/// A generic list returntype containing the User and a Vec containing e.g. Links or Users
+/// A generic list return type containing the User and a Vec containing e.g. Links or Users
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ListWithOwner<T> {
     pub user: User,
@@ -48,7 +48,7 @@ pub struct Count {
     pub number: i32,
 }
 
-/// Everytime a shor url is clicked record it for statistical evaluation.
+/// Every time a short url is clicked record it for statistical evaluation.
 #[derive(Serialize, Debug)]
 pub struct Click {
     pub id: i64,
@@ -118,24 +118,20 @@ impl<T> Deref for Loadable<T> {
 }
 
 /// An `enum` containing the available languages.
-/// To add an additional language add it to this enum aswell as an appropriate file into the locales folder.
+/// To add an additional language add it to this enum as well as an appropriate file into the locales folder.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    EnumIter,
-    EnumString,
-    ToString,
-    AsRefStr,
-    Eq,
-    PartialEq,
-    Serialize,
-    Deserialize,
+    Debug, Copy, Clone, EnumIter, EnumString, AsRefStr, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub enum Lang {
     #[strum(serialize = "en-US", serialize = "en", serialize = "enUS")]
     EnUS,
     #[strum(serialize = "de-DE", serialize = "de", serialize = "deDE")]
     DeDE,
+}
+
+impl std::fmt::Display for Lang {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
