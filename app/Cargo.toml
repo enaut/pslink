@@ -8,7 +8,7 @@ keywords = ["url", "link", "webpage", "actix", "web"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/enaut/pslink/"
-version = "0.4.3"
+version = "0.4.4"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,12 +16,12 @@ version = "0.4.3"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-fluent = "0.15"
+fluent = "0.16"
 seed = "0.8"
 serde = {version="1.0", features = ["derive"]}
 unic-langid = "0.9"
-strum_macros = "0.21"
-strum = "0.21"
+strum_macros = "0.22"
+strum = "0.22"
 enum-map = "1"
 qrcode = "0.12"
 image = "0.23"
