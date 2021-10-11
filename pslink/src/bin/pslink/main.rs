@@ -5,6 +5,8 @@ mod views;
 
 use actix_files::Files;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
+use actix_web::middleware::Compat;
+use actix_web::web::Data;
 use actix_web::{web, App, HttpServer};
 use pslink::ServerConfig;
 
@@ -32,7 +34,7 @@ pub fn get_subscriber(name: &str, env_filter: &str) -> impl Subscriber + Send + 
     let otel_layer = OpenTelemetryLayer::new(tracer);
 
     // Use the tracing subscriber `Registry`, or any other subscriber
-    // that impls `LookupSpan`
+    // that implements `LookupSpan`
     Registry::default()
         .with(otel_layer)
         .with(env_filter)
@@ -105,9 +107,10 @@ pub async fn webservice(
 
     let server = HttpServer::new(move || {
         let generated = generate();
+        let logger = Compat::new(TracingLogger::default());
         App::new()
-            .data(server_config.clone())
-            .wrap(TracingLogger)
+            .app_data(Data::new(server_config.clone()))
+            .wrap(logger)
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&[0; 32])
                     .name("auth-cookie")

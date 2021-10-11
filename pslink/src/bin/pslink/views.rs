@@ -30,13 +30,13 @@ use pslink::ServerError;
 #[instrument]
 fn redirect_builder(target: &str) -> HttpResponse {
     HttpResponse::SeeOther()
-        .set(CacheControl(vec![
+        .insert_header(CacheControl(vec![
             CacheDirective::NoCache,
             CacheDirective::NoStore,
             CacheDirective::MustRevalidate,
         ]))
-        .set(Expires(SystemTime::now().into()))
-        .set_header(actix_web::http::header::LOCATION, target)
+        .insert_header(Expires(SystemTime::now().into()))
+        .insert_header((actix_web::http::header::LOCATION, target))
         .body(format!("Redirect to {}", target))
 }
 
@@ -112,7 +112,7 @@ pub async fn index_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Links to Json api");
     match queries::list_all_allowed(&id, &config, form.0).await {
-        Ok(links) => Ok(HttpResponse::Ok().json2(&links.list)),
+        Ok(links) => Ok(HttpResponse::Ok().json(&links.list)),
         Err(e) => {
             error!("Failed to access database: {:?}", e);
             warn!("Not logged in - redirecting to login page");
@@ -129,7 +129,7 @@ pub async fn index_users_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
     if let Ok(users) = queries::list_users(&id, &config, form.0).await {
-        Ok(HttpResponse::Ok().json2(&users.list))
+        Ok(HttpResponse::Ok().json(&users.list))
     } else {
         Ok(redirect_builder("/admin/login"))
     }
@@ -145,7 +145,7 @@ pub async fn get_logged_user_json(
             Ok(HttpResponse::Unauthorized().finish())
         }
         RoleGuard::Regular { user } | RoleGuard::Admin { user } => {
-            Ok(HttpResponse::Ok().json2(&user))
+            Ok(HttpResponse::Ok().json(&user))
         }
     }
 }
@@ -156,7 +156,7 @@ pub async fn download_png(
     config: web::Data<crate::ServerConfig>,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    match queries::get_link(&id, &link_code.0, &config).await {
+    match queries::get_link(&id, &link_code, &config).await {
         Ok(query) => {
             let qr = QrCode::with_error_correction_level(
                 &format!("http://{}/{}", config.public_url, &query.item.code),
@@ -169,7 +169,9 @@ pub async fn download_png(
                 .write_to(&mut temporary_data, ImageOutputFormat::Png)
                 .unwrap();
             let image_data = temporary_data.into_inner();
-            Ok(HttpResponse::Ok().set(ContentType::png()).body(image_data))
+            Ok(HttpResponse::Ok()
+                .insert_header(ContentType::png())
+                .body(image_data))
         }
         Err(e) => Err(e),
     }
@@ -183,7 +185,7 @@ pub async fn process_create_user_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
     match queries::create_user(&id, data.into_inner(), &config).await {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(&Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
         }))),
         Err(e) => Err(e),
@@ -198,7 +200,7 @@ pub async fn process_update_user_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
     match queries::update_user(&id, &form, &config).await {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(&Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
         }))),
         Err(e) => Err(e),
@@ -212,7 +214,7 @@ pub async fn toggle_admin(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     let update = queries::toggle_admin(&id, user.id, &config).await?;
-    Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+    Ok(HttpResponse::Ok().json(&Status::Success(Message {
         message: format!(
             "Successfully changed privileges or user: {}",
             update.item.username
@@ -230,14 +232,14 @@ pub async fn get_language(
         let user = authenticate(&id, &config).await?;
         match user {
             RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
-                Ok(HttpResponse::Ok().json2(&detect_language(&req)?))
+                Ok(HttpResponse::Ok().json(&detect_language(&req)?))
             }
             RoleGuard::Regular { user } | RoleGuard::Admin { user } => {
-                Ok(HttpResponse::Ok().json2(&user.language))
+                Ok(HttpResponse::Ok().json(&user.language))
             }
         }
     } else {
-        Ok(HttpResponse::Ok().json2(&detect_language(&req)?))
+        Ok(HttpResponse::Ok().json(&detect_language(&req)?))
     }
 }
 
@@ -248,7 +250,7 @@ pub async fn set_language(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     queries::set_language(&id, data.0, &config).await?;
-    Ok(HttpResponse::Ok().json2(&data.0))
+    Ok(HttpResponse::Ok().json(&data.0))
 }
 
 #[instrument(skip(id))]
@@ -278,23 +280,23 @@ pub async fn process_login_json(
                     info!("Log-in of user: {}", &u.username);
                     let session_token = u.username.clone();
                     id.remember(session_token);
-                    Ok(HttpResponse::Ok().json2(&u))
+                    Ok(HttpResponse::Ok().json(&u))
                 } else {
                     info!("Invalid password for user: {}", &u.username);
-                    Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
+                    Ok(HttpResponse::Unauthorized().json(&Status::Error(Message {
                         message: "Failed to Login".to_string(),
                     })))
                 }
             } else {
                 // should fail earlier if secret is missing.
-                Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
+                Ok(HttpResponse::Unauthorized().json(&Status::Error(Message {
                     message: "Failed to Login".to_string(),
                 })))
             }
         }
         Err(e) => {
             info!("Failed to login: {}", e);
-            Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
+            Ok(HttpResponse::Unauthorized().json(&Status::Error(Message {
                 message: "Failed to Login".to_string(),
             })))
         }
@@ -311,7 +313,7 @@ pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
 #[instrument()]
 pub async fn to_admin() -> Result<HttpResponse, ServerError> {
     let response = HttpResponse::PermanentRedirect()
-        .set_header(actix_web::http::header::LOCATION, "/app/")
+        .insert_header((actix_web::http::header::LOCATION, "/app/"))
         .body(r#"The admin interface moved to <a href="/app/">/app/</a>"#);
 
     Ok(response)
@@ -324,7 +326,7 @@ pub async fn redirect(
     req: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
     info!("Redirecting to {:?}", data);
-    let link = queries::get_link_simple(&data.0, &config).await;
+    let link = queries::get_link_simple(&data, &config).await;
     info!("link: {:?}", link);
     match link {
         Ok(link) => {
@@ -334,7 +336,7 @@ pub async fn redirect(
         Err(ServerError::Database(e)) => {
             info!(
                 "Link was not found: http://{}/{} \n {}",
-                &config.public_url, &data.0, e
+                &config.public_url, &data, e
             );
             Ok(HttpResponse::NotFound().body(
                 r#"<!DOCTYPE html>
@@ -373,7 +375,7 @@ pub async fn process_create_link_json(
 ) -> Result<HttpResponse, ServerError> {
     let new_link = queries::create_link(&id, data.into_inner(), &config).await;
     match new_link {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(&Status::Success(Message {
             message: format!("Successfully saved link: {}", item.item.code),
         }))),
         Err(e) => Err(e),
@@ -388,7 +390,7 @@ pub async fn process_update_link_json(
 ) -> Result<HttpResponse, ServerError> {
     let new_link = queries::update_link(&id, data.into_inner(), &config).await;
     match new_link {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(&Status::Success(Message {
             message: format!("Successfully updated link: {}", item.item.code),
         }))),
         Err(e) => Err(e),
@@ -402,7 +404,7 @@ pub async fn process_delete_link_json(
     data: web::Json<LinkDelta>,
 ) -> Result<HttpResponse, ServerError> {
     queries::delete_link(&id, &data.code, &config).await?;
-    Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+    Ok(HttpResponse::Ok().json(&Status::Success(Message {
         message: format!("Successfully deleted link: {}", &data.code),
     })))
 }
