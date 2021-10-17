@@ -1,11 +1,17 @@
 # Pslink a "Private Short Link page"
 
-The target audience of this tool are small entities that need a url shortener. The shortened urls can be publicly resolved but only registered users can create short urls. Every registered user can see all shorted urls but ownly modify its own. Admin users can invite other accounts and edit everything that can be edited (also urls created by other accounts).
+The target audience of this tool are small entities that need a url shortener. The shortened urls can be publicly resolved but only registered users can create short urls. Every registered user can see all shorted urls but only modify its own. Admin users can invite other accounts and edit everything that can be edited (also urls created by other accounts).
 
-So in general this is more a shared short url bookmark webpage than a shorturl service.
+So in general this is more a shared short url bookmark webpage than a short url service.
 
-![Screenshot](./doc/img/screenshot.png)
-![Screenshot](./doc/img/screenshot_edit.png)
+## Demo
+
+A demo instance is running under [https://pslink.teilgedanken.de/app/](https://pslink.teilgedanken.de/app/)
+
+The Username and Password are both `demo`. Do not use this for any production usecase as the database is wiped every 15 minutes. If your created links/users are suddenly missing this is due to such a database wipe.
+
+[![Screenshot](./doc/img/screenshot.png)](https://pslink.teilgedanken.de/app/)
+[![Screenshot](./doc/img/screenshot_edit.png)](https://pslink.teilgedanken.de/app/)
 
 ## What users can do
 
@@ -22,7 +28,7 @@ So in general this is more a shared short url bookmark webpage than a shorturl s
   * download qr-codes of the links
   * modify own "profile" settings
 
-  ### Admins (priviledged account)
+  ### Admins (privileged account)
 
   * everything from users
   * modify all links
@@ -34,9 +40,9 @@ So in general this is more a shared short url bookmark webpage than a shorturl s
 
 ## What the program can do
 
-The Page comes with a basic commandline interface to setup the environment.
+The Page comes with a basic command line interface to setup the environment.
 
-### Commandline
+### Command line
 
 * create and read from a `.env` file in the current directory
 * create and migrate the database
@@ -55,7 +61,7 @@ The Page comes with a basic commandline interface to setup the environment.
 
 The pslink binary can be downloaded from the latest release at: https://github.com/enaut/pslink/releases
 
-These binaries are selfcontained and should run on any linux 64bit sy"stem. Just put them where you like them to be and make them executable. A sample install might be:
+These binaries are self contained and should run on any linux 64bit sy"stem. Just put them where you like them to be and make them executable. A sample install might be:
 
 ```bash
 # mkdir -p /opt/pslink
@@ -95,7 +101,7 @@ $ cargo make build_release
 
 If pslink is built with `cargo make build_standalone` everything is embedded and it should be portable to any 64bit linux system. Otherwise the same or newer version of libc needs to be installed on the target linux system. Note that you need to install `musl-gcc` for this to work using: `sudo dnf install musl-libc musl-gcc` or `sudo apt-get install musl-tools`.
 
-Templates and migrations are allways embedded in the binary so it should run standalone without anything extra.
+Templates and migrations are always embedded in the binary so it should run standalone without anything extra.
 
 ### Setup
 
@@ -107,7 +113,7 @@ To get Pslink up and running use the commands in the following order:
 
 1. `pslink generate-env`
 
-    this will generate a `.env` file in the curent directory with the default settings. Edit this file to your liking. You can however skip this step and provide all the parameters via commandline or environmentvariable. It is **not** recommended to provide PSLINK_SECRET with commandline parameters as they can be read by every user on the system.
+    this will generate a `.env` file in the current directory with the default settings. Edit this file to your liking. You can however skip this step and provide all the parameters via command line or environment variable. It is **not** recommended to provide PSLINK_SECRET with command line parameters as they can be read by every user on the system.
 
 2. `pslink migrate-database`
 
@@ -115,7 +121,7 @@ To get Pslink up and running use the commands in the following order:
 
 3. `pslink create-admin`
 
-    create an initial admin user. As the page has no "register" function this is required to do anything usefull. The command is interactive so you will be asked the username and password of the new admin user.
+    create an initial admin user. As the page has no "register" function this is required to do anything useful. The command is interactive so you will be asked the username and password of the new admin user.
 
 4. `pslink runserver`
 
