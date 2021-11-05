@@ -196,4 +196,6 @@ Run the container (podman is used here but docker could be used exactly the same
 $ podman run --expose 8080 -p=8080:8080 -it pslink-container ./pslink demo -i 0.0.0.0
 ```
 
+On every restart a new container and volume is created. If the service is restarted often those should be dealt with.
+
 Note that this is **absolutely not for a production use** and only for demo purposes as the links are **deleted on every restart**.

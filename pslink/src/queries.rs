@@ -201,7 +201,7 @@ macro_rules! ts {
         match $ordering {
             Ordering::Ascending => "ASC",
             Ordering::Descending => "DESC",
-        };
+        }
     };
 }
 

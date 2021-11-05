@@ -123,6 +123,7 @@ impl<T> Deref for Loadable<T> {
 #[derive(
     Debug, Copy, Clone, EnumIter, EnumString, AsRefStr, Eq, PartialEq, Serialize, Deserialize,
 )]
+#[strum(ascii_case_insensitive)]
 pub enum Lang {
     #[strum(serialize = "en-US", serialize = "en", serialize = "enUS")]
     EnUS,
