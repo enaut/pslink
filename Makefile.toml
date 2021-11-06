@@ -62,7 +62,7 @@ dependencies = ["build_release"]
 [tasks.start_standalone]
 extend = "start"
 description = "Build and start the pslink server with the musl c library embedded."
-args = ["run", "--package", "pslink", "--release", "--", "runserver", "--target", "x86_64-unknown-linux-musl"]
+args = ["run", "--package", "pslink", "--release", "--target", "x86_64-unknown-linux-musl", "--", "runserver"]
 dependencies = ["build_standalone"]
 
 # ---- TEST ----
