@@ -1,14 +1,15 @@
 //! List all the links the own links editable or if an admin is logged in all links editable.
 use std::ops::Deref;
 
+use chrono::Datelike;
 use enum_map::EnumMap;
 use fluent::fluent_args;
 use image::{DynamicImage, ImageOutputFormat, Luma};
 use pslink_locales::I18n;
 use qrcode::{render::svg, QrCode};
 use seed::{
-    a, attrs, div, h1, img, input, log, nodes, prelude::*, raw, section, span, table, td, th, tr,
-    Url, C, IF,
+    a, attrs, div, h1, img, input, log, nodes, path, prelude::*, raw, section, span, svg, table,
+    td, th, tr, Url, C, IF,
 };
 use web_sys::{IntersectionObserver, IntersectionObserverEntry, IntersectionObserverInit};
 
@@ -16,9 +17,9 @@ use pslink_shared::{
     apirequests::general::Ordering,
     apirequests::{
         general::{EditMode, Message, Operation, Status},
-        links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
+        links::{LinkDelta, LinkOverviewColumns, LinkRequestForm, StatisticsRequest},
     },
-    datatypes::{FullLink, Lang, Loadable, User},
+    datatypes::{Clicks, Count, FullLink, Lang, Loadable, Statistics, User, WeekCount},
 };
 
 use crate::{get_host, unwrap_or_return};
@@ -56,7 +57,7 @@ pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
 
 #[derive(Debug)]
 pub struct Model {
-    links: Vec<Cached<FullLink>>, // will contain the links to display
+    links: Vec<Cached<FullLink, LinkCache>>, // will contain the links to display
     load_more: ElRef<web_sys::Element>,
     i18n: I18n,                                        // to translate
     formconfig: LinkRequestForm, // when requesting links the form is stored here
@@ -78,12 +79,18 @@ impl Model {
 }
 
 #[derive(Debug)]
-pub struct Cached<T> {
-    data: T,
-    cache: String,
+pub struct LinkCache {
+    qr: String,
+    stats: Option<Node<Msg>>,
 }
 
-impl<T> Deref for Cached<T> {
+#[derive(Debug)]
+pub struct Cached<T, S> {
+    data: T,
+    cache: S,
+}
+
+impl<T, S> Deref for Cached<T, S> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -145,7 +152,7 @@ struct FilterInput {
 }
 
 /// A message can either edit or query. (or set a dialog)
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     Query(QueryMsg), // Messages related to querying links
     Edit(EditMsg),   // Messages related to editing links
@@ -156,10 +163,12 @@ pub enum Msg {
 }
 
 /// All the messages related to requesting information from the server.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum QueryMsg {
     Fetch,
     FetchAdditional,
+    GetStatistics(i64),
+    ReceivedStatistics(Statistics),
     OrderBy(LinkOverviewColumns),
     Received(Vec<FullLink>),
     ReceivedAdditional(Vec<FullLink>),
@@ -262,70 +271,42 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
             consecutive_load(model, orders);
         }
         // Default to ascending ordering but if the links are already sorted according to this column toggle between ascending and descending ordering.
-        QueryMsg::OrderBy(column) => {
-            model.formconfig.order = model.formconfig.order.as_ref().map_or_else(
-                || {
-                    Some(Operation {
-                        column: column.clone(),
-                        value: Ordering::Ascending,
-                    })
-                },
-                |order| {
-                    Some(Operation {
-                        column: column.clone(),
-                        value: if order.column == column && order.value == Ordering::Ascending {
-                            Ordering::Descending
-                        } else {
-                            Ordering::Ascending
-                        },
-                    })
-                },
-            );
-            // After setting up the ordering fetch the links from the server again with the new filter settings.
-            // If the new filters and ordering include more links the list would be incomplete otherwise.
-            orders.send_msg(Msg::Query(QueryMsg::Fetch));
-
-            // Also sort the links locally - can probably removed...
-            model.links.sort_by(match column {
-                LinkOverviewColumns::Code => {
-                    |o: &Cached<FullLink>, t: &Cached<FullLink>| o.link.code.cmp(&t.link.code)
-                }
-                LinkOverviewColumns::Description => {
-                    |o: &Cached<FullLink>, t: &Cached<FullLink>| o.link.title.cmp(&t.link.title)
-                }
-                LinkOverviewColumns::Target => {
-                    |o: &Cached<FullLink>, t: &Cached<FullLink>| o.link.target.cmp(&t.link.target)
-                }
-                LinkOverviewColumns::Author => |o: &Cached<FullLink>, t: &Cached<FullLink>| {
-                    o.user.username.cmp(&t.user.username)
-                },
-                LinkOverviewColumns::Statistics => |o: &Cached<FullLink>, t: &Cached<FullLink>| {
-                    o.clicks.number.cmp(&t.clicks.number)
-                },
-            });
-        }
+        QueryMsg::OrderBy(ref column) => order_columns(orders, model, column),
         QueryMsg::Received(response) => {
             model.links = response
                 .into_iter()
                 .map(|l| {
                     let cache = generate_qr_from_code(&l.link.code);
-                    Cached { data: l, cache }
+                    Cached {
+                        data: l,
+                        cache: LinkCache {
+                            qr: cache,
+                            stats: None,
+                        },
+                    }
                 })
                 .collect();
+            request_all_statistics(orders, model);
         }
         QueryMsg::ReceivedAdditional(response) => {
             if response.len() < model.formconfig.amount {
-                log!("There are no more links! ");
                 model.everything_loaded = true;
             };
             let mut new_links = response
                 .into_iter()
                 .map(|l| {
                     let cache = generate_qr_from_code(&l.link.code);
-                    Cached { data: l, cache }
+                    Cached {
+                        data: l,
+                        cache: LinkCache {
+                            qr: cache,
+                            stats: None,
+                        },
+                    }
                 })
                 .collect();
             model.links.append(&mut new_links);
+            request_all_statistics(orders, model);
         }
         QueryMsg::CodeFilterChanged(s) => {
             log!("Filter is: ", &s);
@@ -351,7 +332,111 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
             model.formconfig.filter[LinkOverviewColumns::Author].sieve = sanit;
             orders.send_msg(Msg::Query(QueryMsg::Fetch));
         }
+        QueryMsg::GetStatistics(link_id) => {
+            orders.skip(); // No need to rerender
+            request_statistics(orders, link_id);
+        }
+        QueryMsg::ReceivedStatistics(statistics) => {
+            for i in 1..model.links.len() {
+                if model.links[i].data.link.id == statistics.link_id {
+                    model.links[i].data.clicks = Clicks::Extended(statistics.clone());
+
+                    model.links[i].cache.stats = statistics
+                        .values
+                        .iter()
+                        .max()
+                        .map(|maximum| render_stats(statistics.clone(), maximum));
+                }
+            }
+        }
     }
+}
+
+fn order_columns(orders: &mut impl Orders<Msg>, model: &mut Model, column: &LinkOverviewColumns) {
+    model.formconfig.order = model.formconfig.order.as_ref().map_or_else(
+        || {
+            Some(Operation {
+                column: column.clone(),
+                value: Ordering::Ascending,
+            })
+        },
+        |order| {
+            Some(Operation {
+                column: column.clone(),
+                value: if &order.column == column && order.value == Ordering::Ascending {
+                    Ordering::Descending
+                } else {
+                    Ordering::Ascending
+                },
+            })
+        },
+    );
+    // After setting up the ordering fetch the links from the server again with the new filter settings.
+    // If the new filters and ordering include more links the list would be incomplete otherwise.
+    orders.send_msg(Msg::Query(QueryMsg::Fetch));
+
+    // Also sort the links locally - can probably removed...
+    model.links.sort_by(match column {
+        LinkOverviewColumns::Code => {
+            |o: &Cached<FullLink, _>, t: &Cached<FullLink, _>| o.link.code.cmp(&t.link.code)
+        }
+        LinkOverviewColumns::Description => {
+            |o: &Cached<FullLink, _>, t: &Cached<FullLink, _>| o.link.title.cmp(&t.link.title)
+        }
+        LinkOverviewColumns::Target => {
+            |o: &Cached<FullLink, _>, t: &Cached<FullLink, _>| o.link.target.cmp(&t.link.target)
+        }
+        LinkOverviewColumns::Author => {
+            |o: &Cached<FullLink, _>, t: &Cached<FullLink, _>| o.user.username.cmp(&t.user.username)
+        }
+        LinkOverviewColumns::Statistics => {
+            |o: &Cached<FullLink, _>, t: &Cached<FullLink, _>| o.clicks.cmp(&t.clicks)
+        }
+    });
+}
+
+fn request_all_statistics(orders: &mut impl Orders<Msg>, model: &Model) {
+    for m in &model.links {
+        match m.data.clicks {
+            Clicks::Count(_) => {
+                let id = m.link.id;
+                orders.perform_cmd(cmds::timeout(500, move || {
+                    Msg::Query(QueryMsg::GetStatistics(id))
+                }));
+            }
+            Clicks::Extended(_) => (),
+        }
+    }
+}
+
+fn request_statistics(orders: &mut impl Orders<Msg>, link_id: i64) {
+    let data = StatisticsRequest { link_id };
+    orders.perform_cmd(async move {
+        let data = data;
+        let url = "/admin/json/get_link_statistics/";
+        // create a request
+        let request = unwrap_or_return!(
+            Request::new(url).method(Method::Post).json(&data),
+            Msg::SetMessage("Failed to parse data".to_string())
+        );
+        // send the request and receive a response
+        let response = unwrap_or_return!(
+            fetch(request).await,
+            Msg::SetMessage("Failed to send data".to_string())
+        );
+        // check the html status to be 200
+        let response = unwrap_or_return!(
+            response.check_status(),
+            Msg::SetMessage("Wrong response code".to_string())
+        );
+        // unpack the response into the `Vec<FullLink>`
+        let statistics: Statistics = unwrap_or_return!(
+            response.json().await,
+            Msg::SetMessage("Invalid response".to_string())
+        );
+        // The message that is sent by perform_cmd after this async block is completed
+        Msg::Query(QueryMsg::ReceivedStatistics(statistics))
+    });
 }
 
 fn initial_load(model: &Model, orders: &mut impl Orders<Msg>) {
@@ -622,7 +707,10 @@ pub fn view(model: &Model, logged_in_user: &User) -> Node<Msg> {
             // Add filter fields right below the headlines
             view_link_table_filter_input(model, &t),
             // Add all the content lines
-            model.links.iter().map(|l| { view_link(l, logged_in_user) })
+            model
+                .links
+                .iter()
+                .map(|l| { view_link(l, logged_in_user, t) })
         ],
         if not(model.everything_loaded) {
             a![
@@ -729,7 +817,11 @@ fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
 }
 
 /// display a single table row containing one link
-fn view_link(l: &Cached<FullLink>, logged_in_user: &User) -> Node<Msg> {
+fn view_link<F: Fn(&str) -> String>(
+    l: &Cached<FullLink, LinkCache>,
+    logged_in_user: &User,
+    t: F,
+) -> Node<Msg> {
     use pslink_shared::apirequests::users::Role;
     let link = LinkDelta::from(l.data.clone());
     tr![
@@ -740,7 +832,25 @@ fn view_link(l: &Cached<FullLink>, logged_in_user: &User) -> Node<Msg> {
         td![&l.link.title],
         td![&l.link.target],
         td![&l.user.username],
-        td![&l.clicks.number],
+        match &l.clicks {
+            Clicks::Count(Count { number }) => td![number],
+            Clicks::Extended(statistics) =>
+                if let Some(nodes) = l.cache.stats.clone() {
+                    td![
+                        span!(
+                            C!("stats_total"),
+                            t("total_clicks"),
+                            match &l.data.clicks {
+                                Clicks::Count(c) => c.number,
+                                Clicks::Extended(e) => e.total.number,
+                            }
+                        ),
+                        nodes
+                    ]
+                } else {
+                    td!(statistics.total.number)
+                },
+        },
         {
             td![
                 C!["table_qr"],
@@ -748,7 +858,7 @@ fn view_link(l: &Cached<FullLink>, logged_in_user: &User) -> Node<Msg> {
                     ev(Ev::Click, |event| event.stop_propagation()),
                     attrs![At::Href => format!("/admin/download/png/{}", &l.link.code),
                     At::Download => true.as_at_value()],
-                    raw!(&l.cache)
+                    raw!(&l.cache.qr)
                 ]
             ]
         },
@@ -766,6 +876,64 @@ fn view_link(l: &Cached<FullLink>, logged_in_user: &User) -> Node<Msg> {
         } else {
             td![]
         },
+    ]
+}
+
+/// Render stats is best performed in the update rather than in the view cycle to avoid needless recalculations. Since the database only sends a list of weeks that contain clicks this function has to add the weeks that do not contain clicks. This is more easily said than done since the first and last week index are not constant, the ordering has to be right, and not every year has 52 weeks. But we ignore the last issue.
+fn render_stats(q: Statistics, maximum: &WeekCount) -> Node<Msg> {
+    let factor = 40.0 / f64::max(f64::from(maximum.total.number), 1.0);
+    let mut full: Vec<WeekCount> = Vec::new();
+    let mut week = chrono::Utc::now() - chrono::Duration::weeks(52);
+
+    for with_clicks in q.values {
+        loop {
+            #[allow(clippy::cast_possible_wrap)]
+            let cw = week.iso_week().week() as i32;
+            if with_clicks.week == cw {
+                full.push(with_clicks);
+                week = week + chrono::Duration::weeks(1);
+                break;
+            }
+            // otherwise add another empty week
+            let nstat = WeekCount {
+                month: week.naive_local(),
+                total: Count { number: 0 },
+                week: cw,
+            };
+            full.push(nstat);
+            week = week + chrono::Duration::weeks(1);
+        }
+    }
+    loop {
+        #[allow(clippy::cast_possible_wrap)]
+        let cw = week.iso_week().week() as i32;
+        if week < chrono::Utc::now() {
+            let nstat = WeekCount {
+                month: week.naive_local(),
+                total: Count { number: 0 },
+                week: cw,
+            };
+            full.push(nstat);
+            week = week + chrono::Duration::weeks(1);
+        } else {
+            break;
+        }
+    }
+    #[allow(clippy::cast_possible_truncation)]
+    let normalized: Vec<i64> = full
+        .iter()
+        .map(|v| (40.0 - f64::from(v.total.number) * factor).round() as i64)
+        .collect();
+    let mut points = Vec::new();
+    points.push(format!("M 0 {}", &normalized[0]));
+    #[allow(clippy::needless_range_loop)]
+    for i in 1..normalized.len() {
+        points.push(format!("L {} {}", i * 2, &normalized[i]));
+    }
+
+    svg![
+        C!("statistics_graph"),
+        path![attrs![At::D => points.join(" "), At::Stroke => "green", At::Fill => "transparent"]]
     ]
 }
 

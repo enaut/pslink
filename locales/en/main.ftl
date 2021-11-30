@@ -51,3 +51,4 @@ role = Role
 
 userid = User ID
 statistics = Statistics
+total_clicks = total clicks:

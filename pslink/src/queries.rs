@@ -8,7 +8,7 @@ use pslink_shared::{
         links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
         users::{Role, UserDelta, UserOverviewColumns, UserRequestForm},
     },
-    datatypes::{Count, FullLink, Lang, Link, Secret, User},
+    datatypes::{Clicks, Count, FullLink, Lang, Link, Secret, Statistics, User},
 };
 use serde::Serialize;
 use sqlx::Row;
@@ -137,9 +137,9 @@ pub async fn list_all_allowed(
                         role: Role::convert(v.get("urole")),
                         language: Lang::from_str(v.get("ulang")).expect("Should parse"),
                     },
-                    clicks: Count {
+                    clicks: Clicks::Count(Count {
                         number: v.get("counter"), /* count is never None */
-                    },
+                    }),
                 });
             // show all links
             let all_links: Vec<FullLink> = links.collect();
@@ -553,6 +553,28 @@ pub async fn get_link(
         RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             let link = Link::get_link_by_code(link_code, server_config).await?;
             Ok(Item { user, item: link })
+        }
+        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
+            warn!("User could not be authenticated!");
+            Err(ServerError::User("Not Allowed".to_owned()))
+        }
+    }
+}
+
+/// Get monthly statistics for one link if permissions are accordingly.
+///
+/// # Errors
+/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
+#[instrument(skip(id))]
+pub async fn get_statistics(
+    id: &Identity,
+    link_id: i64,
+    server_config: &ServerConfig,
+) -> Result<Item<Statistics>, ServerError> {
+    match authenticate(id, server_config).await? {
+        RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
+            let stats = Link::get_statistics(link_id, server_config).await?;
+            Ok(Item { user, item: stats })
         }
         RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
             warn!("User could not be authenticated!");

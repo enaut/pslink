@@ -160,6 +160,10 @@ pub async fn webservice(
                                 "/get_logged_user/",
                                 web::post().to(views::get_logged_user_json),
                             )
+                            .route(
+                                "/get_link_statistics/",
+                                web::post().to(views::get_statistics),
+                            )
                             .route("/login_user/", web::post().to(views::process_login_json)),
                     )
                     .default_service(web::to(views::to_admin)),

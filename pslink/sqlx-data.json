@@ -289,5 +289,41 @@
       },
       "nullable": []
     }
+  },
+  "eb5c92f5a47a730bf82d92fc0107913cb37d57d99f0170538f1b1da14665bbb5": {
+    "query": "select code from links where id=?",
+    "describe": {
+      "columns": [
+        {
+          "name": "code",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "f6cd43935b88accd904538e59f59684786b9960d7b8cd7b7d924cfcfb65e1dbe": {
+    "query": "select count(*) as number from clicks join links on clicks.link = links.id where links.code = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "number",
+          "ordinal": 0,
+          "type_info": "Int"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false
+      ]
+    }
   }
 }

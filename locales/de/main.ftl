@@ -50,3 +50,4 @@ role = Rolle
 
 userid = Benutzernummer
 statistics = Statistik
+total_clicks = Klicks insgesamt:

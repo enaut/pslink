@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use pslink_shared::{
     apirequests::{links::LinkDelta, users::Role},
-    datatypes::{Count, Lang, Link, User},
+    datatypes::{Count, Lang, Link, Statistics, User, WeekCount},
 };
 use sqlx::Row;
 use tracing::{error, info, instrument};
@@ -257,10 +257,66 @@ pub trait LinkDbOperations<T> {
         server_config: &ServerConfig,
     ) -> Result<(), ServerError>;
     async fn update_link(&self, server_config: &ServerConfig) -> Result<(), ServerError>;
+    async fn get_statistics(
+        code: i64,
+        server_config: &ServerConfig,
+    ) -> Result<Statistics, ServerError>;
 }
 
 #[async_trait]
 impl LinkDbOperations<Self> for Link {
+    /// Get a link by its code (the short url code)
+    ///
+    /// # Errors
+    /// fails with [`ServerError`] if the database cannot be acessed or the link is not found.
+    #[instrument()]
+    async fn get_statistics(
+        link_id: i64,
+        server_config: &ServerConfig,
+    ) -> Result<Statistics, ServerError> {
+        // Verify that the code exists to avoid injections in the next query
+        let code = sqlx::query!("select code from links where id=?", link_id)
+            .fetch_one(&server_config.db_pool)
+            .await?
+            .code;
+        // The query to get the statistics carefully check code before to avoid injections.
+        let qry = format!(
+            r#"SELECT created_at AS month,
+    cast(strftime('%W', created_at) AS String) AS week,
+    count(*) AS total
+FROM clicks
+WHERE month > date('now', 'start of month', '-1 year')
+    AND link = '{}'
+GROUP BY week
+ORDER BY month"#,
+            link_id
+        );
+        // Execute and map the query to the desired type
+        let values: Vec<WeekCount> = sqlx::query(&qry)
+            .fetch_all(&server_config.db_pool)
+            .await?
+            .into_iter()
+            .map(|c| WeekCount {
+                month: c.get("month"),
+                total: Count {
+                    number: c.get("total"),
+                },
+                week: c.get("week"),
+            })
+            .collect();
+        let total = sqlx::query_as!(
+            Count,
+            "select count(*) as number from clicks join links on clicks.link = links.id where links.code = ?",
+            code
+        ).fetch_one(&server_config.db_pool).await?;
+        tracing::info!("Found Statistics: {:?}", &values);
+        Ok(Statistics {
+            link_id,
+            total,
+            values,
+        })
+    }
+
     /// Get a link by its code (the short url code)
     ///
     /// # Errors
