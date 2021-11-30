@@ -79,6 +79,11 @@ pub enum LinkOverviewColumns {
     Statistics,
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub struct StatisticsRequest {
+    pub link_id: i64,
+}
+
 /// A struct to request a qr-code from the server
 #[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct QrCodeRequest {
