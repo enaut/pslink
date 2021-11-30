@@ -837,6 +837,7 @@ fn view_link<F: Fn(&str) -> String>(
             Clicks::Extended(statistics) =>
                 if let Some(nodes) = l.cache.stats.clone() {
                     td![
+                        nodes,
                         span!(
                             C!("stats_total"),
                             t("total_clicks"),
@@ -844,8 +845,7 @@ fn view_link<F: Fn(&str) -> String>(
                                 Clicks::Count(c) => c.number,
                                 Clicks::Extended(e) => e.total.number,
                             }
-                        ),
-                        nodes
+                        )
                     ]
                 } else {
                     td!(statistics.total.number)
@@ -881,7 +881,7 @@ fn view_link<F: Fn(&str) -> String>(
 
 /// Render stats is best performed in the update rather than in the view cycle to avoid needless recalculations. Since the database only sends a list of weeks that contain clicks this function has to add the weeks that do not contain clicks. This is more easily said than done since the first and last week index are not constant, the ordering has to be right, and not every year has 52 weeks. But we ignore the last issue.
 fn render_stats(q: Statistics, maximum: &WeekCount) -> Node<Msg> {
-    let factor = 40.0 / f64::max(f64::from(maximum.total.number), 1.0);
+    let factor = 30.0 / f64::max(f64::from(maximum.total.number), 1.0);
     let mut full: Vec<WeekCount> = Vec::new();
     let mut week = chrono::Utc::now() - chrono::Duration::weeks(52);
 
@@ -922,7 +922,7 @@ fn render_stats(q: Statistics, maximum: &WeekCount) -> Node<Msg> {
     #[allow(clippy::cast_possible_truncation)]
     let normalized: Vec<i64> = full
         .iter()
-        .map(|v| (40.0 - f64::from(v.total.number) * factor).round() as i64)
+        .map(|v| (30.0 - f64::from(v.total.number) * factor).round() as i64)
         .collect();
     let mut points = Vec::new();
     points.push(format!("M 0 {}", &normalized[0]));

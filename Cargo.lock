@@ -2642,7 +2642,7 @@ checksum = "01e985332847890fc9ff26986900c036c8b3fde8da6a31d8ca315cc116405b8c"
 
 [[package]]
 name = "pslink"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "actix-files",
  "actix-identity",
@@ -2684,7 +2684,7 @@ dependencies = [
 
 [[package]]
 name = "pslink-app"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "chrono",
  "enum-map",
@@ -2703,7 +2703,7 @@ dependencies = [
 
 [[package]]
 name = "pslink-locales"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "fluent 0.16.0",
  "pslink-shared",
@@ -2713,7 +2713,7 @@ dependencies = [
 
 [[package]]
 name = "pslink-shared"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "chrono",
  "enum-map",
