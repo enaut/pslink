@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 name = "pslink"
 readme = "README.md"
 repository = "https://github.com/enaut/pslink/"
-version = "0.4.6"
+version = "0.4.7"
 
 [build-dependencies]
 actix-web-static-files = { git = "https://github.com/enaut/actix-web-static-files.git", branch="master" }
