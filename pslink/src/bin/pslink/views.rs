@@ -12,11 +12,11 @@ use fluent_langneg::{
 };
 use fluent_templates::LanguageIdentifier;
 use image::{DynamicImage, ImageOutputFormat, Luma};
-use pslink::queries::{authenticate, RoleGuard};
+use pslink::queries::{authenticate, Item, RoleGuard};
 use pslink_shared::{
     apirequests::{
         general::{Message, Status},
-        links::{LinkDelta, LinkRequestForm},
+        links::{LinkDelta, LinkRequestForm, StatisticsRequest},
         users::{LoginUser, UserDelta, UserRequestForm},
     },
     datatypes::Lang,
@@ -173,6 +173,21 @@ pub async fn download_png(
                 .insert_header(ContentType::png())
                 .body(image_data))
         }
+        Err(e) => Err(e),
+    }
+}
+
+#[instrument(skip(id))]
+pub async fn get_statistics(
+    id: Identity,
+    config: web::Data<crate::ServerConfig>,
+    link_id: web::Json<StatisticsRequest>,
+) -> Result<HttpResponse, ServerError> {
+    match queries::get_statistics(&id, link_id.link_id, &config).await {
+        Ok(Item {
+            user: _,
+            item: stats,
+        }) => Ok(HttpResponse::Ok().json(stats)),
         Err(e) => Err(e),
     }
 }

@@ -13,12 +13,55 @@ pub struct ListWithOwner<T> {
 }
 
 /// A link together with its author and its click-count.
-#[derive(Clone, Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct FullLink {
     pub link: Link,
     pub user: User,
-    pub clicks: Count,
+    pub clicks: Clicks,
 }
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub enum Clicks {
+    Count(Count),
+    Extended(Statistics),
+}
+
+impl PartialEq for Clicks {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Count(l0), Self::Count(r0)) => l0.number == r0.number,
+            (Self::Extended(l0), Self::Extended(r0)) => l0.total.number == r0.total.number,
+            (Clicks::Count(l0), Clicks::Extended(r0)) => l0.number == r0.total.number,
+            (Clicks::Extended(l0), Clicks::Count(r0)) => l0.total.number == r0.number,
+        }
+    }
+}
+
+impl PartialOrd for Clicks {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Self::Count(l0), Self::Count(r0)) => l0.number.partial_cmp(&r0.number),
+            (Self::Extended(l0), Self::Extended(r0)) => {
+                l0.total.number.partial_cmp(&r0.total.number)
+            }
+            (Clicks::Count(l0), Clicks::Extended(r0)) => l0.number.partial_cmp(&r0.total.number),
+            (Clicks::Extended(l0), Clicks::Count(r0)) => l0.total.number.partial_cmp(&r0.number),
+        }
+    }
+}
+
+impl Ord for Clicks {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Self::Count(l0), Self::Count(r0)) => l0.number.cmp(&r0.number),
+            (Self::Extended(l0), Self::Extended(r0)) => l0.total.number.cmp(&r0.total.number),
+            (Clicks::Count(l0), Clicks::Extended(r0)) => l0.number.cmp(&r0.total.number),
+            (Clicks::Extended(l0), Clicks::Count(r0)) => l0.total.number.cmp(&r0.number),
+        }
+    }
+}
+
+impl Eq for Clicks {}
 
 /// A User of the pslink service
 #[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
@@ -43,9 +86,35 @@ pub struct Link {
 }
 
 /// When statistics are counted
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Count {
     pub number: i32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct WeekCount {
+    pub month: chrono::NaiveDateTime,
+    pub total: Count,
+    pub week: i32,
+}
+impl Eq for WeekCount {}
+
+impl PartialOrd for WeekCount {
+    fn partial_cmp(&self, other: &Self) -> std::option::Option<std::cmp::Ordering> {
+        self.total.number.partial_cmp(&other.total.number)
+    }
+}
+impl Ord for WeekCount {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.total.number.cmp(&other.total.number)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Statistics {
+    pub link_id: i64,
+    pub total: Count,
+    pub values: Vec<WeekCount>,
 }
 
 /// Every time a short url is clicked record it for statistical evaluation.
