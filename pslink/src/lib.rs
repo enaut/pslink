@@ -1,5 +1,3 @@
-extern crate sqlx;
-
 pub mod models;
 pub mod queries;
 pub mod views;
@@ -7,9 +5,11 @@ pub mod views;
 use actix_files::Files;
 use actix_identity::IdentityMiddleware;
 use actix_session::SessionMiddleware;
+use actix_web::body::BoxBody;
 use actix_web::cookie::Key;
 use actix_web::web::Data;
-use actix_web::{web, App, HttpServer};
+use actix_web::Responder;
+use actix_web::{web, App, HttpServer, ResponseError as _};
 use fluent_templates::static_loader;
 use pslink_shared::datatypes::Secret;
 use qrcode::types::QrError;
@@ -17,6 +17,7 @@ use sqlx::{Pool, Sqlite};
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thiserror::Error;
 use tracing::{error, info};
+
 use tracing_actix_web::TracingLogger;
 
 /// The Error type that is returned by most function calls if anything failed.
@@ -71,7 +72,14 @@ impl ServerError {
     }
 }
 
-/// Make the error type work nicely with the actix server.
+impl Responder for ServerError {
+    fn respond_to(self, _req: &actix_web::HttpRequest) -> actix_web::HttpResponse {
+        self.error_response()
+    }
+
+    type Body = BoxBody;
+}
+
 impl actix_web::error::ResponseError for ServerError {
     /*     fn error_response2(&self) -> HttpResponse {
         match self {
@@ -97,6 +105,13 @@ impl actix_web::error::ResponseError for ServerError {
                   "Server Error",
                   "This Server is not properly configured, if you are the admin look into the installation- or update instructions!",
               ))
+            }
+            Self::Template(e) => {
+                eprintln!("Template Error happened: {:?}", e);
+                HttpResponse::InternalServerError().body(Self::render_error(
+                    "Server Error",
+                    "The templates could not be rendered.",
+                ))
             }
             Self::Qr(e) => {
                 eprintln!("QR Error happened: {:?}", e);
@@ -241,23 +256,30 @@ pub async fn webservice(
         "If the public url is set up correctly it should be accessible via: {}://{}/app/",
         &server_config.protocol, &server_config.public_url
     );
+
+    let store = actix_session::storage::RedisSessionStore::new("redis://127.0.0.1:6379")
+        .await
+        .unwrap();
     let cookie_secret = Key::generate();
 
     let server = HttpServer::new(move || {
         let generated = generate();
-        let store = actix_session::storage::CookieSessionStore::default();
-        let session_mw = SessionMiddleware::builder(store, cookie_secret.clone())
+        let session_mw = SessionMiddleware::builder(store.clone(), cookie_secret.clone())
             // disable secure cookie for local testing
             .cookie_secure(false)
             .cookie_http_only(false)
             .build();
+
         App::new()
+            .wrap(session_mw)
             .app_data(Data::new(server_config.clone()))
             .wrap(TracingLogger::default())
-            .wrap(session_mw)
             .wrap(IdentityMiddleware::default())
             .service(actix_web_static_files::ResourceFiles::new(
                 "/static", generated,
+            ))
+            .wrap(actix_web::middleware::NormalizePath::new(
+                actix_web::middleware::TrailingSlash::Always,
             ))
             // directly go to the main page set the target with the environment variable.
             .route("/", web::get().to(views::redirect_empty))
@@ -317,9 +339,7 @@ pub async fn webservice(
             .route("/{redirect_id}", web::get().to(views::redirect))
     })
     .bind(host_port)
-    .inspect_err(|_| {
-        error!("Failed to bind to port!");
-    })?
+    .inspect_err(|e| error!("Failed to bind to port: {e}!"))?
     .run();
     Ok(server)
 }

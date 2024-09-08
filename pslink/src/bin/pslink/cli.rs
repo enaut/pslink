@@ -218,7 +218,7 @@ pub async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
     // Print launch info
     info!("Launching Pslink a 'Private short link generator'");
 
-    let mut app = generate_cli();
+    let app = generate_cli();
 
     let config = app.clone().get_matches();
 
