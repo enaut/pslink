@@ -1,10 +1,11 @@
-use clap::{crate_authors, crate_description, crate_name, crate_version, Arg, ArgMatches, Command};
+use clap::{command, Arg, ArgMatches, Command};
 use dotenv::dotenv;
 use pslink_shared::datatypes::{Secret, User};
 use sqlx::{migrate::Migrator, Pool, Sqlite};
+use std::io::IsTerminal;
 use std::{
     fs::File,
-    io::{self, BufRead, Write},
+    io::{self, BufRead, BufReader, Write},
     path::PathBuf,
 };
 
@@ -17,13 +18,8 @@ use tracing::{error, info, trace, warn};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 
-/// generate the command line options available
-#[allow(clippy::too_many_lines)]
 fn generate_cli() -> Command {
-    Command::new(crate_name!())
-        .version(crate_version!())
-        .author(crate_authors!())
-        .about(crate_description!())
+    command!()
         .arg(
             Arg::new("database")
                 .long("db")
@@ -39,6 +35,7 @@ fn generate_cli() -> Command {
                 .help("The port the pslink service will run on")
                 .env("PSLINK_PORT")
                 .default_value("8080")
+                .value_parser(clap::value_parser!(u32))
                 .global(true),
         )
         .arg(
@@ -63,7 +60,7 @@ fn generate_cli() -> Command {
             Arg::new("brand_name")
                 .long("brand-name")
                 .short('b')
-                .help("The brand name that will appear in various places.")
+                .help("The Brandname that will apper in various places.")
                 .env("PSLINK_BRAND_NAME")
                 .default_value("Pslink")
                 .global(true),
@@ -189,10 +186,8 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
         .expect("Failed to read the host value")
         .to_owned();
     let port = config
-        .get_one::<String>("port")
-        .expect("Failed to read the port value")
-        .parse::<u32>()
-        .expect("Failed to parse the port number");
+        .get_one::<u32>("port")
+        .expect("Failed to read the port value");
     let protocol = config
         .get_one::<String>("protocol")
         .expect("Failed to read the protocol value")
@@ -205,7 +200,7 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
         db_pool,
         public_url,
         internal_ip,
-        port,
+        port: *port,
         protocol,
         empty_forward_url,
         brand_name,
@@ -270,7 +265,10 @@ pub async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
     }
     if let Some(_migrate_config) = config.subcommand_matches("migrate-database") {
         return match apply_migrations(&server_config).await {
-            Ok(_) => Ok(None),
+            Ok(_) => {
+                info!("successfuly migrated the database.");
+                Ok(None)
+            }
             Err(e) => Err(e),
         };
     }
@@ -324,7 +322,7 @@ pub async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
         trace!("Initialization finished starting the service.");
         Ok(Some(server_config))
     } else {
-        println!("{}", app.render_usage());
+        println!("{}", generate_cli().render_usage());
         Err(ServerError::User("Print usage.".into()))
     }
 }
@@ -391,9 +389,16 @@ async fn request_admin_credentials(config: &ServerConfig) -> Result<(), ServerEr
     io::stdout().flush().unwrap();
     let new_email = sin.lock().lines().next().unwrap().unwrap();
 
-    print!("Please enter the password for {}: ", new_username);
     io::stdout().flush().unwrap();
-    let password = rpassword::read_password().unwrap();
+    let password = if sin.lock().is_terminal() {
+        info!("Reading the password from terminal for {}: ", new_username);
+        rpassword::prompt_password(format!("Please enter the password for {}: ", new_username))
+            .unwrap()
+    } else {
+        info!("Reading the password from buffer for {}: ", new_username);
+        let mut stdin = BufReader::new(io::stdin());
+        rpassword::read_password_from_bufread(&mut stdin).unwrap()
+    };
     info!(
         "Creating {} ({}) with given password ",
         &new_username, &new_email
@@ -426,6 +431,7 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerError> {
         &config.db.display()
     );
     MIGRATOR.run(&config.db_pool).await?;
+    info!("Migrations applied successfully.");
     Ok(())
 }
 
