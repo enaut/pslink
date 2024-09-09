@@ -1,10 +1,12 @@
 use enum_map::EnumMap;
 use fluent::fluent_args;
-use image::{DynamicImage, ImageOutputFormat, Luma};
+use gloo_console::log;
+use gloo_net::http::Request;
+use image::{DynamicImage, ImageFormat, Luma};
 use qrcode::{render::svg, QrCode};
 use seed::{
-    a, attrs, button, div, h1, img, input, log, nodes, prelude::*, raw, section, span, table, td,
-    th, tr, Url, C,
+    a, attrs, button, div, h1, img, input, nodes, prelude::*, raw, section, span, table, td, th,
+    tr, Url, C,
 };
 
 use shared::{
@@ -89,7 +91,7 @@ impl QrGuard {
 
         let png_jsarray: JsValue = js_sys::Uint8Array::from(&png_vec[..]).into();
         // the buffer has to be an array of arrays
-        let png_buffer = js_sys::Array::from_iter(std::array::IntoIter::new([png_jsarray]));
+        let png_buffer = js_sys::Array::from_iter(IntoIterator::into_iter([png_jsarray]));
         let png_blob =
             web_sys::Blob::new_with_buffer_source_sequence_and_options(&png_buffer, &properties)
                 .unwrap();
@@ -252,28 +254,26 @@ fn load_links(model: &Model, orders: &mut impl Orders<Msg>) {
         let data = data;
         // create a request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/list_links/")
-                .method(Method::Post)
-                .json(&data),
+            Request::post("/admin/json/list_links/").json(&data),
             Msg::SetMessage("Failed to parse data".to_string())
         );
         // send the request and recieve a response
         let response = unwrap_or_return!(
-            fetch(request).await,
+            request.send().await,
             Msg::SetMessage("Failed to send data".to_string())
         );
         // check the html status to be 200
-        let response = unwrap_or_return!(
-            response.check_status(),
+        if !response.ok() {
             Msg::SetMessage("Wrong response code".to_string())
-        );
-        // unpack the response into the `Vec<FullLink>`
-        let links: Vec<FullLink> = unwrap_or_return!(
-            response.json().await,
-            Msg::SetMessage("Invalid response".to_string())
-        );
-        // The message that is sent by perform_cmd after this async block is completed
-        Msg::Query(QueryMsg::Received(links))
+        } else {
+            // unpack the response into the `Vec<FullLink>`
+            let links: Vec<FullLink> = unwrap_or_return!(
+                response.json().await,
+                Msg::SetMessage("Invalid response".to_string())
+            );
+            // The message that is sent by perform_cmd after this async block is completed
+            Msg::Query(QueryMsg::Received(links))
+        }
     });
 }
 
@@ -394,30 +394,29 @@ fn save_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
         let data = data;
         // create the request
         let request = unwrap_or_return!(
-            Request::new(match data.edit {
+            Request::post(match data.edit {
                 EditMode::Create => "/admin/json/create_link/",
                 EditMode::Edit => "/admin/json/edit_link/",
             })
-            .method(Method::Post)
             .json(&data),
             Msg::SetMessage("Failed to encode the link!".to_string())
         );
         // perform the request
         let response =
-            unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToCreateLink));
+            unwrap_or_return!(request.send().await, Msg::Edit(EditMsg::FailedToCreateLink));
 
         // check the response status
-        let response = unwrap_or_return!(
-            response.check_status(),
+        if !response.ok() {
             Msg::SetMessage("Wrong response code".to_string())
-        );
-        // Parse the response
-        let message: Status = unwrap_or_return!(
-            response.json().await,
-            Msg::SetMessage("Invalid response!".to_string())
-        );
+        } else {
+            // Parse the response
+            let message: Status = unwrap_or_return!(
+                response.json().await,
+                Msg::SetMessage("Invalid response!".to_string())
+            );
 
-        Msg::Edit(EditMsg::Created(message))
+            Msg::Edit(EditMsg::Created(message))
+        }
     });
 }
 
@@ -426,29 +425,28 @@ fn delete_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async move {
         // create the request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/delete_link/")
-                .method(Method::Post)
-                .json(&link_delta),
+            Request::post("/admin/json/delete_link/").json(&link_delta),
             Msg::SetMessage("serialization failed".to_string())
         );
         // perform the request and recieve a respnse
         let response =
-            unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToDeleteLink));
+            unwrap_or_return!(request.send().await, Msg::Edit(EditMsg::FailedToDeleteLink));
 
         // check the status of the response
-        let response = unwrap_or_return!(
-            response.check_status(),
+        if !response.ok() {
             Msg::SetMessage("Wrong response code!".to_string())
-        );
-        // deserialize the response
-        let message: Status = unwrap_or_return!(
-            response.json().await,
-            Msg::SetMessage(
-                "Failed to parse the response! The link might or might not be deleted!".to_string()
-            )
-        );
+        } else {
+            // deserialize the response
+            let message: Status = unwrap_or_return!(
+                response.json().await,
+                Msg::SetMessage(
+                    "Failed to parse the response! The link might or might not be deleted!"
+                        .to_string()
+                )
+            );
 
-        Msg::Edit(EditMsg::DeletedLink(message))
+            Msg::Edit(EditMsg::DeletedLink(message))
+        }
     });
 }
 
@@ -495,9 +493,9 @@ pub fn view(model: &Model) -> Node<Msg> {
         // display the list of links
         table![
             // Add the headlines
-            view_link_table_head(&t),
+            view_link_table_head(t),
             // Add filter fields right below the headlines
-            view_link_table_filter_input(model, &t),
+            view_link_table_filter_input(model, t),
             // Add all the content lines
             model.links.iter().map(view_link)
         ],
@@ -728,7 +726,7 @@ fn generate_qr_from_code(code: &str) -> String {
 }
 
 fn generate_qr_from_link(url: &str) -> String {
-    if let Ok(qr) = QrCode::with_error_correction_level(&url, qrcode::EcLevel::L) {
+    if let Ok(qr) = QrCode::with_error_correction_level(url, qrcode::EcLevel::L) {
         let svg = qr
             .render()
             .min_dimensions(100, 100)
@@ -752,14 +750,14 @@ fn close_button() -> Node<Msg> {
 
 fn generate_qr_png(code: &str) -> Vec<u8> {
     let qr = QrCode::with_error_correction_level(
-        &format!("http://{}/{}", get_host(), code),
+        format!("http://{}/{}", get_host(), code),
         qrcode::EcLevel::L,
     )
     .unwrap();
     let png = qr.render::<Luma<u8>>().quiet_zone(false).build();
     let mut temporary_data = std::io::Cursor::new(Vec::new());
     DynamicImage::ImageLuma8(png)
-        .write_to(&mut temporary_data, ImageOutputFormat::Png)
+        .write_to(&mut temporary_data, ImageFormat::Png)
         .unwrap();
     temporary_data.into_inner()
 }

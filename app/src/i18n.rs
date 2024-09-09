@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use fluent::{FluentArgs, FluentBundle, FluentResource};
-use seed::log;
+use gloo_console::log;
 use shared::datatypes::Lang;
 use unic_langid::LanguageIdentifier;
 
@@ -9,7 +9,7 @@ use unic_langid::LanguageIdentifier;
 #[derive(Clone)]
 pub struct I18n {
     lang: Lang,
-    ftl_bundle: Arc<FluentBundle<FluentResource>>,
+    ftl_bundle: Rc<FluentBundle<FluentResource>>,
 }
 
 impl std::fmt::Debug for I18n {
@@ -22,7 +22,7 @@ impl I18n {
     /// Create a new translator struct
     #[must_use]
     pub fn new(lang: Lang) -> Self {
-        let ftl_bundle = Arc::new(Self::create_ftl_bundle(lang));
+        let ftl_bundle = Rc::new(Self::create_ftl_bundle(lang));
         Self { lang, ftl_bundle }
     }
 
@@ -35,7 +35,7 @@ impl I18n {
     /// Set the current language
     pub fn set_lang(&mut self, lang: Lang) {
         self.lang = lang;
-        self.ftl_bundle = Arc::new(Self::create_ftl_bundle(lang));
+        self.ftl_bundle = Rc::new(Self::create_ftl_bundle(lang));
     }
 
     /// Get a localized string. Optionally with parameters provided in `args`.

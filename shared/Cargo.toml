@@ -1,6 +1,11 @@
 [package]
 authors = ["Dietrich <dietrich@teilgedanken.de>"]
-categories = ["web-programming", "network-programming", "web-programming::http-server", "command-line-utilities"]
+categories = [
+    "web-programming",
+    "network-programming",
+    "web-programming::http-server",
+    "command-line-utilities",
+]
 description = "A simple webservice that allows registered users to create short links including qr-codes.\nAnyone can visit the shortened links. This is an ideal setup for small busines or for publishing papers."
 edition = "2018"
 keywords = ["url", "link", "webpage", "actix", "web"]
@@ -12,7 +17,7 @@ version = "0.3.1"
 
 [dependencies]
 serde = "1.0"
-chrono = {version = "0.4", features = ["serde"] }
-enum-map = {version="1", features = ["serde"]}
-strum_macros = "0.21"
-strum = "0.21"
+chrono = { version = "0.4", features = ["serde"] }
+enum-map = { version = "2", features = ["serde"] }
+strum_macros = "0.26"
+strum = "0.26"

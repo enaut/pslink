@@ -2,10 +2,12 @@ pub mod i18n;
 pub mod navigation;
 pub mod pages;
 
+use gloo_console::log;
+use gloo_net::http::Request;
 use pages::list_links;
 use pages::list_users;
 use seed::window;
-use seed::{attrs, button, div, input, label, log, prelude::*, App, Url, C};
+use seed::{attrs, button, div, input, label, prelude::*, App, Url, C};
 use shared::apirequests::users::LoginUser;
 use shared::datatypes::Lang;
 use shared::datatypes::{Loadable, User};
@@ -100,7 +102,7 @@ enum Page {
 
 impl Page {
     fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Self {
-        log!(&url);
+        log!(&url.to_string());
         url.next_path_part();
         let result = match url.next_path_part() {
             None | Some("list_links") => Self::Home(pages::list_links::init(
@@ -118,11 +120,13 @@ impl Page {
 
         orders.perform_cmd(async {
             // create request
-            let request = Request::new("/admin/json/get_language/");
+            let request = Request::get("/admin/json/get_language/");
             // perform and get response
-            let response = unwrap_or_return!(fetch(request).await, Msg::NoMessage);
+            let response = unwrap_or_return!(request.send().await, Msg::NoMessage);
             // validate response status
-            let response = unwrap_or_return!(response.check_status(), Msg::NoMessage);
+            if !response.ok() {
+                return Msg::NoMessage;
+            }
             let lang: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
 
             Msg::LanguageChanged(lang)
@@ -138,7 +142,7 @@ impl Page {
 // ------ ------
 #[derive(Clone)]
 pub enum Msg {
-    UrlChanged(subs::UrlChanged),
+    UrlChanged(seed::app::subs::UrlChanged),
     ListLinks(list_links::Msg),
     ListUsers(list_users::Msg),
     GetLoggedUser,
@@ -174,15 +178,15 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             orders.perform_cmd(async {
                 // create request
                 let request = unwrap_or_return!(
-                    Request::new("/admin/json/get_logged_user/")
-                        .method(Method::Post)
-                        .json(&()),
+                    Request::post("/admin/json/get_logged_user/").json(&()),
                     Msg::Logout
                 );
                 // perform and get response
-                let response = unwrap_or_return!(fetch(request).await, Msg::Logout);
+                let response = unwrap_or_return!(request.send().await, Msg::Logout);
                 // validate response status
-                let response = unwrap_or_return!(response.check_status(), Msg::Logout);
+                if !response.ok() {
+                    return Msg::Logout;
+                }
                 let user: User = unwrap_or_return!(response.json().await, Msg::Logout);
 
                 Msg::UserReceived(user)
@@ -215,7 +219,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             change_language(l, orders);
         }
         Msg::LanguageChanged(l) => {
-            log!("Changed Language", &l);
+            log!(format!("Changed Language {:?}", &l));
             model.set_lang(l);
         }
     }
@@ -225,15 +229,15 @@ fn change_language(l: Lang, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async move {
         // create request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/change_language/")
-                .method(Method::Post)
-                .json(&l),
+            Request::post("/admin/json/change_language/").json(&l),
             Msg::NoMessage
         );
         // perform and get response
-        let response = unwrap_or_return!(fetch(request).await, Msg::NoMessage);
+        let response = unwrap_or_return!(request.send().await, Msg::NoMessage);
         // validate response status
-        let response = unwrap_or_return!(response.check_status(), Msg::NoMessage);
+        if !response.ok() {
+            return Msg::NoMessage;
+        }
         let l: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
 
         Msg::LanguageChanged(l)
@@ -242,8 +246,8 @@ fn change_language(l: Lang, orders: &mut impl Orders<Msg>) {
 
 fn logout(orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
-        let request = Request::new("/admin/logout/");
-        unwrap_or_return!(fetch(request).await, Msg::GetLoggedUser);
+        let request = Request::get("/admin/logout/");
+        unwrap_or_return!(request.send().await, Msg::GetLoggedUser);
         Msg::NotAuthenticated
     });
 }
@@ -256,15 +260,15 @@ fn login_user(model: &mut Model, orders: &mut impl Orders<Msg>) {
         let data = data;
         // create request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/login_user/")
-                .method(Method::Post)
-                .json(&data),
+            Request::post("/admin/json/login_user/").json(&data),
             Msg::NotAuthenticated
         );
         // perform and get response
-        let response = unwrap_or_return!(fetch(request).await, Msg::NotAuthenticated);
+        let response = unwrap_or_return!(request.send().await, Msg::NotAuthenticated);
         // validate response status
-        let response = unwrap_or_return!(response.check_status(), Msg::NotAuthenticated);
+        if !response.ok() {
+            return Msg::NotAuthenticated;
+        }
         let user: User = unwrap_or_return!(response.json().await, Msg::NotAuthenticated);
 
         Msg::UserReceived(user)

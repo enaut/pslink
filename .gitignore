@@ -7,3 +7,4 @@ links.session.sql
 sqltemplates
 dist
 pkg
+Cargo.lock
