@@ -1,3 +1,4 @@
+//! The more generic data-types used in pslink
 use std::ops::Deref;
 
 use serde::{Deserialize, Serialize, Serializer};
@@ -10,23 +11,68 @@ pub struct ListWithOwner<T> {
 }
 
 /// A link together with its author and its click-count.
-#[derive(Clone, Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct FullLink {
     pub link: Link,
     pub user: User,
-    pub clicks: Count,
+    pub clicks: Clicks,
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub enum Clicks {
+    Count(Count),
+    Extended(Statistics),
+}
+
+impl PartialEq for Clicks {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Count(l0), Self::Count(r0)) => l0.number == r0.number,
+            (Self::Extended(l0), Self::Extended(r0)) => l0.total.number == r0.total.number,
+            (Clicks::Count(l0), Clicks::Extended(r0)) => l0.number == r0.total.number,
+            (Clicks::Extended(l0), Clicks::Count(r0)) => l0.total.number == r0.number,
+        }
+    }
+}
+
+impl PartialOrd for Clicks {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Self::Count(l0), Self::Count(r0)) => l0.number.partial_cmp(&r0.number),
+            (Self::Extended(l0), Self::Extended(r0)) => {
+                l0.total.number.partial_cmp(&r0.total.number)
+            }
+            (Clicks::Count(l0), Clicks::Extended(r0)) => l0.number.partial_cmp(&r0.total.number),
+            (Clicks::Extended(l0), Clicks::Count(r0)) => l0.total.number.partial_cmp(&r0.number),
+        }
+    }
+}
+
+impl Ord for Clicks {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Self::Count(l0), Self::Count(r0)) => l0.number.cmp(&r0.number),
+            (Self::Extended(l0), Self::Extended(r0)) => l0.total.number.cmp(&r0.total.number),
+            (Clicks::Count(l0), Clicks::Extended(r0)) => l0.number.cmp(&r0.total.number),
+            (Clicks::Extended(l0), Clicks::Count(r0)) => l0.total.number.cmp(&r0.number),
+        }
+    }
+}
+
+impl Eq for Clicks {}
+
+/// A User of the pslink service
 #[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct User {
     pub id: i64,
     pub username: String,
     pub email: String,
     pub password: Secret,
-    pub role: i64,
+    pub role: Role,
     pub language: Lang,
 }
 
+/// A short url of the link service
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Link {
     pub id: i64,
@@ -37,10 +83,32 @@ pub struct Link {
     pub created_at: chrono::NaiveDateTime,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+/// When statistics are counted
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Count {
     pub number: i64,
 }
+impl Eq for WeekCount {}
+
+impl PartialOrd for WeekCount {
+    fn partial_cmp(&self, other: &Self) -> std::option::Option<std::cmp::Ordering> {
+        self.total.number.partial_cmp(&other.total.number)
+    }
+}
+impl Ord for WeekCount {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.total.number.cmp(&other.total.number)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Statistics {
+    pub link_id: i64,
+    pub total: Count,
+    pub values: Vec<WeekCount>,
+}
+
+/// Every time a short url is clicked record it for statistical evaluation.
 #[derive(Serialize, Debug)]
 pub struct Click {
     pub id: i64,
@@ -48,6 +116,7 @@ pub struct Click {
     pub created_at: chrono::NaiveDateTime,
 }
 
+/// The Password: Display, Debug and serialize do not include the Password to prevent leaks of sensible information in logs or similar.
 #[derive(PartialEq, Clone, Deserialize)]
 #[serde(from = "String")]
 pub struct Secret {
@@ -90,6 +159,7 @@ impl std::fmt::Display for Secret {
     }
 }
 
+/// Loadable is a type that has not been loaded but will be in future. It can be used to indicate the loading process.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Loadable<T> {
     Data(Option<T>),
@@ -108,7 +178,7 @@ impl<T> Deref for Loadable<T> {
 }
 
 /// An `enum` containing the available languages.
-/// To add an additional language add it to this enum aswell as an appropriate file into the locales folder.
+/// To add an additional language add it to this enum as well as an appropriate file into the locales folder.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(
     Debug,
@@ -123,9 +193,16 @@ impl<T> Deref for Loadable<T> {
     Serialize,
     Deserialize,
 )]
+#[strum(ascii_case_insensitive)]
 pub enum Lang {
     #[strum(serialize = "en-US", serialize = "en", serialize = "enUS")]
     EnUS,
     #[strum(serialize = "de-DE", serialize = "de", serialize = "deDE")]
     DeDE,
+}
+
+impl std::fmt::Display for Lang {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
