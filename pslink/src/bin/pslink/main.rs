@@ -2,48 +2,68 @@ extern crate sqlx;
 
 mod cli;
 
+use std::sync::LazyLock;
+
+use opentelemetry_otlp::WithExportConfig as _;
 use pslink::ServerConfig;
 
+use opentelemetry::trace::TracerProvider;
 use tracing::instrument;
-use tracing::{subscriber::set_global_default, Subscriber};
-use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
+const APP_NAME: &str = "pslink";
+
+static RESOURCE: LazyLock<opentelemetry_sdk::Resource> = LazyLock::new(|| {
+    opentelemetry_sdk::Resource::new(vec![opentelemetry::KeyValue::new(
+        opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+        APP_NAME,
+    )])
+});
+
 /// Compose multiple layers into a `tracing`'s subscriber.
-#[must_use]
-pub fn get_subscriber(name: &str, env_filter: &str) -> impl Subscriber + Send + Sync {
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
-    // Create a jaeger exporter pipeline for a `trace_demo` service.
-    let tracer = opentelemetry_jaeger::new_pipeline()
-        .with_service_name(name)
-        .install_simple()
-        .expect("Error initializing Jaeger exporter");
-    let formatting_layer = tracing_subscriber::fmt::layer().with_target(false);
+fn init_telemetry() {
+    // Start a new otlp trace pipeline.
+    // Spans are exported in batch - recommended setup for a production application.
+    opentelemetry::global::set_text_map_propagator(
+        opentelemetry_sdk::propagation::TraceContextPropagator::new(),
+    );
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint("http://127.0.0.1:4317"),
+        )
+        .with_trace_config(
+            opentelemetry_sdk::trace::Config::default().with_resource(RESOURCE.clone()),
+        )
+        .install_batch(opentelemetry_sdk::runtime::TokioCurrentThread)
+        .expect("Failed to install OpenTelemetry tracer.")
+        .tracer_builder(APP_NAME)
+        .build();
 
-    // Create a layer with the configured tracer
-    let otel_layer = OpenTelemetryLayer::new(tracer);
-
-    // Use the tracing subscriber `Registry`, or any other subscriber
-    // that impls `LookupSpan`
-    Registry::default()
-        .with(otel_layer)
+    // Filter based on level - trace, debug, info, warn, error
+    // Tunable via `RUST_LOG` env variable
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("info"));
+    // Create a `tracing` layer using the otlp tracer
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+    // Create a `tracing` layer to emit spans as structured logs to stdout
+    let formatting_layer =
+        tracing_bunyan_formatter::BunyanFormattingLayer::new(APP_NAME.into(), std::io::stdout);
+    // Combined them all together in a `tracing` subscriber
+    let subscriber = Registry::default()
         .with(env_filter)
-        .with(formatting_layer)
-}
-
-/// Register a subscriber as global default to process span data.
-///
-/// It should only be called once!
-pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
-    set_global_default(subscriber).expect("Failed to set subscriber");
+        .with(telemetry)
+        .with(tracing_bunyan_formatter::JsonStorageLayer)
+        .with(formatting_layer);
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to install `tracing` subscriber.")
 }
 
 #[instrument]
 #[actix_web::main]
 async fn main() -> std::result::Result<(), std::io::Error> {
-    let subscriber = get_subscriber("fhs.li", "info");
-    init_subscriber(subscriber);
+    init_telemetry();
 
     match cli::setup().await {
         Ok(Some(server_config)) => {
