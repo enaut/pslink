@@ -1,17 +1,15 @@
-use std::time::SystemTime;
-
 use actix_identity::Identity;
 use actix_web::{
-    http::header::{CacheControl, CacheDirective, ContentType, Expires},
-    web, HttpRequest, HttpResponse,
+    http::header::ContentType,
+    web::{self, Redirect},
+    Either, HttpMessage as _, HttpRequest, HttpResponse,
 };
-use argonautica::Verifier;
+use argon2::PasswordVerifier as _;
 use fluent_langneg::{
     convert_vec_str_to_langids_lossy, negotiate_languages, parse_accepted_languages,
-    NegotiationStrategy,
+    LanguageIdentifier, NegotiationStrategy,
 };
-use fluent_templates::LanguageIdentifier;
-use image::{DynamicImage, ImageOutputFormat, Luma};
+use image::{DynamicImage, ImageFormat, Luma};
 use qrcode::QrCode;
 use queries::{authenticate, Role};
 use shared::{
@@ -28,19 +26,6 @@ use crate::queries;
 use crate::ServerError;
 
 #[instrument]
-fn redirect_builder(target: &str) -> HttpResponse {
-    HttpResponse::SeeOther()
-        .set(CacheControl(vec![
-            CacheDirective::NoCache,
-            CacheDirective::NoStore,
-            CacheDirective::MustRevalidate,
-        ]))
-        .set(Expires(SystemTime::now().into()))
-        .set_header(actix_web::http::header::LOCATION, target)
-        .body(format!("Redirect to {}", target))
-}
-
-#[instrument]
 fn detect_language(request: &HttpRequest) -> Result<Lang, ServerError> {
     let requested = parse_accepted_languages(
         request
@@ -53,7 +38,7 @@ fn detect_language(request: &HttpRequest) -> Result<Lang, ServerError> {
             })?,
     );
     info!("accepted languages: {:?}", requested);
-    let available = convert_vec_str_to_langids_lossy(&["de", "en"]);
+    let available = convert_vec_str_to_langids_lossy(["de", "en"]);
     info!("available languages: {:?}", available);
     let default: LanguageIdentifier = "en"
         .parse()
@@ -67,7 +52,7 @@ fn detect_language(request: &HttpRequest) -> Result<Lang, ServerError> {
     );
     info!("supported languages: {:?}", supported);
 
-    if let Some(languagecode) = supported.get(0) {
+    if let Some(languagecode) = supported.first() {
         info!("Supported Language: {}", languagecode);
         Ok(languagecode
             .to_string()
@@ -112,7 +97,7 @@ pub async fn index_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Links to Json api");
     match queries::list_all_allowed(&id, &config, form.0).await {
-        Ok(links) => Ok(HttpResponse::Ok().json2(&links.list)),
+        Ok(links) => Ok(HttpResponse::Ok().json(&links.list)),
         Err(e) => {
             error!("Failed to access database: {:?}", e);
             warn!("Not logged in - redirecting to login page");
@@ -126,12 +111,12 @@ pub async fn index_users_json(
     config: web::Data<crate::ServerConfig>,
     form: web::Json<UserRequestForm>,
     id: Identity,
-) -> Result<HttpResponse, ServerError> {
+) -> Either<HttpResponse, Redirect> {
     info!("Listing Users to Json api");
     if let Ok(users) = queries::list_users(&id, &config, form.0).await {
-        Ok(HttpResponse::Ok().json2(&users.list))
+        Either::Left(HttpResponse::Ok().json(&users.list))
     } else {
-        Ok(redirect_builder("/admin/login"))
+        Either::Right(Redirect::to("/admin/login").temporary())
     }
 }
 
@@ -142,7 +127,7 @@ pub async fn get_logged_user_json(
     let user = authenticate(&id, &config).await?;
     match user {
         Role::NotAuthenticated | Role::Disabled => Ok(HttpResponse::Unauthorized().finish()),
-        Role::Regular { user } | Role::Admin { user } => Ok(HttpResponse::Ok().json2(&user)),
+        Role::Regular { user } | Role::Admin { user } => Ok(HttpResponse::Ok().json(&user)),
     }
 }
 
@@ -152,20 +137,22 @@ pub async fn download_png(
     config: web::Data<crate::ServerConfig>,
     link_code: web::Path<String>,
 ) -> Result<HttpResponse, ServerError> {
-    match queries::get_link(&id, &link_code.0, &config).await {
+    match queries::get_link(&id, &link_code, &config).await {
         Ok(query) => {
             let qr = QrCode::with_error_correction_level(
-                &format!("http://{}/{}", config.public_url, &query.item.code),
+                format!("http://{}/{}", config.public_url, &query.item.code),
                 qrcode::EcLevel::L,
             )
             .unwrap();
             let png = qr.render::<Luma<u8>>().quiet_zone(false).build();
             let mut temporary_data = std::io::Cursor::new(Vec::new());
             DynamicImage::ImageLuma8(png)
-                .write_to(&mut temporary_data, ImageOutputFormat::Png)
+                .write_to(&mut temporary_data, ImageFormat::Png)
                 .unwrap();
             let image_data = temporary_data.into_inner();
-            Ok(HttpResponse::Ok().set(ContentType::png()).body(image_data))
+            Ok(HttpResponse::Ok()
+                .content_type(ContentType::png())
+                .body(image_data))
         }
         Err(e) => Err(e),
     }
@@ -179,7 +166,7 @@ pub async fn process_create_user_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
     match queries::create_user_json(&id, &form, &config).await {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
         }))),
         Err(e) => Err(e),
@@ -194,7 +181,7 @@ pub async fn process_update_user_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
     match queries::update_user_json(&id, &form, &config).await {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
         }))),
         Err(e) => Err(e),
@@ -206,12 +193,9 @@ pub async fn toggle_admin(
     data: web::Path<String>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
-) -> Result<HttpResponse, ServerError> {
-    let update = queries::toggle_admin(&id, &data.0, &config).await?;
-    Ok(redirect_builder(&format!(
-        "/admin/view/profile/{}",
-        update.item.id
-    )))
+) -> Result<Redirect, ServerError> {
+    let update = queries::toggle_admin(&id, &data, &config).await?;
+    Ok(Redirect::to(format!("/admin/view/profile/{}", update.item.id)).temporary())
 }
 
 #[instrument(skip(id))]
@@ -224,14 +208,14 @@ pub async fn get_language(
         let user = authenticate(&id, &config).await?;
         match user {
             Role::NotAuthenticated | Role::Disabled => {
-                Ok(HttpResponse::Ok().json2(&detect_language(&req)?))
+                Ok(HttpResponse::Ok().json(detect_language(&req)?))
             }
             Role::Regular { user } | Role::Admin { user } => {
-                Ok(HttpResponse::Ok().json2(&user.language))
+                Ok(HttpResponse::Ok().json(user.language))
             }
         }
     } else {
-        Ok(HttpResponse::Ok().json2(&detect_language(&req)?))
+        Ok(HttpResponse::Ok().json(detect_language(&req)?))
     }
 }
 
@@ -242,62 +226,68 @@ pub async fn set_language(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     queries::set_language(&id, data.0, &config).await?;
-    Ok(HttpResponse::Ok().json2(&data.0))
+    Ok(HttpResponse::Ok().json(data.0))
 }
 
-#[instrument(skip(id))]
+#[instrument(skip(_id))]
 pub async fn process_login_json(
+    request: HttpRequest,
     data: web::Json<LoginUser>,
     config: web::Data<crate::ServerConfig>,
-    id: Identity,
-) -> Result<HttpResponse, ServerError> {
+    _id: Identity,
+) -> Result<Either<HttpResponse, Redirect>, ServerError> {
     // query the username to see if a user by that name exists.
     let user = queries::get_user_by_name(&data.username, &config).await;
 
     match user {
         Ok(u) => {
-            // get the password hash
-            if let Some(hash) = &u.password.secret {
-                // get the servers secret
-                let secret = &config.secret;
-                // validate the secret
-                let valid = Verifier::default()
-                    .with_hash(hash)
-                    .with_password(&data.password)
-                    .with_secret_key(secret.secret.as_ref().expect("No secret available"))
-                    .verify()?;
-
-                // login the user
-                if valid {
+            // get the password hash from the user
+            let user_hash = u.password.secret.clone().expect("Secret available");
+            let parsed_hash = match argon2::PasswordHash::new(&user_hash) {
+                Ok(h) => h,
+                Err(e) => {
+                    info!("Failed to parse password hash for {}: {}", &u.username, e);
+                    return Ok(Either::Right(Redirect::to("/admin/login/").see_other()));
+                }
+            };
+            match argon2::Argon2::default().verify_password(data.password.as_bytes(), &parsed_hash)
+            {
+                Ok(_) => {
                     info!("Log-in of user: {}", &u.username);
                     let session_token = u.username.clone();
-                    id.remember(session_token);
-                    Ok(HttpResponse::Ok().json2(&u))
-                } else {
-                    info!("Invalid password for user: {}", &u.username);
-                    Ok(redirect_builder("/admin/login/"))
+                    match Identity::login(&request.extensions(), session_token) {
+                        Ok(_) => {
+                            info!("Logged in user: {}", &u.username);
+                            return Ok(Either::Right(Redirect::to("/app/").see_other()));
+                        }
+                        Err(e) => {
+                            info!("Failed to login: {}", e);
+                            return Ok(Either::Right(Redirect::to("/admin/login/").see_other()));
+                        }
+                    }
                 }
-            } else {
-                // should fail earlier if secret is missing.
-                Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
-                    message: "Failed to Login".to_string(),
-                })))
+                Err(e) => {
+                    info!("Failed to login: {}", e);
+                    return Ok(Either::Right(Redirect::to("/admin/login/").see_other()));
+                }
             }
         }
         Err(e) => {
             info!("Failed to login: {}", e);
-            Ok(HttpResponse::Unauthorized().json2(&Status::Error(Message {
-                message: "Failed to Login".to_string(),
-            })))
+            Ok(Either::Left(HttpResponse::Unauthorized().json(
+                Status::Error(Message {
+                    message: "Failed to Login".to_string(),
+                }),
+            )))
         }
     }
 }
 
 #[instrument(skip(id))]
-pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
+pub async fn logout(id: Identity) -> Result<Redirect, ServerError> {
     info!("Logging out the user");
-    id.forget();
-    Ok(redirect_builder("/app/"))
+    id.logout();
+    Ok(Redirect::to("/app/").temporary())
 }
 
 #[instrument()]
@@ -305,21 +295,21 @@ pub async fn redirect(
     config: web::Data<crate::ServerConfig>,
     data: web::Path<String>,
     req: HttpRequest,
-) -> Result<HttpResponse, ServerError> {
+) -> Result<Either<HttpResponse, Redirect>, ServerError> {
     info!("Redirecting to {:?}", data);
-    let link = queries::get_link_simple(&data.0, &config).await;
+    let link = queries::get_link_simple(&data, &config).await;
     info!("link: {:?}", link);
     match link {
         Ok(link) => {
             queries::click_link(link.id, &config).await?;
-            Ok(redirect_builder(&link.target))
+            Ok(Either::Right(Redirect::to(link.target.clone()).see_other()))
         }
         Err(ServerError::Database(e)) => {
             info!(
                 "Link was not found: http://{}/{} \n {}",
-                &config.public_url, &data.0, e
+                &config.public_url, &data, e
             );
-            Ok(HttpResponse::NotFound().body(
+            Ok(Either::Left(HttpResponse::NotFound().body(
                 r#"<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -335,17 +325,15 @@ pub async fn redirect(
                 </div>
             </body>
             </html>"#,
-            ))
+            )))
         }
         Err(e) => Err(e),
     }
 }
 
 #[instrument]
-pub async fn redirect_empty(
-    config: web::Data<crate::ServerConfig>,
-) -> Result<HttpResponse, ServerError> {
-    Ok(redirect_builder(&config.empty_forward_url))
+pub async fn redirect_empty(config: web::Data<crate::ServerConfig>) -> Redirect {
+    Redirect::to(config.empty_forward_url.clone()).see_other()
 }
 
 #[instrument(skip(id))]
@@ -356,7 +344,7 @@ pub async fn process_create_link_json(
 ) -> Result<HttpResponse, ServerError> {
     let new_link = queries::create_link_json(&id, data, &config).await;
     match new_link {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(Status::Success(Message {
             message: format!("Successfully saved link: {}", item.item.code),
         }))),
         Err(e) => Err(e),
@@ -371,7 +359,7 @@ pub async fn process_update_link_json(
 ) -> Result<HttpResponse, ServerError> {
     let new_link = queries::update_link_json(&id, data, &config).await;
     match new_link {
-        Ok(item) => Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(Status::Success(Message {
             message: format!("Successfully updated link: {}", item.item.code),
         }))),
         Err(e) => Err(e),
@@ -385,7 +373,7 @@ pub async fn process_delete_link_json(
     data: web::Json<LinkDelta>,
 ) -> Result<HttpResponse, ServerError> {
     queries::delete_link(&id, &data.code, &config).await?;
-    Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+    Ok(HttpResponse::Ok().json(Status::Success(Message {
         message: format!("Successfully deleted link: {}", &data.code),
     })))
 }

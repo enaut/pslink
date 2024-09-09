@@ -51,7 +51,7 @@ pub async fn authenticate(
     id: &Identity,
     server_config: &ServerConfig,
 ) -> Result<Role, ServerError> {
-    if let Some(username) = id.identity() {
+    if let Ok(username) = id.id() {
         info!("Looking for user {}", username);
         let user = User::get_user_by_name(&username, server_config).await?;
         info!("Found user {:?}", user);
@@ -190,11 +190,11 @@ macro_rules! ts {
         match $ordering {
             Ordering::Ascending => "ASC",
             Ordering::Descending => "DESC",
-        };
+        }
     };
 }
 fn generate_order_sql(order: &Operation<LinkOverviewColumns, Ordering>) -> String {
-    let filterstring = match order.column {
+    match order.column {
         LinkOverviewColumns::Code => {
             format!("\n ORDER BY lcode {}", ts!(order.value))
         }
@@ -210,8 +210,7 @@ fn generate_order_sql(order: &Operation<LinkOverviewColumns, Ordering>) -> Strin
         LinkOverviewColumns::Statistics => {
             format!("\n ORDER BY counter {}", ts!(order.value))
         }
-    };
-    filterstring
+    }
 }
 
 /// Only admins can list all users
@@ -288,7 +287,7 @@ fn generate_filter_users_sql(filters: &EnumMap<UserOverviewColumns, Filter>) -> 
     result
 }
 fn generate_order_users_sql(order: &Operation<UserOverviewColumns, Ordering>) -> String {
-    let filterstring = match order.column {
+    match order.column {
         UserOverviewColumns::Id => {
             format!("\n ORDER BY id {}", ts!(order.value))
         }
@@ -298,8 +297,7 @@ fn generate_order_users_sql(order: &Operation<UserOverviewColumns, Ordering>) ->
         UserOverviewColumns::Email => {
             format!("\n ORDER BY email {}", ts!(order.value))
         }
-    };
-    filterstring
+    }
 }
 
 /// A generic returntype containing the User and a single item
@@ -325,7 +323,7 @@ pub async fn get_user(
         if auth.admin_or_self(uid) {
             match auth {
                 Role::Admin { user } | Role::Regular { user } => {
-                    let viewed_user = User::get_user(uid as i64, server_config).await?;
+                    let viewed_user = User::get_user(uid, server_config).await?;
                     Ok(Item {
                         user,
                         item: viewed_user,
