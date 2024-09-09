@@ -81,7 +81,6 @@ pub struct QrGuard {
 
 impl QrGuard {
     fn new(code: &str) -> Self {
-        use std::iter::FromIterator;
         log!("Generating new QrCode");
         let svg = generate_qr_from_code(code);
 
@@ -91,7 +90,7 @@ impl QrGuard {
 
         let png_jsarray: JsValue = js_sys::Uint8Array::from(&png_vec[..]).into();
         // the buffer has to be an array of arrays
-        let png_buffer = js_sys::Array::from_iter(IntoIterator::into_iter([png_jsarray]));
+        let png_buffer:js_sys::Array = IntoIterator::into_iter([png_jsarray]).collect();
         let png_blob =
             web_sys::Blob::new_with_buffer_source_sequence_and_options(&png_buffer, &properties)
                 .unwrap();
