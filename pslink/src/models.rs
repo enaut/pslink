@@ -2,11 +2,11 @@ use std::str::FromStr;
 
 use crate::{forms::LinkForm, Secret, ServerConfig, ServerError};
 
-use argonautica::Hasher;
 use async_trait::async_trait;
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 
+use argon2::PasswordHasher as _;
 use shared::{
     apirequests::links::LinkDelta,
     datatypes::{Count, Lang, Link, User},
@@ -187,12 +187,11 @@ impl NewUser {
     pub(crate) fn hash_password(password: &str, secret: &Secret) -> Result<String, ServerError> {
         dotenv().ok();
 
-        let hash = Hasher::default()
-            .with_password(password)
-            .with_secret_key(secret.secret.as_ref().expect("A secret key was not given"))
-            .hash()?;
+        let argon2 = argon2::Argon2::default();
+        let salt = argon2::password_hash::SaltString::generate(&mut rand::rngs::OsRng);
+        let hash = argon2.hash_password(password.as_bytes(), &salt)?;
 
-        Ok(hash)
+        Ok(hash.to_string())
     }
 
     /// Insert this user into the database

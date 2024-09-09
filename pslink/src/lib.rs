@@ -6,8 +6,10 @@ pub mod queries;
 mod views;
 
 use actix_files::Files;
-use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::HttpResponse;
+use actix_identity::IdentityMiddleware;
+use actix_session::SessionMiddleware;
+use actix_web::cookie::Key;
+use actix_web::web::Data;
 use actix_web::{web, App, HttpServer};
 use fluent_templates::static_loader;
 use qrcode::types::QrError;
@@ -21,7 +23,7 @@ use tracing_actix_web::TracingLogger;
 #[derive(Error, Debug)]
 pub enum ServerError {
     #[error("Failed to encrypt the password {0} - aborting!")]
-    Argonautica(argonautica::Error),
+    Password(argon2::password_hash::Error),
     #[error("The database could not be used: {0}")]
     Database(#[from] sqlx::Error),
     #[error("The database could not be migrated: {0}")]
@@ -36,9 +38,9 @@ pub enum ServerError {
     User(String),
 }
 
-impl From<argonautica::Error> for ServerError {
-    fn from(e: argonautica::Error) -> Self {
-        Self::Argonautica(e)
+impl From<argon2::password_hash::Error> for ServerError {
+    fn from(e: argon2::password_hash::Error) -> Self {
+        Self::Password(e)
     }
 }
 
@@ -69,7 +71,7 @@ impl ServerError {
 }
 
 impl actix_web::error::ResponseError for ServerError {
-    fn error_response2(&self) -> HttpResponse {
+    /*     fn error_response2(&self) -> HttpResponse {
         match self {
             Self::Argonautica(e) => {
                 eprintln!("Argonautica Error happened: {:?}", e);
@@ -116,13 +118,13 @@ impl actix_web::error::ResponseError for ServerError {
                 ))
             }
         }
+    } */
+
+    fn status_code(&self) -> actix_web::http::StatusCode {
+        actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
     }
 
-    fn status_code(&self) -> reqwest::StatusCode {
-        reqwest::StatusCode::INTERNAL_SERVER_ERROR
-    }
-
-    fn error_response(&self) -> actix_web::BaseHttpResponse<actix_web::body::Body> {
+    /*     fn error_response(&self) -> actix_web::BaseHttpResponse<actix_web::body::Body> {
         let mut resp = actix_web::BaseHttpResponse::new(self.status_code());
         let mut buf = web::BytesMut::new();
         let _ = write!(Writer(&mut buf), "{}", self);
@@ -131,7 +133,7 @@ impl actix_web::error::ResponseError for ServerError {
             reqwest::header::HeaderValue::from_static("text/plain; charset=utf-8"),
         );
         resp.set_body(actix_web::body::Body::from(buf))
-    }
+    } */
 }
 
 #[derive(Debug, Clone)]
@@ -230,17 +232,21 @@ pub async fn webservice(
         &server_config.protocol, &server_config.public_url
     );
     trace!("The tera templates are ready");
+    let cookie_secret = Key::generate();
 
     let server = HttpServer::new(move || {
         let generated = generate();
+        let store = actix_session::storage::CookieSessionStore::default();
+        let session_mw = SessionMiddleware::builder(store, cookie_secret.clone())
+            // disable secure cookie for local testing
+            .cookie_secure(false)
+            .cookie_http_only(false)
+            .build();
         App::new()
-            .data(server_config.clone())
+            .app_data(Data::new(server_config.clone()))
             .wrap(TracingLogger::default())
-            .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(&[0; 32])
-                    .name("auth-cookie")
-                    .secure(true),
-            ))
+            .wrap(session_mw)
+            .wrap(IdentityMiddleware::default())
             .service(actix_web_static_files::ResourceFiles::new(
                 "/static", generated,
             ))
@@ -297,9 +303,8 @@ pub async fn webservice(
             .route("/{redirect_id}", web::get().to(views::redirect))
     })
     .bind(host_port)
-    .map_err(|e| {
+    .inspect_err(|_| {
         error!("Failed to bind to port!");
-        e
     })?
     .run();
     Ok(server)

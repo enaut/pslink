@@ -1,7 +1,12 @@
 [package]
 authors = ["Dietrich <dietrich@teilgedanken.de>"]
 build = "build.rs"
-categories = ["web-programming", "network-programming", "web-programming::http-server", "command-line-utilities"]
+categories = [
+    "web-programming",
+    "network-programming",
+    "web-programming::http-server",
+    "command-line-utilities",
+]
 description = "A simple webservice that allows registered users to create short links including qr-codes.\nAnyone can visit the shortened links. This is an ideal setup for small busines or for publishing papers."
 edition = "2018"
 keywords = ["url", "link", "webpage", "actix", "web"]
@@ -11,18 +16,28 @@ readme = "README.md"
 repository = "https://github.com/enaut/pslink/"
 version = "0.3.1"
 [build-dependencies]
-actix-web-static-files = "3.0"
+actix-web-static-files = "4.0"
+static-files = "0.2"
 
 [dependencies]
-actix-identity = "0.4.0-beta.1"
-actix-rt = "2.2"
-actix-web = "4.0.0-beta.6"
-actix-web-static-files = "3"
-actix-files = "0.5"
+actix-identity = "0.7"
+actix-session = { version = "0.9", features = ["cookie-session"] }
+actix-rt = "2"
+actix-web = "4"
+actix-web-static-files = "4"
+static-files = "0.2"
+actix-files = "0.6"
 anyhow = "1.0"
-argonautica = "0.2"
-clap = "2.33"
+argon2 = "0.5"
+clap = { version = "4", features = [
+    "cargo",
+    "env",
+    "error-context",
+    "help",
+    "usage",
+] }
 dotenv = "0.15.0"
+fluent-langneg = "0.14"
 image = "0.25"
 opentelemetry = { version = "0.24" }
 opentelemetry_sdk = { version = "0.24", features = ["rt-tokio-current-thread"] }
@@ -38,8 +53,9 @@ tracing-actix-web = "0.7"
 tracing-bunyan-formatter = "0.3.0"
 tracing-opentelemetry = "0.25"
 async-trait = "0.1"
-enum-map = {version="1", features = ["serde"]}
-
+enum-map = { version = "2", features = ["serde"] }
+reqwest = { version = "0.12.7", features = ["rustls-tls"] }
+reqwest_cookie_store = "0.8"
 shared = { path = "../shared" }
 
 [dependencies.chrono]
@@ -47,11 +63,11 @@ features = ["serde"]
 version = "0.4"
 
 [dependencies.fluent-templates]
-version = "0.6"
+version = "0.10"
 
 [dependencies.sqlx]
-features = ["sqlite", "macros", "runtime-actix-rustls", "chrono", "migrate", "offline"]
-version = "0.5"
+features = ["sqlite", "macros", "runtime-tokio", "chrono", "migrate"]
+version = "0.8"
 
 [dependencies.tracing]
 features = ["log"]
@@ -59,14 +75,14 @@ version = "0.1"
 
 [dependencies.tracing-subscriber]
 features = ["registry", "env-filter"]
-version = "0.2.17"
+version = "0.3"
 
 [dev-dependencies]
-actix-server = "1.0.4"
+actix-server = "2"
 tempdir = "0.3"
-test_bin = "0.3"
-tokio = "1.6"
+test_bin = "0.4"
+tokio = "1"
 
 [dev-dependencies.reqwest]
 features = ["cookies"]
-version = "0.11.3"
+version = "0.12"
