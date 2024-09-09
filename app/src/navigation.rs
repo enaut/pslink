@@ -47,16 +47,16 @@ pub fn navigation(i18n: &I18n, base_url: &Url, user: &User) -> Node<Msg> {
                             )
                         )),
                         t("invite-user"),
-                    ],],
-                    // A button to list all users
-                    li![a![
-                        attrs! {At::Href => crate::Urls::new(base_url).list_users()},
-                        t("list-users"),
-                    ],],
+                    ],]
                 ]
             } else {
                 nodes!()
             },
+            // A button to list all users
+            li![a![
+                attrs! {At::Href => crate::Urls::new(base_url).list_users()},
+                t("list-users"),
+            ],],
         ],
         ol![
             li![div![
