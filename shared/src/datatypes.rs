@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use serde::{Deserialize, Serialize, Serializer};
-use strum_macros::{AsRefStr, EnumIter, EnumString, ToString};
+use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
 /// A generic list returntype containing the User and a Vec containing e.g. Links or Users
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ListWithOwner<T> {
@@ -39,7 +39,7 @@ pub struct Link {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Count {
-    pub number: i32,
+    pub number: i64,
 }
 #[derive(Serialize, Debug)]
 pub struct Click {
@@ -116,7 +116,7 @@ impl<T> Deref for Loadable<T> {
     Clone,
     EnumIter,
     EnumString,
-    ToString,
+    Display,
     AsRefStr,
     Eq,
     PartialEq,

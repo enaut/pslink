@@ -1,7 +1,12 @@
 [package]
 name = "app"
 authors = ["Dietrich <dietrich@teilgedanken.de>"]
-categories = ["web-programming", "network-programming", "web-programming::http-server", "command-line-utilities"]
+categories = [
+    "web-programming",
+    "network-programming",
+    "web-programming::http-server",
+    "command-line-utilities",
+]
 description = "A wasm frontend for pslink. The frontend communicates via json API."
 edition = "2018"
 keywords = ["url", "link", "webpage", "actix", "web"]
@@ -16,14 +21,18 @@ version = "0.3.1"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-fluent = "0.15"
-seed = "0.8"
+seed = { version = "0.10", features = ["routing"] }
+fluent = "0.16"
 serde = "1.0"
 unic-langid = "0.9"
-strum_macros = "0.21"
-strum = "0.21"
-enum-map = "1"
-qrcode = "0.12"
-image = "0.23"
+strum_macros = "0.26"
+strum = "0.26"
+enum-map = "2"
+qrcode = "0.14"
+image = "0.25"
+wasm-bindgen = "=0.2.93"
+stdweb = { git = "https://github.com/Dampfwalze/stdweb.git", branch = "fix-dyn" }
+gloo-console = "0.3.0"
+gloo-net = "0.6.0"
 
 shared = { path = "../shared" }
