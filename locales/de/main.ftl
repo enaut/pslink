@@ -29,6 +29,8 @@ danger-zone-text = Verändern Sie den Code von bereits veröffentlichten Links n
 save-edits = Speichere die Veränderungen
 delete-link = Diesen Link löschen
 
+user = Benutzer
+admin = Administrator
 edit-user-headline = Benutzereinstellungen von: {$username}
 username = Benutzername
 email = Email

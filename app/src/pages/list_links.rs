@@ -15,7 +15,7 @@ use shared::{
         general::{EditMode, Message, Operation, Status},
         links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
     },
-    datatypes::{FullLink, Lang, Loadable},
+    datatypes::{FullLink, Lang, Loadable, User},
 };
 
 use crate::{get_host, i18n::I18n, unwrap_or_return};
@@ -454,7 +454,7 @@ fn delete_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
 ///   * questions
 ///   * the table of links including sorting and searching
 #[must_use]
-pub fn view(model: &Model) -> Node<Msg> {
+pub fn view(model: &Model, logged_in_user: &User) -> Node<Msg> {
     let lang = &model.i18n.clone();
     // shortcut for translating
     let t = move |key: &str| lang.translate(key, None);
@@ -496,7 +496,7 @@ pub fn view(model: &Model) -> Node<Msg> {
             // Add filter fields right below the headlines
             view_link_table_filter_input(model, t),
             // Add all the content lines
-            model.links.iter().map(view_link)
+            model.links.iter().map(|l| { view_link(l, logged_in_user) })
         ],
         // A fetch button - this should not be needed and will be removed in future.
         button![
@@ -539,6 +539,7 @@ fn view_link_table_head<F: Fn(&str) -> String>(t: F) -> Node<Msg> {
             ))),
             t("statistics")
         ],
+        th![],
         th![]
     ]
 }
@@ -591,43 +592,34 @@ fn view_link_table_filter_input<F: Fn(&str) -> String>(model: &Model, t: F) -> N
         // statistics and the delete column cannot be filtered
         td![],
         td![],
+        td![],
     ]
 }
 
 /// display a single table row containing one link
-fn view_link(l: &FullLink) -> Node<Msg> {
-    // Ugly hack - this is needed to be able to move the l into the closures... l.clone() in place does not work.
-    let link = LinkDelta::from(l.clone());
-    let link2 = LinkDelta::from(l.clone());
-    let link3 = LinkDelta::from(l.clone());
-    let link4 = LinkDelta::from(l.clone());
-    let link5 = LinkDelta::from(l.clone());
+fn view_link(l: &FullLink, logged_in_user: &User) -> Node<Msg> {
+    use shared::apirequests::users::Role;
+    macro_rules! event_or_not {
+        ( $link:expr, $user:expr, $content:expr) => {
+            if $user.role == Role::Admin
+                || ($user.role == Role::Regular) && $link.user.id == $user.id
+            {
+                let link = LinkDelta::from($link.clone());
+                td![
+                    ev(Ev::Click, |_| Msg::Edit(EditMsg::EditSelected(link))),
+                    $content
+                ]
+            } else {
+                td![$content]
+            }
+        };
+    }
     tr![
-        {
-            td![
-                ev(Ev::Click, |_| Msg::Edit(EditMsg::EditSelected(link))),
-                &l.link.code
-            ]
-        },
-        {
-            td![
-                ev(Ev::Click, |_| Msg::Edit(EditMsg::EditSelected(link2))),
-                &l.link.title
-            ]
-        },
-        td![a![attrs![At::Href => &l.link.target], &l.link.target]],
-        {
-            td![
-                ev(Ev::Click, |_| Msg::Edit(EditMsg::EditSelected(link3))),
-                &l.user.username
-            ]
-        },
-        {
-            td![
-                ev(Ev::Click, |_| Msg::Edit(EditMsg::EditSelected(link4))),
-                &l.clicks.number
-            ]
-        },
+        event_or_not!(l, logged_in_user, &l.link.code),
+        event_or_not!(l, logged_in_user, &l.link.title),
+        event_or_not!(l, logged_in_user, &l.link.target),
+        event_or_not!(l, logged_in_user, &l.user.username),
+        event_or_not!(l, logged_in_user, &l.clicks.number),
         {
             td![
                 C!["table_qr"],
@@ -637,12 +629,16 @@ fn view_link(l: &FullLink) -> Node<Msg> {
                 ]
             ]
         },
+        if logged_in_user.role == Role::Admin
+            || (logged_in_user.role == Role::Regular) && l.user.id == logged_in_user.id
         {
-            td![img![
-                ev(Ev::Click, |_| Msg::Edit(EditMsg::MayDeleteSelected(link5))),
-                C!["trashicon"],
-                attrs!(At::Src => "/static/trash.svg")
-            ]]
+            let link = LinkDelta::from(l.clone());
+            td![
+                ev(Ev::Click, |_| Msg::Edit(EditMsg::MayDeleteSelected(link))),
+                img![C!["trashicon"], attrs!(At::Src => "/static/trash.svg")]
+            ]
+        } else {
+            td![]
         },
     ]
 }

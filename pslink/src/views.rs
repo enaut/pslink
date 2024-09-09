@@ -199,9 +199,14 @@ pub async fn toggle_admin(
     data: web::Path<String>,
     config: web::Data<crate::ServerConfig>,
     id: Identity,
-) -> Result<Redirect, ServerError> {
-    let update = queries::toggle_admin(&id, &data, &config).await?;
-    Ok(Redirect::to(format!("/admin/view/profile/{}", update.item.id)).temporary())
+) -> Result<HttpResponse, ServerError> {
+    let update = queries::toggle_admin(&id, user.id, &config).await?;
+    Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+        message: format!(
+            "Successfully changed privileges or user: {}",
+            update.item.username
+        ),
+    })))
 }
 
 #[instrument(skip(id))]
