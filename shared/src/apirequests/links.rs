@@ -12,6 +12,7 @@ use super::general::{EditMode, Filter, Operation, Ordering};
 pub struct LinkRequestForm {
     pub filter: EnumMap<LinkOverviewColumns, Filter>,
     pub order: Option<Operation<LinkOverviewColumns, Ordering>>,
+    pub offset: usize,
     pub amount: usize,
 }
 
@@ -20,7 +21,8 @@ impl Default for LinkRequestForm {
         Self {
             filter: EnumMap::default(),
             order: None,
-            amount: 20,
+            offset: 0,
+            amount: 60,
         }
     }
 }
@@ -75,6 +77,12 @@ pub enum LinkOverviewColumns {
     Target,
     Author,
     Statistics,
+}
+
+/// A struct to request the statistics of a link
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub struct StatisticsRequest {
+    pub link_id: i64,
 }
 
 /// A struct to request a qr-code from the server
