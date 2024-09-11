@@ -297,12 +297,6 @@ pub struct Urls<'a> {
 
 impl<'a> Urls<'a> {
     /// Create a new `Urls` instance.
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// Urls::new(base_url).home()
-    /// ```
     pub fn new(base_url: impl Into<std::borrow::Cow<'a, Url>>) -> Self {
         Self {
             base_url: base_url.into(),
@@ -310,14 +304,7 @@ impl<'a> Urls<'a> {
     }
 
     /// Return base `Url`. If `base_url` isn't owned, it will be cloned.
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// pub fn admin_urls(self) -> page::admin::Urls<'a> {
-    ///     page::admin::Urls::new(self.base_url().add_path_part(ADMIN))
-    /// }
-    /// ```
+
     #[must_use]
     pub fn base_url(self) -> Url {
         self.base_url.into_owned()
