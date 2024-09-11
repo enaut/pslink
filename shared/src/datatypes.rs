@@ -1,9 +1,9 @@
 //! The more generic data-types used in pslink
 use std::ops::Deref;
 
+use crate::apirequests::users::Role;
 use serde::{Deserialize, Serialize, Serializer};
 use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
-use crate::apirequests::users::Role;
 /// A generic list returntype containing the User and a Vec containing e.g. Links or Users
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ListWithOwner<T> {
@@ -38,14 +38,7 @@ impl PartialEq for Clicks {
 
 impl PartialOrd for Clicks {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match (self, other) {
-            (Self::Count(l0), Self::Count(r0)) => l0.number.partial_cmp(&r0.number),
-            (Self::Extended(l0), Self::Extended(r0)) => {
-                l0.total.number.partial_cmp(&r0.total.number)
-            }
-            (Clicks::Count(l0), Clicks::Extended(r0)) => l0.number.partial_cmp(&r0.total.number),
-            (Clicks::Extended(l0), Clicks::Count(r0)) => l0.total.number.partial_cmp(&r0.number),
-        }
+        Some(self.cmp(other))
     }
 }
 
@@ -89,11 +82,19 @@ pub struct Link {
 pub struct Count {
     pub number: i64,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct WeekCount {
+    pub month: chrono::NaiveDateTime,
+    pub total: Count,
+    pub week: i32,
+}
+
 impl Eq for WeekCount {}
 
 impl PartialOrd for WeekCount {
     fn partial_cmp(&self, other: &Self) -> std::option::Option<std::cmp::Ordering> {
-        self.total.number.partial_cmp(&other.total.number)
+        Some(self.cmp(other))
     }
 }
 impl Ord for WeekCount {
@@ -200,10 +201,4 @@ pub enum Lang {
     EnUS,
     #[strum(serialize = "de-DE", serialize = "de", serialize = "deDE")]
     DeDE,
-}
-
-impl std::fmt::Display for Lang {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
 }
