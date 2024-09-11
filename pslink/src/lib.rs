@@ -16,7 +16,7 @@ use shared::datatypes::Secret;
 use sqlx::{Pool, Sqlite};
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thiserror::Error;
-use tracing::{error, info, trace};
+use tracing::{error, info};
 use tracing_actix_web::TracingLogger;
 
 /// The Error type that is returned by most function calls if anything failed.
@@ -300,6 +300,10 @@ pub async fn webservice(
                                 "/get_logged_user/",
                                 web::post().to(views::get_logged_user_json),
                             )
+                            .route(
+                                "/get_link_statistics/",
+                                web::post().to(views::get_statistics),
+                            )
                             .route("/login_user/", web::post().to(views::process_login_json)),
                     ),
             )
@@ -315,7 +319,6 @@ pub async fn webservice(
     .bind(host_port)
     .inspect_err(|_| {
         error!("Failed to bind to port!");
-        e
     })?
     .run();
     Ok(server)

@@ -1,12 +1,10 @@
-use std::time::SystemTime;
-
 use actix_identity::Identity;
 use actix_web::{
     http::header::ContentType,
     web::{self, Redirect},
     Either, HttpMessage as _, HttpRequest, HttpResponse,
 };
-use argon2::PasswordVerifier as _;
+use argon2::{Params, PasswordVerifier as _};
 use fluent_langneg::{
     convert_vec_str_to_langids_lossy, negotiate_languages, parse_accepted_languages,
     LanguageIdentifier, NegotiationStrategy,
@@ -17,14 +15,14 @@ use queries::{authenticate, RoleGuard};
 use shared::{
     apirequests::{
         general::{Message, Status},
-        links::{LinkDelta, LinkRequestForm},
+        links::{LinkDelta, LinkRequestForm, StatisticsRequest},
         users::{LoginUser, UserDelta, UserRequestForm},
     },
     datatypes::Lang,
 };
 use tracing::{error, info, instrument, warn};
 
-use crate::queries;
+use crate::queries::{self, Item};
 use crate::ServerError;
 
 #[instrument]
@@ -99,7 +97,7 @@ pub async fn index_json(
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Links to Json api");
     match queries::list_all_allowed(&id, &config, form.0).await {
-        Ok(links) => Ok(HttpResponse::Ok().json2(&links.list)),
+        Ok(links) => Ok(HttpResponse::Ok().json(&links.list)),
         Err(e) => {
             error!("Failed to access database: {:?}", e);
             warn!("Not logged in - redirecting to login page");
@@ -165,6 +163,21 @@ pub async fn download_png(
 }
 
 #[instrument(skip(id))]
+pub async fn get_statistics(
+    id: Identity,
+    config: web::Data<crate::ServerConfig>,
+    link_id: web::Json<StatisticsRequest>,
+) -> Result<HttpResponse, ServerError> {
+    match queries::get_statistics(&id, link_id.link_id, &config).await {
+        Ok(Item {
+            user: _,
+            item: stats,
+        }) => Ok(HttpResponse::Ok().json(stats)),
+        Err(e) => Err(e),
+    }
+}
+
+#[instrument(skip(id))]
 pub async fn process_create_user_json(
     config: web::Data<crate::ServerConfig>,
     form: web::Json<UserDelta>,
@@ -201,7 +214,7 @@ pub async fn toggle_admin(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     let update = queries::toggle_admin(&id, user.id, &config).await?;
-    Ok(HttpResponse::Ok().json2(&Status::Success(Message {
+    Ok(HttpResponse::Ok().json(Status::Success(Message {
         message: format!(
             "Successfully changed privileges or user: {}",
             update.item.username
@@ -240,13 +253,12 @@ pub async fn set_language(
     Ok(HttpResponse::Ok().json(data.0))
 }
 
-#[instrument(skip(_id))]
+#[instrument()]
 pub async fn process_login_json(
     request: HttpRequest,
     data: web::Json<LoginUser>,
     config: web::Data<crate::ServerConfig>,
-    _id: Identity,
-) -> Result<Either<HttpResponse, Redirect>, ServerError> {
+) -> Result<HttpResponse, ServerError> {
     // query the username to see if a user by that name exists.
     let user = queries::get_user_by_name(&data.username, &config).await;
 
@@ -258,10 +270,19 @@ pub async fn process_login_json(
                 Ok(h) => h,
                 Err(e) => {
                     info!("Failed to parse password hash for {}: {}", &u.username, e);
-                    return Ok(Either::Right(Redirect::to("/admin/login/").see_other()));
+                    return Ok(HttpResponse::Unauthorized().json(Status::Error(Message {
+                        message: "Failed to Login".to_string(),
+                    })));
                 }
             };
-            match argon2::Argon2::default().verify_password(data.password.as_bytes(), &parsed_hash)
+            match argon2::Argon2::new_with_secret(
+                &config.as_ref().secret.secret.clone().unwrap().into_bytes(),
+                argon2::Algorithm::default(),
+                argon2::Version::default(),
+                Params::default(),
+            )
+            .expect("Failed to create argon2 instance")
+            .verify_password(data.password.as_bytes(), &parsed_hash)
             {
                 Ok(_) => {
                     info!("Log-in of user: {}", &u.username);
@@ -269,27 +290,29 @@ pub async fn process_login_json(
                     match Identity::login(&request.extensions(), session_token) {
                         Ok(_) => {
                             info!("Logged in user: {}", &u.username);
-                            return Ok(Either::Right(Redirect::to("/app/").see_other()));
+                            return Ok(HttpResponse::Ok().json(&u));
                         }
                         Err(e) => {
                             info!("Failed to login: {}", e);
-                            return Ok(Either::Right(Redirect::to("/admin/login/").see_other()));
+                            return Ok(HttpResponse::Unauthorized().json(Status::Error(Message {
+                                message: "Failed to Login".to_string(),
+                            })));
                         }
                     }
                 }
                 Err(e) => {
                     info!("Failed to login: {}", e);
-                    return Ok(Either::Right(Redirect::to("/admin/login/").see_other()));
+                    return Ok(HttpResponse::Unauthorized().json(Status::Error(Message {
+                        message: "Failed to Login".to_string(),
+                    })));
                 }
             }
         }
         Err(e) => {
             info!("Failed to login: {}", e);
-            Ok(Either::Left(HttpResponse::Unauthorized().json(
-                Status::Error(Message {
-                    message: "Failed to Login".to_string(),
-                }),
-            )))
+            Ok(HttpResponse::Unauthorized().json(Status::Error(Message {
+                message: "Failed to Login".to_string(),
+            })))
         }
     }
 }
