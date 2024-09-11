@@ -8,6 +8,7 @@ use gloo_net::http::Request;
 use pages::list_links;
 use pages::list_users;
 use seed::window;
+use seed::IF;
 use seed::{attrs, button, div, input, label, prelude::*, App, Url, C};
 use shared::apirequests::users::LoginUser;
 use shared::datatypes::Lang;
@@ -100,6 +101,7 @@ pub fn get_host() -> String {
 /// The pages:
 ///   * `Home` for listing of links
 ///   * `ListUsers` for listing of users
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum Page {
     Home(pages::list_links::Model),
