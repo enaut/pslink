@@ -3,9 +3,7 @@
 use enum_map::EnumMap;
 use gloo_console::log;
 use gloo_net::http::Request;
-use seed::{
-    a, attrs, button, div, h1, input, p, prelude::*, section, table, td, th, tr, Url, C, IF,
-};
+use seed::{a, attrs, div, h1, input, p, prelude::*, section, table, td, th, tr, Url, C, IF};
 use shared::{
     apirequests::general::{Operation, Ordering},
     apirequests::{
@@ -264,28 +262,26 @@ fn update_privileges(user: UserDelta, orders: &mut impl Orders<Msg>) {
         let data = user;
         // create the request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/update_privileges/")
-                .method(Method::Post)
-                .json(&data),
+            Request::post("/admin/json/update_privileges/").json(&data),
             Msg::Edit(UserEditMsg::FailedToCreateUser)
         );
         // perform the request and get the response
         let response = unwrap_or_return!(
-            fetch(request).await,
+            request.send().await,
             Msg::Edit(UserEditMsg::FailedToCreateUser)
         );
         // check for the status
-        let response = unwrap_or_return!(
-            response.check_status(),
+        if !response.ok() {
             Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
-        // deserialize the response
-        let message: Status = unwrap_or_return!(
-            response.json().await,
-            Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
+        } else {
+            // deserialize the response
+            let message: Status = unwrap_or_return!(
+                response.json().await,
+                Msg::Edit(UserEditMsg::FailedToCreateUser)
+            );
 
-        Msg::Edit(UserEditMsg::UserCreated(message))
+            Msg::Edit(UserEditMsg::UserCreated(message))
+        }
     });
 }
 
@@ -299,7 +295,6 @@ fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
                 EditMode::Create => "/admin/json/create_user/",
                 EditMode::Edit => "/admin/json/update_user/",
             })
-            .method(Method::Post)
             .json(&data),
             Msg::Edit(UserEditMsg::FailedToCreateUser)
         );
