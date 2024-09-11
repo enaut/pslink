@@ -62,10 +62,30 @@ td {
     text-align: center;
     border: 1px solid #ccc;
     padding: 10px;
+    word-break: break-all;
+}
+
+svg.statistics_graph {
+    width: 120px;
+    height: 50px;
+}
+
+.stats_total {
+    display: block;
+    font-size: 0.7em;
+    background-color: rgba(255, 255, 255, 0.75);
+    padding: 3px;
+    border-radius: 14px;
+    bottom: 0;
+    margin-top: -83px;
 }
 
 td.table_qr svg {
     max-height: 40px;
+}
+
+.cursor-pointer {
+    cursor: pointer;
 }
 
 table tr:nth-child(even) {
@@ -82,6 +102,11 @@ table tr:nth-child(even).admin {
 
 table tr:nth-child(odd).admin {
     background-color: rgb(255, 204, 169);
+}
+
+table tr:hover {
+    /* Add a shadow around the row*/
+    box-shadow: inset 0px 0px 30px 10px rgba(0, 0, 0, 0.1);
 }
 
 table tr.filters input {
