@@ -88,7 +88,7 @@ pub struct Link {
 /// When statistics are counted
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Count {
-    pub number: i32,
+    pub number: i64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

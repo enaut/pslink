@@ -104,7 +104,7 @@ async fn test_migrate_database() {
     use std::io::Write;
     #[derive(serde::Serialize, Debug)]
     pub struct Count {
-        pub number: i32,
+        pub number: i64,
     }
 
     let tmp_dir = tempdir::TempDir::new("pslink_test_env").expect("create temp dir");
@@ -181,7 +181,7 @@ async fn run_server() -> RunningServer {
 
     #[derive(serde::Serialize, Debug)]
     pub struct Count {
-        pub number: i32,
+        pub number: i64,
     }
 
     let mut rng = thread_rng();

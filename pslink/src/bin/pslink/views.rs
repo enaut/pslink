@@ -2,16 +2,13 @@ use std::time::SystemTime;
 
 use actix_identity::Identity;
 use actix_web::{
-    http::header::{CacheControl, CacheDirective, ContentType, Expires},
-    web, HttpRequest, HttpResponse,
+    http::header::{CacheControl, CacheDirective, ContentType, Expires}, web, HttpMessage as _, HttpRequest, HttpResponse
 };
 use argonautica::Verifier;
 use fluent_langneg::{
-    convert_vec_str_to_langids_lossy, negotiate_languages, parse_accepted_languages,
-    NegotiationStrategy,
+    convert_vec_str_to_langids_lossy, negotiate_languages, parse_accepted_languages, LanguageIdentifier, NegotiationStrategy
 };
-use fluent_templates::LanguageIdentifier;
-use image::{DynamicImage, ImageOutputFormat, Luma};
+use image::{DynamicImage, ImageFormat, Luma};
 use pslink::queries::{authenticate, Item, RoleGuard};
 use pslink_shared::{
     apirequests::{
@@ -166,7 +163,7 @@ pub async fn download_png(
             let png = qr.render::<Luma<u8>>().quiet_zone(false).build();
             let mut temporary_data = std::io::Cursor::new(Vec::new());
             DynamicImage::ImageLuma8(png)
-                .write_to(&mut temporary_data, ImageOutputFormat::Png)
+                .write_to(&mut temporary_data, ImageFormat::Png)
                 .unwrap();
             let image_data = temporary_data.into_inner();
             Ok(HttpResponse::Ok()
@@ -268,11 +265,10 @@ pub async fn set_language(
     Ok(HttpResponse::Ok().json(&data.0))
 }
 
-#[instrument(skip(id))]
+#[instrument()]
 pub async fn process_login_json(
     data: web::Json<LoginUser>,
-    config: web::Data<crate::ServerConfig>,
-    id: Identity,
+    config: web::Data<crate::ServerConfig>,request: HttpRequest,
 ) -> Result<HttpResponse, ServerError> {
     // query the username to see if a user by that name exists.
     let user = queries::get_user_by_name(&data.username, &config).await;
@@ -294,7 +290,7 @@ pub async fn process_login_json(
                 if valid {
                     info!("Log-in of user: {}", &u.username);
                     let session_token = u.username.clone();
-                    id.remember(session_token);
+                    let _id = Identity::login(&request.extensions(), session_token).unwrap();
                     Ok(HttpResponse::Ok().json(&u))
                 } else {
                     info!("Invalid password for user: {}", &u.username);
@@ -321,7 +317,7 @@ pub async fn process_login_json(
 #[instrument(skip(id))]
 pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
     info!("Logging out the user");
-    id.forget();
+    id.logout();
     Ok(redirect_builder("/app/"))
 }
 

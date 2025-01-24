@@ -13,6 +13,6 @@ version = "0.4.7"
 [dependencies]
 serde = {version="1.0", features = ["derive"]}
 chrono = {version = "0.4", features = ["serde"] }
-enum-map = {version="1", features = ["serde"]}
-strum_macros = "0.23"
-strum = "0.23"
+enum-map = {version="2.7", features = ["serde"]}
+strum_macros = "0.26"
+strum = "0.26"

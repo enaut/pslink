@@ -16,42 +16,44 @@ actix-web-static-files = { git = "https://github.com/enaut/actix-web-static-file
 static-files = { version = "0.2", default-features = false }
 
 [dependencies]
-actix-identity = "0.4.0-beta.4"
+actix-identity = "0.8"
 actix-rt = "2.2"
-actix-web = "4.0.0-beta.12"
+actix-web = "4.9"
 actix-web-static-files = { git = "https://github.com/enaut/actix-web-static-files.git", branch="master" }
-actix-files = "0.6.0-beta.9"
+actix-files = "0.6"
 argonautica = "0.2"
-clap = "2.33"
+clap = { version = "4.5", features = ["cargo", "env", "string", "unicode"] }
 dotenv = "0.15.0"
-fluent-langneg = "0.13"
-image = "0.23"
-opentelemetry = "0.16"
-opentelemetry-jaeger = "0.15"
-qrcode = "0.12"
+fluent-langneg = "0.14"
+image = "0.25"
+opentelemetry = "0.27"
+qrcode = "0.14"
 rand = "0.8"
-rpassword = "5.0"
+rpassword = "7.3"
 serde = {version="1.0", features = ["derive"]}
 static-files = { version = "0.2", default-features = false }
-thiserror = "1.0"
-tracing-actix-web = "0.5.0-beta.3"
-tracing-opentelemetry = "0.15"
+thiserror = "2"
+tracing-actix-web = "0.7"
+tracing-opentelemetry = "0.28"
 async-trait = "0.1"
-enum-map = {version="1", features = ["serde"]}
-indexmap = "~1.6.2"
+enum-map = {version="2.7", features = ["serde"]}
+indexmap = "2.7"
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
 
 pslink-shared = {version="0.4",  path = "../shared" }
+opentelemetry-otlp = { version = "0.27.0", features = ["serde", "serde_json", "trace", "tonic"] }
+actix-session = { version = "0.10.1", features = ["cookie-session"] }
 
 [dependencies.chrono]
 features = ["serde"]
 version = "0.4"
 
 [dependencies.fluent-templates]
-version = "0.6"
+version = "0.13"
 
 [dependencies.sqlx]
-features = ["sqlite", "macros", "runtime-actix-rustls", "chrono", "migrate", "offline"]
-version = "0.5"
+features = ["sqlite", "sqlx-macros", "chrono", "migrate", "runtime-tokio-native-tls", "runtime-tokio"]
+version = "0.8"
 
 [dependencies.tracing]
 features = ["log"]
@@ -59,17 +61,17 @@ version = "0.1"
 
 [dependencies.tracing-subscriber]
 features = ["registry", "env-filter"]
-version = "0.2.17"
+version = "0.3"
 
 [dev-dependencies]
-actix-server = "1.0.4"
+actix-server = "2"
 tempdir = "0.3"
-test_bin = "0.3"
+test_bin = "0.4"
 tokio = "1.12"
 assert_cmd = "2.0"
-predicates = "2.0.0"
+predicates = "3"
 
 
 [dev-dependencies.reqwest]
 features = ["cookies", "json"]
-version = "0.11"
+version = "0.12"

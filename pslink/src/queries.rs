@@ -57,7 +57,7 @@ pub async fn authenticate(
     id: &Identity,
     server_config: &ServerConfig,
 ) -> Result<RoleGuard, ServerError> {
-    if let Some(username) = id.identity() {
+    if let Some(username) = id.id().ok() {
         info!("Looking for user {}", username);
         let user = User::get_user_by_name(&username, server_config).await?;
         info!("Found user {:?}", user);

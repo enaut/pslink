@@ -17,18 +17,21 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 fluent = "0.16"
-seed = "0.8"
+seed = {version="0.10", features = ["routing"]}
 serde = {version="1.0", features = ["derive"]}
 unic-langid = "0.9"
-strum_macros = "0.23"
-strum = "0.23"
-enum-map = "1"
-qrcode = "0.12"
-image = "0.23"
+strum_macros = "0.26"
+strum = "0.26"
+enum-map = "2.7"
+qrcode = "0.14"
+image = "0.25"
 chrono = {version="0.4", features=["wasmbind"]}
+
 
 pslink-shared = { version="0.4", path = "../shared" }
 pslink-locales = { version="0.4", path = "../locales" }
+gloo-console = "0.3.0"
+gloo-net = "0.6.0"
 
 [dependencies.web-sys]
 version = "0.3"

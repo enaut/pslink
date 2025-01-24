@@ -1,7 +1,4 @@
-use clap::{
-    app_from_crate, crate_authors, crate_description, crate_name, crate_version, App, AppSettings,
-    Arg, ArgMatches, SubCommand,
-};
+use clap::{crate_authors, crate_description, crate_name, crate_version, Arg, ArgMatches, Command};
 use dotenv::dotenv;
 use pslink_shared::datatypes::{Secret, User};
 use sqlx::{migrate::Migrator, Pool, Sqlite};
@@ -22,10 +19,13 @@ static MIGRATOR: Migrator = sqlx::migrate!();
 
 /// generate the command line options available
 #[allow(clippy::too_many_lines)]
-fn generate_cli() -> App<'static, 'static> {
-    app_from_crate!()
+fn generate_cli() -> Command {
+    Command::new(crate_name!())
+        .version(crate_version!())
+        .author(crate_authors!())
+        .about(crate_description!())
         .arg(
-            Arg::with_name("database")
+            Arg::new("database")
                 .long("db")
                 .help("The path of the sqlite database")
                 .env("PSLINK_DATABASE")
@@ -33,65 +33,65 @@ fn generate_cli() -> App<'static, 'static> {
                 .global(true),
         )
         .arg(
-            Arg::with_name("port")
+            Arg::new("port")
                 .long("port")
-                .short("p")
+                .short('p')
                 .help("The port the pslink service will run on")
                 .env("PSLINK_PORT")
                 .default_value("8080")
                 .global(true),
         )
         .arg(
-            Arg::with_name("public_url")
+            Arg::new("public_url")
                 .long("public-url")
-                .short("u")
+                .short('u')
                 .help("The host url or the page that will be part of the short urls.")
                 .env("PSLINK_PUBLIC_URL")
                 .default_value("127.0.0.1:8080")
                 .global(true),
         )
         .arg(
-            Arg::with_name("empty_forward_url")
+            Arg::new("empty_forward_url")
                 .long("empty-url")
-                .short("e")
+                .short('e')
                 .help("The the url that / will redirect to. Usually your homepage.")
                 .env("PSLINK_EMPTY_FORWARD_URL")
                 .default_value("https://github.com/enaut/pslink")
                 .global(true),
         )
         .arg(
-            Arg::with_name("brand_name")
+            Arg::new("brand_name")
                 .long("brand-name")
-                .short("b")
+                .short('b')
                 .help("The brand name that will appear in various places.")
                 .env("PSLINK_BRAND_NAME")
                 .default_value("Pslink")
                 .global(true),
         )
         .arg(
-            Arg::with_name("internal_ip")
+            Arg::new("internal_ip")
                 .long("hostip")
-                .short("i")
+                .short('i')
                 .help("The host (ip) that will run the pslink service")
                 .env("PSLINK_IP")
                 .default_value("127.0.0.1")
                 .global(true),
         )
         .arg(
-            Arg::with_name("protocol")
+            Arg::new("protocol")
                 .long("protocol")
-                .short("t")
+                .short('t')
                 .help(concat!(
                     "The protocol that is used in the qr-codes",
                     " (http results in slightly smaller codes in some cases)"
                 ))
                 .env("PSLINK_PROTOCOL")
                 .default_value("http")
-                .possible_values(&["http", "https"])
+                .value_parser(["http", "https"])
                 .global(true),
         )
         .arg(
-            Arg::with_name("secret")
+            Arg::new("secret")
                 .long("secret")
                 .help(concat!(
                     "The secret that is used to encrypt the",
@@ -106,37 +106,37 @@ fn generate_cli() -> App<'static, 'static> {
                 .global(true),
         )
         .subcommand(
-            SubCommand::with_name("runserver")
+            Command::new("runserver")
                 .about("Run the server")
                 .display_order(1),
         )
         .subcommand(
-            SubCommand::with_name("migrate-database")
+            Command::new("migrate-database")
                 .about("Apply any pending migrations and exit")
                 .display_order(2),
         )
         .subcommand(
-            SubCommand::with_name("generate-env")
+            Command::new("generate-env")
                 .about("Generate an .env file template using default settings and exit")
                 .display_order(2),
         )
         .subcommand(
-            SubCommand::with_name("create-admin")
+            Command::new("create-admin")
                 .about("Create an admin user.")
                 .display_order(2),
         )
         .subcommand(
-            SubCommand::with_name("demo")
+            Command::new("demo")
                 .about("Create a database and demo user.")
                 .display_order(3)
-                .setting(AppSettings::Hidden),
+                .hide(true),
         )
 }
 
 /// parse the options to the [`ServerConfig`] struct
-async fn parse_args_to_config(config: ArgMatches<'_>) -> ServerConfig {
+async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
     let secret = config
-        .value_of("secret")
+        .get_one::<String>("secret")
         .expect("Failed to read the secret")
         .to_owned();
     let secret = if secret.len() < 5 {
@@ -161,7 +161,7 @@ async fn parse_args_to_config(config: ArgMatches<'_>) -> ServerConfig {
     };
     let secret = Secret::new(secret);
     let db = config
-        .value_of("database")
+        .get_one::<String>("database")
         .expect(concat!(
             "Neither the DATABASE_URL environment variable",
             " nor the command line parameters",
@@ -173,28 +173,28 @@ async fn parse_args_to_config(config: ArgMatches<'_>) -> ServerConfig {
         .await
         .expect("Error: Failed to connect to database!");
     let public_url = config
-        .value_of("public_url")
+        .get_one::<String>("public_url")
         .expect("Failed to read the host value")
         .to_owned();
     let empty_forward_url = config
-        .value_of("empty_forward_url")
+        .get_one::<String>("empty_forward_url")
         .expect("Failed to read the empty_forward_url value")
         .to_owned();
     let brand_name = config
-        .value_of("brand_name")
+        .get_one::<String>("brand_name")
         .expect("Failed to read the brand_name value")
         .to_owned();
     let internal_ip = config
-        .value_of("internal_ip")
+        .get_one::<String>("internal_ip")
         .expect("Failed to read the host value")
         .to_owned();
     let port = config
-        .value_of("port")
+        .get_one::<String>("port")
         .expect("Failed to read the port value")
         .parse::<u32>()
         .expect("Failed to parse the port number");
     let protocol = config
-        .value_of("protocol")
+        .get_one::<String>("protocol")
         .expect("Failed to read the protocol value")
         .parse::<pslink::Protocol>()
         .expect("Failed to parse the protocol");
@@ -223,12 +223,12 @@ pub async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
     // Print launch info
     info!("Launching Pslink a 'Private short link generator'");
 
-    let app = generate_cli();
+    let mut app = generate_cli();
 
-    let config = app.get_matches();
+    let config = app.clone().get_matches();
 
     let db = config
-        .value_of("database")
+        .get_one::<String>("database")
         .expect(concat!(
             "Neither the DATABASE_URL environment variable",
             " nor the command line parameters",
@@ -324,7 +324,7 @@ pub async fn setup() -> Result<Option<crate::ServerConfig>, ServerError> {
         trace!("Initialization finished starting the service.");
         Ok(Some(server_config))
     } else {
-        println!("{}", config.usage());
+        println!("{}", app.render_usage());
         Err(ServerError::User("Print usage.".into()))
     }
 }

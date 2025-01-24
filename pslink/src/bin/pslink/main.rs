@@ -4,55 +4,22 @@ mod cli;
 mod views;
 
 use actix_files::Files;
-use actix_identity::{CookieIdentityPolicy, IdentityService};
+use actix_identity::IdentityMiddleware;
+use actix_session::SessionMiddleware;
+use actix_web::cookie::Key;
 use actix_web::middleware::Compat;
 use actix_web::web::Data;
 use actix_web::{web, App, HttpServer};
 use pslink::ServerConfig;
 
 use tracing::instrument;
-use tracing::{subscriber::set_global_default, Subscriber};
-use tracing_opentelemetry::OpenTelemetryLayer;
-use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
 use tracing::{error, info};
 use tracing_actix_web::TracingLogger;
 
-/// Compose multiple layers into a `tracing`'s subscriber.
-#[must_use]
-pub fn get_subscriber(name: &str, env_filter: &str) -> impl Subscriber + Send + Sync {
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
-    // Create a jaeger exporter pipeline for a `trace_demo` service.
-    let tracer = opentelemetry_jaeger::new_pipeline()
-        .with_service_name(name)
-        .install_simple()
-        .expect("Error initializing Jaeger exporter");
-    let formatting_layer = tracing_subscriber::fmt::layer().with_target(false);
-
-    // Create a layer with the configured tracer
-    let otel_layer = OpenTelemetryLayer::new(tracer);
-
-    // Use the tracing subscriber `Registry`, or any other subscriber
-    // that implements `LookupSpan`
-    Registry::default()
-        .with(otel_layer)
-        .with(env_filter)
-        .with(formatting_layer)
-}
-
-/// Register a subscriber as global default to process span data.
-///
-/// It should only be called once!
-pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
-    set_global_default(subscriber).expect("Failed to set subscriber");
-}
-
 #[instrument]
 #[actix_web::main]
 async fn main() -> std::result::Result<(), std::io::Error> {
-    let subscriber = get_subscriber("pslink", "info");
-    init_subscriber(subscriber);
 
     match cli::setup().await {
         Ok(Some(server_config)) => {
@@ -105,17 +72,16 @@ pub async fn webservice(
         &server_config.protocol, &server_config.public_url
     );
 
+    let secret =  Key::generate();
     let server = HttpServer::new(move || {
+        let cookie_store = actix_session::storage::CookieSessionStore::default();
+        let store_middleware= SessionMiddleware::builder(cookie_store, secret.clone()).cookie_content_security(actix_session::config::CookieContentSecurity::Private).cookie_name("pslink-session".to_string()).cookie_path("/".to_owned()).build();
         let generated = generate();
         let logger = Compat::new(TracingLogger::default());
         App::new()
             .app_data(Data::new(server_config.clone()))
             .wrap(logger)
-            .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(&[0; 32])
-                    .name("auth-cookie")
-                    .secure(true),
-            ))
+            .wrap(IdentityMiddleware::default()).wrap(store_middleware)
             .service(actix_web_static_files::ResourceFiles::new(
                 "/static", generated,
             ))

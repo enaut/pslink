@@ -72,7 +72,7 @@ impl actix_web::error::ResponseError for ServerError {
             }
             Self::Database(e) => {
                 eprintln!("Database Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                     "Server Error",
                     "Database could not be accessed! - It could be that this value already was in the database! If you are the admin look into the logs for a more detailed error.",
                 ))
@@ -83,28 +83,28 @@ impl actix_web::error::ResponseError for ServerError {
             }
             Self::Environment(e) => {
                 eprintln!("Environment Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                   "Server Error",
                   "This Server is not properly configured, if you are the admin look into the installation- or update instructions!",
               ))
             }
             Self::Qr(e) => {
                 eprintln!("QR Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                     "Server Error",
                     "Could not generate the QR-code!",
                 ))
             }
             Self::Io(e) => {
                 eprintln!("Io Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                     "Server Error",
                     "Some Files could not be read or written. If you are the admin look into the logfiles for more details.",
                 ))
             }
             Self::User(data) => {
                 eprintln!("User Error happened: {:?}", data);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                     "Server Error",
                     &format!("An error happened: {}", data),
                 ))

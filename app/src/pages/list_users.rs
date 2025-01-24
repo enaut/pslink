@@ -1,6 +1,8 @@
 //! List all users in case an admin views it, list the "self" user otherwise.
 
 use enum_map::EnumMap;
+use gloo_console::log;
+use gloo_net::http::Request;
 use pslink_locales::I18n;
 use pslink_shared::{
     apirequests::general::{Operation, Ordering},
@@ -10,7 +12,7 @@ use pslink_shared::{
     },
     datatypes::{Lang, User},
 };
-use seed::{a, attrs, div, h1, input, log, p, prelude::*, section, table, td, th, tr, Url, C, IF};
+use seed::{a, attrs, div, h1, input, p, prelude::*, section, table, td, th, tr, Url, C, IF};
 /*
  * init
  */
@@ -179,28 +181,22 @@ fn load_users(data: UserRequestForm, orders: &mut impl Orders<Msg>) {
         let data = data;
         // create the request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/list_users/")
-                .method(Method::Post)
+            Request::post("/admin/json/list_users/")
                 .json(&data),
             Msg::Query(UserQueryMsg::FailedToFetchUsers)
-        );
+        ).send();
         // request and get response
         let response = unwrap_or_return!(
-            fetch(request).await,
+            request.await,
             Msg::Query(UserQueryMsg::FailedToFetchUsers)
         );
         // check the response status
-        let response = unwrap_or_return!(
-            response.check_status(),
-            Msg::Query(UserQueryMsg::FailedToFetchUsers)
-        );
-        // deserialize the users list
-        let users: Vec<User> = unwrap_or_return!(
+        let response = if response.ok() { let users: Vec<User> = unwrap_or_return!(
             response.json().await,
             Msg::Query(UserQueryMsg::FailedToFetchUsers)
         );
 
-        Msg::Query(UserQueryMsg::Received(users))
+        Msg::Query(UserQueryMsg::Received(users)) } else { Msg::Query(UserQueryMsg::FailedToFetchUsers)}; response
     });
 }
 
@@ -246,7 +242,7 @@ pub fn process_user_edit_messages(
             log!("Failed to create user");
         }
         UserEditMsg::UserCreated(u) => {
-            log!(u, "created user");
+            log!(format!("created user {:?}", u));
             model.last_message = Some(u);
             model.user_edit = None;
             orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
@@ -261,30 +257,25 @@ pub fn process_user_edit_messages(
 fn update_privileges(user: UserDelta, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
         let data = user;
-        // create the request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/update_privileges/")
-                .method(Method::Post)
+            Request::post("/admin/json/update_privileges/")
                 .json(&data),
             Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
-        // perform the request and get the response
+        )
+        .send();
         let response = unwrap_or_return!(
-            fetch(request).await,
+            request.await,
             Msg::Edit(UserEditMsg::FailedToCreateUser)
         );
-        // check for the status
-        let response = unwrap_or_return!(
-            response.check_status(),
+        if response.ok() {
+            let message: Status = unwrap_or_return!(
+                response.json().await,
+                Msg::Edit(UserEditMsg::FailedToCreateUser)
+            );
+            Msg::Edit(UserEditMsg::UserCreated(message))
+        } else {
             Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
-        // deserialize the response
-        let message: Status = unwrap_or_return!(
-            response.json().await,
-            Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
-
-        Msg::Edit(UserEditMsg::UserCreated(message))
+        }
     });
 }
 
@@ -292,33 +283,28 @@ fn update_privileges(user: UserDelta, orders: &mut impl Orders<Msg>) {
 fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
         let data = user;
-        // create the request
+        let url = match data.edit {
+            EditMode::Create => "/admin/json/create_user/",
+            EditMode::Edit => "/admin/json/update_user/",
+        };
         let request = unwrap_or_return!(
-            Request::new(match data.edit {
-                EditMode::Create => "/admin/json/create_user/",
-                EditMode::Edit => "/admin/json/update_user/",
-            })
-            .method(Method::Post)
-            .json(&data),
+            Request::post(url).json(&data),
             Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
-        // perform the request and get the response
+        )
+        .send();
         let response = unwrap_or_return!(
-            fetch(request).await,
+            request.await,
             Msg::Edit(UserEditMsg::FailedToCreateUser)
         );
-        // check for the status
-        let response = unwrap_or_return!(
-            response.check_status(),
+        if response.ok() {
+            let message: Status = unwrap_or_return!(
+                response.json().await,
+                Msg::Edit(UserEditMsg::FailedToCreateUser)
+            );
+            Msg::Edit(UserEditMsg::UserCreated(message))
+        } else {
             Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
-        // deserialize the response
-        let message: Status = unwrap_or_return!(
-            response.json().await,
-            Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
-
-        Msg::Edit(UserEditMsg::UserCreated(message))
+        }
     });
 }
 

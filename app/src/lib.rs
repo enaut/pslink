@@ -2,6 +2,8 @@
 pub mod navigation;
 pub mod pages;
 
+use gloo_console::log;
+use gloo_net::http::Request;
 use pages::list_links;
 use pages::list_users;
 use pslink_shared::{
@@ -10,7 +12,7 @@ use pslink_shared::{
 };
 use seed::window;
 use seed::IF;
-use seed::{attrs, button, div, input, label, log, prelude::*, App, Url, C};
+use seed::{attrs, button, div, input, label, prelude::*, App, Url, C};
 
 use pslink_locales::I18n;
 
@@ -108,7 +110,7 @@ enum Page {
 
 impl Page {
     fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Self {
-        log!(&url);
+        log!(format!("{:?}", &url));
         url.next_path_part();
         let result = match url.next_path_part() {
             None | Some("list_links") => Self::Home(pages::list_links::init(
@@ -126,14 +128,15 @@ impl Page {
 
         orders.perform_cmd(async {
             // create request
-            let request = Request::new("/admin/json/get_language/");
+            let request = Request::get("/admin/json/get_language/").send();
             // perform and get response
-            let response = unwrap_or_return!(fetch(request).await, Msg::NoMessage);
+            let response = unwrap_or_return!(request.await, Msg::NoMessage);
             // validate response status
-            let response = unwrap_or_return!(response.check_status(), Msg::NoMessage);
-            let lang: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
+            let result = if response.ok() {let lang: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
 
-            Msg::LanguageChanged(lang)
+            Msg::LanguageChanged(lang)}else{Msg::NoMessage};
+            result
+            
         });
 
         log!("Page initialized");
@@ -183,20 +186,25 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::GetLoggedUser => {
             model.user = Loadable::Loading;
             orders.perform_cmd(async {
-                // create request
                 let request = unwrap_or_return!(
-                    Request::new("/admin/json/get_logged_user/")
-                        .method(Method::Post)
+                    Request::post("/admin/json/get_logged_user/")
                         .json(&()),
                     Msg::Logout
+                )
+                .send();
+                let response = unwrap_or_return!(
+                    request.await,
+                    Msg::Logout
                 );
-                // perform and get response
-                let response = unwrap_or_return!(fetch(request).await, Msg::Logout);
-                // validate response status
-                let response = unwrap_or_return!(response.check_status(), Msg::Logout);
-                let user: User = unwrap_or_return!(response.json().await, Msg::Logout);
-
-                Msg::UserReceived(user)
+                if response.ok() {
+                    let user: User = unwrap_or_return!(
+                        response.json().await,
+                        Msg::Logout
+                    );
+                    Msg::UserReceived(user)
+                } else {
+                    Msg::Logout
+                }
             });
         }
         Msg::UserReceived(user) => {
@@ -226,7 +234,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             change_language(l, orders);
         }
         Msg::LanguageChanged(l) => {
-            log!("Changed Language", &l);
+            log!(format!("Changed Language: {:?}", &l));
             model.set_lang(l);
         }
     }
@@ -235,28 +243,33 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 /// switch the language
 fn change_language(l: Lang, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async move {
-        // create request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/change_language/")
-                .method(Method::Post)
+            Request::post("/admin/json/change_language/")
                 .json(&l),
             Msg::NoMessage
+        )
+        .send();
+        let response = unwrap_or_return!(
+            request.await,
+            Msg::NoMessage
         );
-        // perform and get response
-        let response = unwrap_or_return!(fetch(request).await, Msg::NoMessage);
-        // validate response status
-        let response = unwrap_or_return!(response.check_status(), Msg::NoMessage);
-        let l: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
-
-        Msg::LanguageChanged(l)
+        if response.ok() {
+            let l: Lang = unwrap_or_return!(
+                response.json().await,
+                Msg::NoMessage
+            );
+            Msg::LanguageChanged(l)
+        } else {
+            Msg::NoMessage
+        }
     });
 }
 
 /// logout on the server
 fn logout(orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
-        let request = Request::new("/admin/logout/");
-        unwrap_or_return!(fetch(request).await, Msg::GetLoggedUser);
+        let request = Request::post("/admin/logout/").send();
+        unwrap_or_return!(request.await, Msg::GetLoggedUser);
         Msg::NotAuthenticated
     });
 }
@@ -266,22 +279,26 @@ fn login_user(model: &mut Model, orders: &mut impl Orders<Msg>) {
     model.user = Loadable::Loading;
     let data = model.login_data.clone();
 
-    orders.perform_cmd(async {
-        let data = data;
-        // create request
+    orders.perform_cmd(async move {
         let request = unwrap_or_return!(
-            Request::new("/admin/json/login_user/")
-                .method(Method::Post)
+            Request::post("/admin/json/login_user/")
                 .json(&data),
             Msg::NotAuthenticated
+        )
+        .send();
+        let response = unwrap_or_return!(
+            request.await,
+            Msg::NotAuthenticated
         );
-        // perform and get response
-        let response = unwrap_or_return!(fetch(request).await, Msg::NotAuthenticated);
-        // validate response status
-        let response = unwrap_or_return!(response.check_status(), Msg::NotAuthenticated);
-        let user: User = unwrap_or_return!(response.json().await, Msg::NotAuthenticated);
-
-        Msg::UserReceived(user)
+        if response.ok() {
+            let user: User = unwrap_or_return!(
+                response.json().await,
+                Msg::NotAuthenticated
+            );
+            Msg::UserReceived(user)
+        } else {
+            Msg::NotAuthenticated
+        }
     });
 }
 

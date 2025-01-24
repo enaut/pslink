@@ -4,11 +4,13 @@ use std::ops::Deref;
 use chrono::Datelike;
 use enum_map::EnumMap;
 use fluent::fluent_args;
-use image::{DynamicImage, ImageOutputFormat, Luma};
+use gloo_console::log;
+use gloo_net::http::Request;
+use image::{DynamicImage, ImageFormat, Luma};
 use pslink_locales::I18n;
 use qrcode::{render::svg, QrCode};
 use seed::{
-    a, attrs, div, h1, img, input, log, nodes, path, prelude::*, raw, section, span, svg, table,
+    a, attrs, div, h1, img, input,  nodes, path, prelude::*, raw, section, span, svg, table,
     td, th, tr, Url, C, IF,
 };
 use web_sys::{IntersectionObserver, IntersectionObserverEntry, IntersectionObserverInit};
@@ -235,15 +237,15 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             let callback = Closure::wrap(Box::new(callback) as Box<dyn Fn(Vec<JsValue>)>);
 
             // ---- observer options ----
-            let mut options = IntersectionObserverInit::new();
-            options.threshold(&JsValue::from(1));
+            let options = IntersectionObserverInit::new();
+            options.set_threshold(&JsValue::from(1));
             // ---- observer ----
             log!("Trying to register observer");
             if let Ok(observer) =
                 IntersectionObserver::new_with_options(callback.as_ref().unchecked_ref(), &options)
             {
                 if let Some(element) = model.load_more.get() {
-                    log!("element registered! ", element);
+                    log!("element registered! ", element.clone());
                     observer.observe(&element);
 
                     // Note: Drop `observer` is not enough. We have to call `observer.disconnect()`.
@@ -339,13 +341,13 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
         QueryMsg::ReceivedStatistics(statistics) => {
             for i in 1..model.links.len() {
                 if model.links[i].data.link.id == statistics.link_id {
-                    model.links[i].data.clicks = Clicks::Extended(statistics.clone());
+                    //model.links[i].data.clicks = Clicks::Extended(statistics.clone());
 
-                    model.links[i].cache.stats = statistics
+                    /* model.links[i].cache.stats = statistics
                         .values
                         .iter()
                         .max()
-                        .map(|maximum| render_stats(statistics.clone(), maximum));
+                        .map(|maximum| render_stats(statistics.clone(), maximum)); */
                 }
             }
         }
@@ -410,32 +412,27 @@ fn request_all_statistics(orders: &mut impl Orders<Msg>, model: &Model) {
 }
 
 fn request_statistics(orders: &mut impl Orders<Msg>, link_id: i64) {
-    let data = StatisticsRequest { link_id };
     orders.perform_cmd(async move {
-        let data = data;
-        let url = "/admin/json/get_link_statistics/";
-        // create a request
+        let data = StatisticsRequest { link_id };
         let request = unwrap_or_return!(
-            Request::new(url).method(Method::Post).json(&data),
-            Msg::SetMessage("Failed to parse data".to_string())
-        );
-        // send the request and receive a response
+            Request::post("/admin/json/get_link_statistics/")
+                .json(&data),
+            Msg::SetMessage("Failed to get statistics (json)".into())
+        )
+        .send();
         let response = unwrap_or_return!(
-            fetch(request).await,
-            Msg::SetMessage("Failed to send data".to_string())
+            request.await,
+            Msg::SetMessage("Failed to get statistics (await)".into())
         );
-        // check the html status to be 200
-        let response = unwrap_or_return!(
-            response.check_status(),
-            Msg::SetMessage("Wrong response code".to_string())
-        );
-        // unpack the response into the `Vec<FullLink>`
-        let statistics: Statistics = unwrap_or_return!(
-            response.json().await,
-            Msg::SetMessage("Invalid response".to_string())
-        );
-        // The message that is sent by perform_cmd after this async block is completed
-        Msg::Query(QueryMsg::ReceivedStatistics(statistics))
+        if response.ok() {
+            let statistics: Statistics = unwrap_or_return!(
+                response.json().await,
+                Msg::SetMessage("Failed to get statistics (parse)".into())
+            );
+            Msg::Query(QueryMsg::ReceivedStatistics(statistics))
+        } else {
+            Msg::SetMessage("Failed to get statistics (http)".into())
+        }
     });
 }
 
@@ -454,29 +451,23 @@ fn consecutive_load(model: &Model, orders: &mut impl Orders<Msg>) {
 fn load_links(orders: &mut impl Orders<Msg>, data: LinkRequestForm) {
     orders.perform_cmd(async {
         let data = data;
-        // create a request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/list_links/")
-                .method(Method::Post)
+            Request::post("/admin/json/list_links/")
                 .json(&data),
-            Msg::SetMessage("Failed to parse data".to_string())
-        );
-        // send the request and receive a response
+            Msg::SetMessage("Failed to load links (json)".into())
+        )
+        .send();
         let response = unwrap_or_return!(
-            fetch(request).await,
-            Msg::SetMessage("Failed to send data".to_string())
+            request.await,
+            Msg::SetMessage("Failed to load links (await)".into())
         );
-        // check the html status to be 200
-        let response = unwrap_or_return!(
-            response.check_status(),
-            Msg::SetMessage("Wrong response code".to_string())
-        );
-        // unpack the response into the `Vec<FullLink>`
+        if !response.ok() {
+            return Msg::SetMessage("Failed to load links (http)".into());
+        }
         let links: Vec<FullLink> = unwrap_or_return!(
             response.json().await,
-            Msg::SetMessage("Invalid response".to_string())
+            Msg::SetMessage("Failed to load links (parse)".into())
         );
-        // The message that is sent by perform_cmd after this async block is completed
         match data.offset.cmp(&0) {
             std::cmp::Ordering::Less => unreachable!(),
             std::cmp::Ordering::Equal => Msg::Query(QueryMsg::Received(links)),
@@ -597,66 +588,52 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
 
 /// Send a link save request to the server.
 fn save_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
-    let data = link_delta;
     orders.perform_cmd(async {
-        let data = data;
-        // create the request
+        let data = link_delta;
         let request = unwrap_or_return!(
-            Request::new(match data.edit {
-                EditMode::Create => "/admin/json/create_link/",
-                EditMode::Edit => "/admin/json/edit_link/",
-            })
-            .method(Method::Post)
-            .json(&data),
-            Msg::SetMessage("Failed to encode the link!".to_string())
-        );
-        // perform the request
-        let response =
-            unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToCreateLink));
-
-        // check the response status
+            Request::post("/admin/json/create_link/")
+                .json(&data),
+            Msg::SetMessage("Failed to save link (json)".into())
+        )
+        .send();
         let response = unwrap_or_return!(
-            response.check_status(),
-            Msg::SetMessage("Wrong response code".to_string())
+            request.await,
+            Msg::SetMessage("Failed to save link (await)".into())
         );
-        // Parse the response
-        let message: Status = unwrap_or_return!(
-            response.json().await,
-            Msg::SetMessage("Invalid response!".to_string())
-        );
-
-        Msg::Edit(EditMsg::Created(message))
+        if response.ok() {
+            let message: Status = unwrap_or_return!(
+                response.json().await,
+                Msg::SetMessage("Failed to save link (parse)".into())
+            );
+            Msg::Edit(EditMsg::Created(message))
+        } else {
+            Msg::SetMessage("Failed to save link (http)".into())
+        }
     });
 }
 
 /// Send a link delete request to the server.
 fn delete_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async move {
-        // create the request
         let request = unwrap_or_return!(
-            Request::new("/admin/json/delete_link/")
-                .method(Method::Post)
+            Request::post("/admin/json/delete_link/")
                 .json(&link_delta),
-            Msg::SetMessage("serialization failed".to_string())
-        );
-        // perform the request and receive a response
-        let response =
-            unwrap_or_return!(fetch(request).await, Msg::Edit(EditMsg::FailedToDeleteLink));
-
-        // check the status of the response
+            Msg::SetMessage("Failed to delete link (json)".into())
+        )
+        .send();
         let response = unwrap_or_return!(
-            response.check_status(),
-            Msg::SetMessage("Wrong response code!".to_string())
+            request.await,
+            Msg::SetMessage("Failed to delete link (await)".into())
         );
-        // deserialize the response
-        let message: Status = unwrap_or_return!(
-            response.json().await,
-            Msg::SetMessage(
-                "Failed to parse the response! The link might or might not be deleted!".to_string()
-            )
-        );
-
-        Msg::Edit(EditMsg::DeletedLink(message))
+        if response.ok() {
+            let message: Status = unwrap_or_return!(
+                response.json().await,
+                Msg::SetMessage("Failed to delete link (parse)".into())
+            );
+            Msg::Edit(EditMsg::DeletedLink(message))
+        } else {
+            Msg::SetMessage("Failed to delete link (http)".into())
+        }
     });
 }
 
@@ -881,7 +858,7 @@ fn view_link<F: Fn(&str) -> String>(
 
 /// Render stats is best performed in the update rather than in the view cycle to avoid needless recalculations. Since the database only sends a list of weeks that contain clicks this function has to add the weeks that do not contain clicks. This is more easily said than done since the first and last week index are not constant, the ordering has to be right, and not every year has 52 weeks. But we ignore the last issue.
 fn render_stats(q: Statistics, maximum: &WeekCount) -> Node<Msg> {
-    let factor = 30.0 / f64::max(f64::from(maximum.total.number), 1.0);
+    let factor = 30.0 / f64::max(maximum.total.number as f64, 1.0);
     let mut full: Vec<WeekCount> = Vec::new();
     let mut week = chrono::Utc::now() - chrono::Duration::weeks(52);
 
@@ -922,7 +899,7 @@ fn render_stats(q: Statistics, maximum: &WeekCount) -> Node<Msg> {
     #[allow(clippy::cast_possible_truncation)]
     let normalized: Vec<i64> = full
         .iter()
-        .map(|v| (30.0 - f64::from(v.total.number) * factor).round() as i64)
+        .map(|v| (30.0 - v.total.number as f64 * factor).round() as i64)
         .collect();
     let mut points = Vec::new();
     points.push(format!("M 0 {}", &normalized[0]));
@@ -1046,11 +1023,11 @@ fn generate_qr_png(code: &str) -> Vec<u8> {
         &format!("http://{}/{}", get_host(), code),
         qrcode::EcLevel::L,
     )
-    .unwrap();
+    .expect("Failed to create the qr-code");
     let png = qr.render::<Luma<u8>>().quiet_zone(false).build();
     let mut temporary_data = std::io::Cursor::new(Vec::new());
     DynamicImage::ImageLuma8(png)
-        .write_to(&mut temporary_data, ImageOutputFormat::Png)
+        .write_to(&mut temporary_data, ImageFormat::Png)
         .unwrap();
     temporary_data.into_inner()
 }
