@@ -2,7 +2,7 @@ extern crate sqlx;
 
 pub mod models;
 pub mod queries;
-mod views;
+pub mod views;
 
 use actix_files::Files;
 use actix_identity::IdentityMiddleware;
@@ -11,8 +11,8 @@ use actix_web::cookie::Key;
 use actix_web::web::Data;
 use actix_web::{web, App, HttpServer};
 use fluent_templates::static_loader;
+use pslink_shared::datatypes::Secret;
 use qrcode::types::QrError;
-use shared::datatypes::Secret;
 use sqlx::{Pool, Sqlite};
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thiserror::Error;
@@ -82,7 +82,7 @@ impl actix_web::error::ResponseError for ServerError {
             }
             Self::Database(e) => {
                 eprintln!("Database Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                     "Server Error",
                     "Database could not be accessed! - It could be that this value already was in the database! If you are the admin look into the logs for a more detailed error.",
                 ))
@@ -93,28 +93,28 @@ impl actix_web::error::ResponseError for ServerError {
             }
             Self::Environment(e) => {
                 eprintln!("Environment Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                   "Server Error",
                   "This Server is not properly configured, if you are the admin look into the installation- or update instructions!",
               ))
             }
             Self::Qr(e) => {
                 eprintln!("QR Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                     "Server Error",
                     "Could not generate the QR-code!",
                 ))
             }
             Self::Io(e) => {
                 eprintln!("Io Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                     "Server Error",
                     "Some Files could not be read or written. If you are the admin look into the logfiles for more details.",
                 ))
             }
             Self::User(data) => {
                 eprintln!("User Error happened: {:?}", data);
-                HttpResponse::InternalServerError().body(&Self::render_error(
+                HttpResponse::InternalServerError().body(Self::render_error(
                     "Server Error",
                     &format!("An error happened: {}", data),
                 ))
@@ -213,7 +213,7 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 static_loader! {
     static LOCALES = {
-        locales: "./locales",
+        locales: "../locales",
         fallback_language: "en",
     };
 }

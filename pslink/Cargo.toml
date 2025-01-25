@@ -20,53 +20,64 @@ actix-web-static-files = "4.0"
 static-files = "0.2"
 
 [dependencies]
-actix-identity = "0.7"
-actix-session = { version = "0.9", features = ["cookie-session"] }
-actix-rt = "2"
-actix-web = "4"
+actix-identity = "0.8"
+actix-rt = "2.2"
+actix-web = "4.9"
 actix-web-static-files = "4"
-static-files = "0.2"
 actix-files = "0.6"
-anyhow = "1.0"
-argon2 = "0.5"
-clap = { version = "4", features = [
-    "cargo",
-    "env",
-    "error-context",
-    "help",
-    "usage",
-] }
+argonautica = "0.2"
+clap = { version = "4.5", features = ["cargo", "env", "string", "unicode"] }
 dotenv = "0.15.0"
 fluent-langneg = "0.14"
 image = "0.25"
-opentelemetry = { version = "0.25" }
-opentelemetry_sdk = { version = "0.25", features = ["rt-tokio-current-thread"] }
-opentelemetry-jaeger = "0.22"
-opentelemetry-otlp = "0.25"
-opentelemetry-semantic-conventions = "0.25"
+opentelemetry = { version = "0.27" }
+opentelemetry_sdk = { version = "0.27", features = [
+    "rt-tokio-current-thread",
+    "rt-tokio",
+    "logs",
+] }
+opentelemetry-stdout = { version = "0.27.0", features = ["trace"] }
+opentelemetry-semantic-conventions = "0.27"
+opentelemetry-appender-tracing = "0.27"
 qrcode = "0.14"
 rand = "0.8"
 rpassword = "7.3"
-serde = "1.0"
-thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+static-files = { version = "0.2", default-features = false }
+thiserror = "2"
 tracing-actix-web = "0.7"
-tracing-bunyan-formatter = "0.3.0"
-tracing-opentelemetry = "0.26"
+tracing-opentelemetry = "0.28"
 async-trait = "0.1"
-enum-map = { version = "2", features = ["serde"] }
-reqwest = { version = "0.12.7", features = ["rustls-tls", "json"] }
-reqwest_cookie_store = "0.8"
-shared = { path = "../shared" }
+enum-map = { version = "2.7", features = ["serde"] }
+indexmap = "2.7"
+argon2 = "0.5"
+
+pslink-shared = { version = "0.4", path = "../shared" }
+pslink-locales = { version = "0.4", path = "../locales" }
+opentelemetry-otlp = { version = "0.27.0", features = [
+    "serde",
+    "serde_json",
+    "trace",
+    "tonic",
+] }
+actix-session = { version = "0.10.1", features = ["cookie-session"] }
 
 [dependencies.chrono]
 features = ["serde"]
 version = "0.4"
 
 [dependencies.fluent-templates]
-version = "0.10"
+version = "0.13"
 
 [dependencies.sqlx]
-features = ["sqlite", "macros", "runtime-tokio", "chrono", "migrate"]
+features = [
+    "sqlite",
+    "sqlx-macros",
+    "chrono",
+    "migrate",
+    "runtime-tokio-rustls",
+    "runtime-tokio",
+]
 version = "0.8"
 
 [dependencies.tracing]
@@ -80,10 +91,12 @@ version = "0.3"
 [dev-dependencies]
 actix-server = "2"
 tempdir = "0.3"
-test_bin = "0.4"
-tokio = "1"
+tokio = { version = "1", features = ["full"] }
+assert_cmd = "2.0"
+predicates = "3"
 serde_json = "1.0"
+reqwest_cookie_store = "0.8"
 
 [dev-dependencies.reqwest]
-features = ["cookies"]
+features = ["cookies", "json"]
 version = "0.12"

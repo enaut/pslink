@@ -1,19 +1,11 @@
-name: Rust
-
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-env:
-  CARGO_TERM_COLOR: always
-
+  release:
+    types: [created]
+name: Handle Release
 jobs:
-  build:
-
+  generate:
+    name: Create release-artifacts
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions-rs/toolchain@v1
       with:
@@ -35,8 +27,16 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ runner.os }}-cargols
+        key: ${{ runner.os }}-cargo
     - name: Install musl-tools
       run: sudo apt-get install musl-tools
     - name: Build
       run: cargo make build_standalone
+    - name: Rename
+      run: mv /home/runner/work/pslink/pslink/target/x86_64-unknown-linux-musl/release/pslink pslink_linux_64bit
+    - name: Upload the artifacts
+      uses: skx/github-action-publish-binaries@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        args: 'pslink_linux_64bit'
