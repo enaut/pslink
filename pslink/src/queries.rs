@@ -1,10 +1,8 @@
 use std::str::FromStr;
 
 use actix_identity::Identity;
-use actix_web::web;
 use enum_map::EnumMap;
-use serde::Serialize;
-use shared::{
+use pslink_shared::{
     apirequests::{
         general::{EditMode, Filter, Operation, Ordering},
         links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
@@ -12,6 +10,7 @@ use shared::{
     },
     datatypes::{Clicks, Count, FullLink, Lang, Link, Secret, Statistics, User},
 };
+use serde::Serialize;
 use sqlx::Row;
 use tracing::{info, instrument, warn};
 
@@ -87,7 +86,7 @@ pub async fn list_all_allowed(
     server_config: &ServerConfig,
     parameters: LinkRequestForm,
 ) -> Result<ListWithOwner<FullLink>, ServerError> {
-    use crate::sqlx::Row;
+    use sqlx::Row;
     match authenticate(id, server_config).await? {
         RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
             let mut querystring = "select
@@ -346,7 +345,7 @@ pub async fn get_user(
         if auth.admin_or_self(uid) {
             match auth {
                 RoleGuard::Admin { user } | RoleGuard::Regular { user } => {
-                    let viewed_user = User::get_user(uid, server_config).await?;
+                    let viewed_user = User::get_user(uid as i64, server_config).await?;
                     Ok(Item {
                         user,
                         item: viewed_user,
@@ -482,62 +481,9 @@ pub async fn create_user_json(
 /// Fails with [`ServerError`] if access to the database fails, this user does not have permissions, or the given data is malformed.
 
 #[instrument(skip(id))]
-pub async fn update_user_json(
-    id: &Identity,
-    data: &actix_web::web::Json<UserDelta>,
-    server_config: &ServerConfig,
-) -> Result<Item<User>, ServerError> {
-    let auth = authenticate(id, server_config).await?;
-    if let Some(uid) = data.id {
-        let unmodified_user = User::get_user(uid, server_config).await?;
-        if auth.admin_or_self(uid) {
-            match auth {
-                RoleGuard::Admin { .. } | RoleGuard::Regular { .. } => {
-                    info!("Updating userinfo: ");
-                    let password = match &data.password {
-                        Some(password) => {
-                            Secret::new(NewUser::hash_password(password, &server_config.secret)?)
-                        }
-                        None => unmodified_user.password,
-                    };
-                    let new_user = User {
-                        id: uid,
-                        username: data.username.clone(),
-                        email: data.email.clone(),
-                        password,
-                        role: unmodified_user.role,
-                        language: unmodified_user.language,
-                    };
-                    new_user.update_user(server_config).await?;
-                    let changed_user = User::get_user(uid, server_config).await?;
-                    Ok(Item {
-                        user: changed_user.clone(),
-                        item: changed_user,
-                    })
-                }
-                RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
-                    unreachable!("Should be unreachable because of the `admin_or_self`")
-                }
-            }
-        } else {
-            Err(ServerError::User("Not a valid UID".to_owned()))
-        }
-    } else {
-        Err(ServerError::User("Not a valid UID".to_owned()))
-    }
-}
-
-/// Take a [`actix_web::web::Form<NewUser>`] and update the corresponding entry in the database.
-/// The password is only updated if a new password of at least 4 characters is provided.
-/// The `user_id` is never changed.
-///
-/// # Errors
-/// Fails with [`ServerError`] if access to the database fails, this user does not have permissions, or the given data is malformed.
-
-#[instrument(skip(id))]
 pub async fn update_user(
     id: &Identity,
-    data: &UserDelta,
+    data: &actix_web::web::Json<UserDelta>,
     server_config: &ServerConfig,
 ) -> Result<Item<User>, ServerError> {
     let auth = authenticate(id, server_config).await?;
@@ -851,47 +797,6 @@ pub async fn create_link_json(
         }
         RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
             Err(ServerError::User("Permission denied!".to_owned()))
-        }
-    }
-}
-
-/// Update a link if the user is admin or it is its own link.
-///
-/// # Errors
-/// Fails with [`ServerError`] if access to the database fails or this user does not have permissions.
-#[instrument(skip(ident))]
-pub async fn update_link_json(
-    ident: &Identity,
-    data: web::Json<LinkDelta>,
-    server_config: &ServerConfig,
-) -> Result<Item<Link>, ServerError> {
-    let auth = authenticate(ident, server_config).await?;
-    match auth {
-        RoleGuard::Admin { .. } | RoleGuard::Regular { .. } => {
-            if let Some(id) = data.id {
-                let query: Item<Link> = get_link_by_id(ident, id, server_config).await?;
-                if auth.admin_or_self(query.item.author) {
-                    let mut link = query.item;
-                    let LinkDelta {
-                        title,
-                        target,
-                        code,
-                        ..
-                    } = data.into_inner();
-                    link.code = code.clone();
-                    link.target = target;
-                    link.title = title;
-                    link.update_link(server_config).await?;
-                    get_link(ident, &code, server_config).await
-                } else {
-                    Err(ServerError::User("Invalid Request".to_owned()))
-                }
-            } else {
-                Err(ServerError::User("Not Allowed".to_owned()))
-            }
-        }
-        RoleGuard::Disabled | RoleGuard::NotAuthenticated => {
-            Err(ServerError::User("Not Allowed".to_owned()))
         }
     }
 }

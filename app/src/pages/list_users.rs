@@ -1,10 +1,10 @@
 //! List all users in case an admin views it, list the "self" user otherwise.
 
+use crate::{unwrap_or_return, I18n};
 use enum_map::EnumMap;
 use gloo_console::log;
 use gloo_net::http::Request;
-use seed::{a, attrs, div, h1, input, p, prelude::*, section, table, td, th, tr, Url, C, IF};
-use shared::{
+use pslink_shared::{
     apirequests::general::{Operation, Ordering},
     apirequests::{
         general::{EditMode, Status},
@@ -12,10 +12,10 @@ use shared::{
     },
     datatypes::{Lang, User},
 };
+use seed::{a, attrs, div, h1, input, p, prelude::*, section, table, td, th, tr, Url, C, IF};
 /*
  * init
  */
-use crate::{i18n::I18n, unwrap_or_return};
 #[must_use]
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
     orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
@@ -63,7 +63,7 @@ struct FilterInput {
     filter_input: ElRef<web_sys::HtmlInputElement>,
 }
 
-/// The message splits the contained message into messages related to querrying and messages related to editing.
+/// The message splits the contained message into messages related to querying and messages related to editing.
 #[derive(Clone)]
 pub enum Msg {
     Query(UserQueryMsg),
@@ -162,7 +162,7 @@ pub fn process_query_messages(msg: UserQueryMsg, model: &mut Model, orders: &mut
         }
         UserQueryMsg::EmailFilterChanged(s) => {
             log!("Filter is: ", &s);
-            // FIXME: Sanitazion does not work for @
+            // FIXME: Sanitation does not work for @
             let sanit = s.chars().filter(|x| x.is_alphanumeric()).collect();
             model.formconfig.filter[UserOverviewColumns::Email].sieve = sanit;
             orders.send_msg(Msg::Query(UserQueryMsg::Fetch));
@@ -182,12 +182,11 @@ fn load_users(data: UserRequestForm, orders: &mut impl Orders<Msg>) {
         let request = unwrap_or_return!(
             Request::post("/admin/json/list_users/").json(&data),
             Msg::Query(UserQueryMsg::FailedToFetchUsers)
-        );
+        )
+        .send();
         // request and get response
-        let response = unwrap_or_return!(
-            request.send().await,
-            Msg::Query(UserQueryMsg::FailedToFetchUsers)
-        );
+        let response =
+            unwrap_or_return!(request.await, Msg::Query(UserQueryMsg::FailedToFetchUsers));
         // check the response status
         if !response.ok() {
             Msg::Query(UserQueryMsg::FailedToFetchUsers)
@@ -237,7 +236,7 @@ pub fn process_user_edit_messages(
             let data = model
                 .user_edit
                 .take()
-                .expect("A user should allways be there on save");
+                .expect("A user should always be there on save");
             log!("Saving User: ", &data.username);
             save_user(data, orders);
         }
@@ -289,7 +288,6 @@ fn update_privileges(user: UserDelta, orders: &mut impl Orders<Msg>) {
 fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
         let data = user;
-        // create the request
         let request = unwrap_or_return!(
             Request::post(match data.edit {
                 EditMode::Create => "/admin/json/create_user/",
@@ -297,12 +295,9 @@ fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
             })
             .json(&data),
             Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
-        // perform the request and get the response
-        let response = unwrap_or_return!(
-            request.send().await,
-            Msg::Edit(UserEditMsg::FailedToCreateUser)
-        );
+        )
+        .send();
+        let response = unwrap_or_return!(request.await, Msg::Edit(UserEditMsg::FailedToCreateUser));
         // check for the status
         if !response.ok() {
             Msg::Edit(UserEditMsg::FailedToCreateUser)

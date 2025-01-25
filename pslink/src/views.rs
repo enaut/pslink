@@ -1,18 +1,20 @@
+use std::time::SystemTime;
+
+use crate::queries::{self, authenticate, Item, RoleGuard};
+use crate::ServerError;
 use actix_identity::Identity;
 use actix_web::{
-    http::header::ContentType,
-    web::{self, Redirect},
-    Either, HttpMessage as _, HttpRequest, HttpResponse,
+    http::header::{CacheControl, CacheDirective, ContentType, Expires},
+    web, HttpMessage as _, HttpRequest, HttpResponse,
 };
 use argon2::{Params, PasswordVerifier as _};
+use argonautica::Verifier;
 use fluent_langneg::{
     convert_vec_str_to_langids_lossy, negotiate_languages, parse_accepted_languages,
     LanguageIdentifier, NegotiationStrategy,
 };
 use image::{DynamicImage, ImageFormat, Luma};
-use qrcode::QrCode;
-use queries::{authenticate, RoleGuard};
-use shared::{
+use pslink_shared::{
     apirequests::{
         general::{Message, Status},
         links::{LinkDelta, LinkRequestForm, StatisticsRequest},
@@ -20,10 +22,21 @@ use shared::{
     },
     datatypes::Lang,
 };
+use qrcode::QrCode;
 use tracing::{error, info, instrument, warn};
 
-use crate::queries::{self, Item};
-use crate::ServerError;
+#[instrument]
+fn redirect_builder(target: &str) -> HttpResponse {
+    HttpResponse::SeeOther()
+        .insert_header(CacheControl(vec![
+            CacheDirective::NoCache,
+            CacheDirective::NoStore,
+            CacheDirective::MustRevalidate,
+        ]))
+        .insert_header(Expires(SystemTime::now().into()))
+        .insert_header((actix_web::http::header::LOCATION, target))
+        .body(format!("Redirect to {}", target))
+}
 
 #[instrument]
 fn detect_language(request: &HttpRequest) -> Result<Lang, ServerError> {
@@ -38,7 +51,7 @@ fn detect_language(request: &HttpRequest) -> Result<Lang, ServerError> {
             })?,
     );
     info!("accepted languages: {:?}", requested);
-    let available = convert_vec_str_to_langids_lossy(["de", "en"]);
+    let available = convert_vec_str_to_langids_lossy(&["de", "en"]);
     info!("available languages: {:?}", available);
     let default: LanguageIdentifier = "en"
         .parse()
@@ -52,9 +65,9 @@ fn detect_language(request: &HttpRequest) -> Result<Lang, ServerError> {
     );
     info!("supported languages: {:?}", supported);
 
-    if let Some(languagecode) = supported.first() {
-        info!("Supported Language: {}", languagecode);
-        Ok(languagecode
+    if let Some(language_code) = supported.get(0) {
+        info!("Supported Language: {}", language_code);
+        Ok(language_code
             .to_string()
             .parse()
             .expect("Failed to parse 2 language"))
@@ -111,12 +124,12 @@ pub async fn index_users_json(
     config: web::Data<crate::ServerConfig>,
     form: web::Json<UserRequestForm>,
     id: Identity,
-) -> Either<HttpResponse, Redirect> {
+) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
     if let Ok(users) = queries::list_users(&id, &config, form.0).await {
-        Either::Left(HttpResponse::Ok().json(&users.list))
+        Ok(HttpResponse::Ok().json(&users.list))
     } else {
-        Either::Right(Redirect::to("/admin/login").temporary())
+        Ok(redirect_builder("/admin/login"))
     }
 }
 
@@ -144,7 +157,7 @@ pub async fn download_png(
     match queries::get_link(&id, &link_code, &config).await {
         Ok(query) => {
             let qr = QrCode::with_error_correction_level(
-                format!("http://{}/{}", config.public_url, &query.item.code),
+                &format!("http://{}/{}", config.public_url, &query.item.code),
                 qrcode::EcLevel::L,
             )
             .unwrap();
@@ -155,7 +168,7 @@ pub async fn download_png(
                 .unwrap();
             let image_data = temporary_data.into_inner();
             Ok(HttpResponse::Ok()
-                .content_type(ContentType::png())
+                .insert_header(ContentType::png())
                 .body(image_data))
         }
         Err(e) => Err(e),
@@ -180,12 +193,12 @@ pub async fn get_statistics(
 #[instrument(skip(id))]
 pub async fn process_create_user_json(
     config: web::Data<crate::ServerConfig>,
-    form: web::Json<UserDelta>,
+    data: web::Json<UserDelta>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
-    match queries::create_user_json(&id, &form, &config).await {
-        Ok(item) => Ok(HttpResponse::Ok().json(Status::Success(Message {
+    match queries::create_user(&id, data.into_inner(), &config).await {
+        Ok(item) => Ok(HttpResponse::Ok().json(&Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
         }))),
         Err(e) => Err(e),
@@ -199,8 +212,8 @@ pub async fn process_update_user_json(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     info!("Listing Users to Json api");
-    match queries::update_user_json(&id, &form, &config).await {
-        Ok(item) => Ok(HttpResponse::Ok().json(Status::Success(Message {
+    match queries::update_user(&id, &form, &config).await {
+        Ok(item) => Ok(HttpResponse::Ok().json(&Status::Success(Message {
             message: format!("Successfully saved user: {}", item.item.username),
         }))),
         Err(e) => Err(e),
@@ -214,7 +227,7 @@ pub async fn toggle_admin(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     let update = queries::toggle_admin(&id, user.id, &config).await?;
-    Ok(HttpResponse::Ok().json(Status::Success(Message {
+    Ok(HttpResponse::Ok().json(&Status::Success(Message {
         message: format!(
             "Successfully changed privileges or user: {}",
             update.item.username
@@ -232,14 +245,14 @@ pub async fn get_language(
         let user = authenticate(&id, &config).await?;
         match user {
             RoleGuard::NotAuthenticated | RoleGuard::Disabled => {
-                Ok(HttpResponse::Ok().json(detect_language(&req)?))
+                Ok(HttpResponse::Ok().json(&detect_language(&req)?))
             }
             RoleGuard::Regular { user } | RoleGuard::Admin { user } => {
-                Ok(HttpResponse::Ok().json(user.language))
+                Ok(HttpResponse::Ok().json(&user.language))
             }
         }
     } else {
-        Ok(HttpResponse::Ok().json(detect_language(&req)?))
+        Ok(HttpResponse::Ok().json(&detect_language(&req)?))
     }
 }
 
@@ -250,7 +263,7 @@ pub async fn set_language(
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
     queries::set_language(&id, data.0, &config).await?;
-    Ok(HttpResponse::Ok().json(data.0))
+    Ok(HttpResponse::Ok().json(&data.0))
 }
 
 #[instrument()]
@@ -318,10 +331,19 @@ pub async fn process_login_json(
 }
 
 #[instrument(skip(id))]
-pub async fn logout(id: Identity) -> Result<Redirect, ServerError> {
+pub async fn logout(id: Identity) -> Result<HttpResponse, ServerError> {
     info!("Logging out the user");
     id.logout();
-    Ok(Redirect::to("/app/").temporary())
+    Ok(redirect_builder("/app/"))
+}
+
+#[instrument()]
+pub async fn to_admin() -> Result<HttpResponse, ServerError> {
+    let response = HttpResponse::PermanentRedirect()
+        .insert_header((actix_web::http::header::LOCATION, "/app/"))
+        .body(r#"The admin interface moved to <a href="/app/">/app/</a>"#);
+
+    Ok(response)
 }
 
 #[instrument()]
@@ -329,21 +351,21 @@ pub async fn redirect(
     config: web::Data<crate::ServerConfig>,
     data: web::Path<String>,
     req: HttpRequest,
-) -> Result<Either<HttpResponse, Redirect>, ServerError> {
+) -> Result<HttpResponse, ServerError> {
     info!("Redirecting to {:?}", data);
     let link = queries::get_link_simple(&data, &config).await;
     info!("link: {:?}", link);
     match link {
         Ok(link) => {
             queries::click_link(link.id, &config).await?;
-            Ok(Either::Right(Redirect::to(link.target.clone()).see_other()))
+            Ok(redirect_builder(&link.target))
         }
         Err(ServerError::Database(e)) => {
             info!(
                 "Link was not found: http://{}/{} \n {}",
                 &config.public_url, &data, e
             );
-            Ok(Either::Left(HttpResponse::NotFound().body(
+            Ok(HttpResponse::NotFound().body(
                 r#"<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -359,15 +381,17 @@ pub async fn redirect(
                 </div>
             </body>
             </html>"#,
-            )))
+            ))
         }
         Err(e) => Err(e),
     }
 }
 
 #[instrument]
-pub async fn redirect_empty(config: web::Data<crate::ServerConfig>) -> Redirect {
-    Redirect::to(config.empty_forward_url.clone()).see_other()
+pub async fn redirect_empty(
+    config: web::Data<crate::ServerConfig>,
+) -> Result<HttpResponse, ServerError> {
+    Ok(redirect_builder(&config.empty_forward_url))
 }
 
 #[instrument(skip(id))]
@@ -376,9 +400,9 @@ pub async fn process_create_link_json(
     data: web::Json<LinkDelta>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    let new_link = queries::create_link_json(&id, data, &config).await;
+    let new_link = queries::create_link(&id, data.into_inner(), &config).await;
     match new_link {
-        Ok(item) => Ok(HttpResponse::Ok().json(Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(&Status::Success(Message {
             message: format!("Successfully saved link: {}", item.item.code),
         }))),
         Err(e) => Err(e),
@@ -391,9 +415,9 @@ pub async fn process_update_link_json(
     data: web::Json<LinkDelta>,
     id: Identity,
 ) -> Result<HttpResponse, ServerError> {
-    let new_link = queries::update_link_json(&id, data, &config).await;
+    let new_link = queries::update_link(&id, data.into_inner(), &config).await;
     match new_link {
-        Ok(item) => Ok(HttpResponse::Ok().json(Status::Success(Message {
+        Ok(item) => Ok(HttpResponse::Ok().json(&Status::Success(Message {
             message: format!("Successfully updated link: {}", item.item.code),
         }))),
         Err(e) => Err(e),
@@ -407,7 +431,7 @@ pub async fn process_delete_link_json(
     data: web::Json<LinkDelta>,
 ) -> Result<HttpResponse, ServerError> {
     queries::delete_link(&id, &data.code, &config).await?;
-    Ok(HttpResponse::Ok().json(Status::Success(Message {
+    Ok(HttpResponse::Ok().json(&Status::Success(Message {
         message: format!("Successfully deleted link: {}", &data.code),
     })))
 }

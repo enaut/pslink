@@ -1,8 +1,5 @@
 [workspace]
-members = [
-    "pslink",
-    "app",
-]
+members = ["shared", "locales", "pslink", "app", "locales"]
 
 [profile]
 [profile.release]

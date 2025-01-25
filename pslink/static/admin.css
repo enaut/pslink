@@ -1,4 +1,4 @@
-body {
+qbody {
     margin: 0;
     padding: 0;
 }
@@ -8,21 +8,23 @@ form {
 }
 
 .center {
-    position: absolute;
+    position: fixed;
     width: 600px;
     max-width: 100%;
-    height: 400px;
+    height: 500px;
     max-height: 100%;
     top: 50%;
     left: 50%;
     margin-left: -300px;
-    margin-top: -200px;
+    margin-top: -250px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     padding: 30px;
     color: #333;
+    overflow-y: scroll;
+    scrollbar-width: none;
 }
 
 .center input {
@@ -78,6 +80,17 @@ svg.statistics_graph {
     border-radius: 14px;
     bottom: 0;
     margin-top: -83px;
+}
+
+svg.statistics_graph {
+    width: 120px;
+    height: 30px;
+}
+
+.stats_total {
+    display: block;
+    font-size: 0.7em;
+    margin-top: -4px;
 }
 
 td.table_qr svg {
@@ -241,6 +254,7 @@ a {
 
 img.trashicon {
     width: 0.5cm;
+    user-select: none;
 }
 
 .qrdownload {
@@ -254,4 +268,14 @@ img.trashicon {
     padding: 5px;
     margin: 3px;
     border-radius: 50%;
+}
+
+a.loadmore {
+    display: flex;
+    color: darkgray;
+    margin: auto;
+    justify-content: space-evenly;
+    align-items: center;
+    border: none;
+    border-radius: 15px;
 }

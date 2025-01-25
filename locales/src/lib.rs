@@ -1,8 +1,7 @@
 //! This modules contains the parts for making the app translatable.
-use std::rc::Rc;
+use std::sync::Arc;
 
 use fluent::{FluentArgs, FluentBundle, FluentResource};
-use gloo_console::log;
 use pslink_shared::datatypes::Lang;
 use unic_langid::LanguageIdentifier;
 
@@ -10,7 +9,7 @@ use unic_langid::LanguageIdentifier;
 #[derive(Clone)]
 pub struct I18n {
     lang: Lang,
-    ftl_bundle: Rc<FluentBundle<FluentResource>>,
+    ftl_bundle: Arc<FluentBundle<FluentResource>>,
 }
 
 impl std::fmt::Debug for I18n {
@@ -24,7 +23,7 @@ impl I18n {
     /// Create a new translator struct
     #[must_use]
     pub fn new(lang: Lang) -> Self {
-        let ftl_bundle = Rc::new(Self::create_ftl_bundle(lang));
+        let ftl_bundle = Arc::new(Self::create_ftl_bundle(lang));
         Self { lang, ftl_bundle }
     }
 
@@ -37,12 +36,12 @@ impl I18n {
     /// Set the current language
     pub fn set_lang(&mut self, lang: Lang) {
         self.lang = lang;
-        self.ftl_bundle = Rc::new(Self::create_ftl_bundle(lang));
+        self.ftl_bundle = Arc::new(Self::create_ftl_bundle(lang));
     }
 
     /// Get a localized string. Optionally with parameters provided in `args`.
     pub fn translate(&self, key: impl AsRef<str>, args: Option<&FluentArgs>) -> String {
-        log!(key.as_ref());
+        // log!(key.as_ref());
         let msg = self
             .ftl_bundle
             .get_message(key.as_ref())
@@ -54,9 +53,7 @@ impl I18n {
             .format_pattern(pattern, args, &mut vec![])
             .to_string()
     }
-}
 
-impl I18n {
     /// Prettyprint the language name
     #[must_use]
     pub const fn label(&self) -> &'static str {
@@ -71,7 +68,7 @@ impl I18n {
     pub const fn ftl_messages(lang: Lang) -> &'static str {
         macro_rules! include_ftl_messages {
             ( $lang_id:literal ) => {
-                include_str!(concat!("../../locales/", $lang_id, "/main.ftl"))
+                include_str!(concat!("../", $lang_id, "/main.ftl"))
             };
         }
         match lang {
