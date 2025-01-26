@@ -5,17 +5,15 @@ pub mod pages;
 
 use gloo_console::log;
 use gloo_net::http::Request;
+use i18n::I18n;
 use pages::list_links;
 use pages::list_users;
+use pslink_shared::{
+    apirequests::users::LoginUser,
+    datatypes::{Lang, Loadable, User},
+};
 use seed::window;
-use seed::IF;
-use seed::{attrs, button, div, input, label, prelude::*, App, Url, C};
-use shared::apirequests::users::LoginUser;
-use shared::datatypes::Lang;
-use shared::datatypes::{Loadable, User};
-
-use crate::i18n::I18n;
-
+use seed::{attrs, button, div, input, label, prelude::*, App, Url, C, IF};
 // ------ ------
 //     Init
 // ------ ------
@@ -28,8 +26,8 @@ fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
 
     Model {
         index: 0,
-        location: Location::new(url.clone()),
-        page: Page::init(url, orders, lang.clone()),
+        location: Location::new(url),
+        page: Page::NotFound,
         i18n: lang,
         user: Loadable::Data(None),
         login_form: LoginForm::default(),
@@ -46,7 +44,7 @@ struct Model {
     index: usize,
     location: Location,
     page: Page,
-    i18n: i18n::I18n,
+    i18n: I18n,
     user: Loadable<User>,
     login_form: LoginForm,
     login_data: LoginUser,
@@ -129,16 +127,18 @@ impl Page {
 
         orders.perform_cmd(async {
             // create request
-            let request = Request::get("/admin/json/get_language/");
+            let request = Request::get("/admin/json/get_language/").send();
             // perform and get response
-            let response = unwrap_or_return!(request.send().await, Msg::NoMessage);
+            let response = unwrap_or_return!(request.await, Msg::NoMessage);
             // validate response status
-            if !response.ok() {
-                return Msg::NoMessage;
-            }
-            let lang: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
+            let result = if response.ok() {
+                let lang: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
 
-            Msg::LanguageChanged(lang)
+                Msg::LanguageChanged(lang)
+            } else {
+                Msg::NoMessage
+            };
+            result
         });
 
         log!("Page initialized");
@@ -188,20 +188,18 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::GetLoggedUser => {
             model.user = Loadable::Loading;
             orders.perform_cmd(async {
-                // create request
                 let request = unwrap_or_return!(
                     Request::post("/admin/json/get_logged_user/").json(&()),
                     Msg::Logout
-                );
-                // perform and get response
-                let response = unwrap_or_return!(request.send().await, Msg::Logout);
-                // validate response status
-                if !response.ok() {
-                    return Msg::Logout;
+                )
+                .send();
+                let response = unwrap_or_return!(request.await, Msg::Logout);
+                if response.ok() {
+                    let user: User = unwrap_or_return!(response.json().await, Msg::Logout);
+                    Msg::UserReceived(user)
+                } else {
+                    Msg::Logout
                 }
-                let user: User = unwrap_or_return!(response.json().await, Msg::Logout);
-
-                Msg::UserReceived(user)
             });
         }
         Msg::UserReceived(user) => {
@@ -231,7 +229,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             change_language(l, orders);
         }
         Msg::LanguageChanged(l) => {
-            log!(format!("Changed Language {:?}", &l));
+            log!(format!("Changed Language: {:?}", &l));
             model.set_lang(l);
         }
     }
@@ -240,28 +238,26 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 /// switch the language
 fn change_language(l: Lang, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async move {
-        // create request
         let request = unwrap_or_return!(
             Request::post("/admin/json/change_language/").json(&l),
             Msg::NoMessage
-        );
-        // perform and get response
-        let response = unwrap_or_return!(request.send().await, Msg::NoMessage);
-        // validate response status
-        if !response.ok() {
-            return Msg::NoMessage;
+        )
+        .send();
+        let response = unwrap_or_return!(request.await, Msg::NoMessage);
+        if response.ok() {
+            let l: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
+            Msg::LanguageChanged(l)
+        } else {
+            Msg::NoMessage
         }
-        let l: Lang = unwrap_or_return!(response.json().await, Msg::NoMessage);
-
-        Msg::LanguageChanged(l)
     });
 }
 
 /// logout on the server
 fn logout(orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
-        let request = Request::get("/admin/logout/");
-        unwrap_or_return!(request.send().await, Msg::GetLoggedUser);
+        let request = Request::post("/admin/logout/").send();
+        unwrap_or_return!(request.await, Msg::GetLoggedUser);
         Msg::NotAuthenticated
     });
 }
@@ -271,22 +267,19 @@ fn login_user(model: &mut Model, orders: &mut impl Orders<Msg>) {
     model.user = Loadable::Loading;
     let data = model.login_data.clone();
 
-    orders.perform_cmd(async {
-        let data = data;
-        // create request
+    orders.perform_cmd(async move {
         let request = unwrap_or_return!(
             Request::post("/admin/json/login_user/").json(&data),
             Msg::NotAuthenticated
-        );
-        // perform and get response
-        let response = unwrap_or_return!(request.send().await, Msg::NotAuthenticated);
-        // validate response status
-        if !response.ok() {
-            return Msg::NotAuthenticated;
+        )
+        .send();
+        let response = unwrap_or_return!(request.await, Msg::NotAuthenticated);
+        if response.ok() {
+            let user: User = unwrap_or_return!(response.json().await, Msg::NotAuthenticated);
+            Msg::UserReceived(user)
+        } else {
+            Msg::NotAuthenticated
         }
-        let user: User = unwrap_or_return!(response.json().await, Msg::NotAuthenticated);
-
-        Msg::UserReceived(user)
     });
 }
 
@@ -297,6 +290,12 @@ pub struct Urls<'a> {
 
 impl<'a> Urls<'a> {
     /// Create a new `Urls` instance.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// Urls::new(base_url).home()
+    /// ```
     pub fn new(base_url: impl Into<std::borrow::Cow<'a, Url>>) -> Self {
         Self {
             base_url: base_url.into(),
@@ -304,7 +303,14 @@ impl<'a> Urls<'a> {
     }
 
     /// Return base `Url`. If `base_url` isn't owned, it will be cloned.
-
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// pub fn admin_urls(self) -> page::admin::Urls<'a> {
+    ///     page::admin::Urls::new(self.base_url().add_path_part(ADMIN))
+    /// }
+    /// ```
     #[must_use]
     pub fn base_url(self) -> Url {
         self.base_url.into_owned()

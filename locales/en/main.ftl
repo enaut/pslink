@@ -50,5 +50,5 @@ make-user-regular = Demote to regular
 role = Role
 
 userid = User ID
-statistics = statistics
-total_clicks = total clicks
+statistics = Statistics
+total_clicks = total clicks:

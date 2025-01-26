@@ -1,15 +1,15 @@
 use std::str::FromStr;
 
-use crate::{Secret, ServerConfig, ServerError};
+use crate::{ServerConfig, ServerError};
 
 use async_trait::async_trait;
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 
 use argon2::PasswordHasher as _;
-use shared::{
+use pslink_shared::{
     apirequests::{links::LinkDelta, users::Role},
-    datatypes::{Count, Lang, Link, Statistics, User, WeekCount},
+    datatypes::{Count, Lang, Link, Secret, Statistics, User, WeekCount},
 };
 use sqlx::Row;
 use tracing::{error, info, instrument};
@@ -428,7 +428,7 @@ impl NewLink {
     ///
     /// # Errors
     /// fails with [`ServerError`] if the database cannot be acessed or constraints are not met.
-    pub(crate) async fn insert(self, server_config: &ServerConfig) -> Result<(), ServerError> {
+    pub async fn insert(self, server_config: &ServerConfig) -> Result<(), ServerError> {
         sqlx::query!(
             "Insert into links (
                 title,

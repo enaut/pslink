@@ -13,6 +13,11 @@ extend = "build"
 description = "Build client and server in release mode"
 dependencies = ["build_client_release", "build_server_release"]
 
+[tasks.build_standalone]
+extend = "build"
+description = "Build client and server with musl libc embedded"
+dependencies = ["build_client_release", "build_server_standalone"]
+
 [tasks.build_client]
 description = "Build client"
 install_crate = { crate_name = "wasm-pack", binary = "wasm-pack", test_arg = "-V" }
@@ -35,19 +40,30 @@ extend = "build_server"
 description = "Build server in release mode"
 args = ["build", "--package", "pslink", "--release"]
 
+[tasks.build_server_standalone]
+extend = "build_server"
+description = "Build server with the musl libc embedded"
+args = ["build", "--package", "pslink", "--release", "--target", "x86_64-unknown-linux-musl"]
+
 # ---- START ----
 
 [tasks.start]
-description = "Build and start Actix server with client on port 8000"
+description = "Build and start the pslink server in debug mode"
 command = "cargo"
 args = ["run", "--package", "pslink", "--", "runserver"]
 dependencies = ["build"]
 
 [tasks.start_release]
 extend = "start"
-description = "Build and start Actix server with client on port 8000 in release mode"
+description = "Build and start the pslink server in release mode"
 args = ["run", "--package", "pslink", "--release", "--", "runserver"]
 dependencies = ["build_release"]
+
+[tasks.start_standalone]
+extend = "start"
+description = "Build and start the pslink server with the musl c library embedded."
+args = ["run", "--package", "pslink", "--release", "--target", "x86_64-unknown-linux-musl", "--", "runserver"]
+dependencies = ["build_standalone"]
 
 # ---- TEST ----
 
