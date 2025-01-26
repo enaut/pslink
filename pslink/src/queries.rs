@@ -236,8 +236,11 @@ pub async fn list_users(
     server_config: &ServerConfig,
     parameters: UserRequestForm,
 ) -> Result<ListWithOwner<User>, ServerError> {
-    match authenticate(id, server_config).await? {
+    let auth = authenticate(id, server_config).await?;
+    info!("Auth: {:?}", auth);
+    match auth {
         RoleGuard::Admin { user } => {
+            info!("Admin User {:?}", user.username);
             let mut querystring = "Select * from users".to_string();
             querystring.push_str(&generate_filter_users_sql(&parameters.filter));
             if let Some(order) = parameters.order {
@@ -246,9 +249,13 @@ pub async fn list_users(
             querystring.push_str(&format!("\n LIMIT {}", parameters.amount));
             info!("{}", querystring);
 
-            let users: Vec<User> = sqlx::query(&querystring)
+            let query_result = sqlx::query(&querystring)
                 .fetch_all(&server_config.db_pool)
-                .await?
+                .await;
+            if let Err(e) = &query_result {
+                info!("Query: {:?}", e);
+            }
+            let users: Vec<User> = query_result?
                 .into_iter()
                 .map(|v| User {
                     id: v.get("id"),
@@ -260,12 +267,18 @@ pub async fn list_users(
                 })
                 .collect();
 
+            info!("Found {} users", users.len());
+            info!("Found {:?} users", users);
+
             Ok(ListWithOwner { user, list: users })
         }
-        RoleGuard::Regular { user } => Ok(ListWithOwner {
-            user: user.clone(),
-            list: vec![user],
-        }),
+        RoleGuard::Regular { user } => {
+            info!("Regular User {:?} users", user);
+            Ok(ListWithOwner {
+                user: user.clone(),
+                list: vec![user],
+            })
+        }
         _ => Err(ServerError::User(
             "Administrator permissions required".to_owned(),
         )),

@@ -1,11 +1,10 @@
-use assert_cmd::prelude::*; // Add methods on commands
+use rand::distributions::{Alphanumeric, DistString as _};
+// Add methods on commands
 use reqwest::header::HeaderMap;
-use serde_json::json;
-use std::{collections::HashMap, io::Read, time::Duration};
+use std::{collections::HashMap, time::Duration};
 use tokio::{
-    io::{AsyncReadExt as _, AsyncWriteExt as _},
-    net::TcpListener,
-    process::{Child, Command},
+    io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader},
+    process::Child,
     time::sleep,
 };
 
@@ -108,7 +107,6 @@ async fn test_generate_env() {
 
 #[actix_rt::test]
 async fn test_migrate_database() {
-    use std::io::Write;
     #[derive(serde::Serialize, Debug)]
     pub struct Count {
         pub number: i64,
@@ -194,22 +192,17 @@ async fn test_migrate_database() {
     assert_eq!(num.number, 1, "Failed to create an admin!");
 }
 
+#[allow(dead_code)]
+#[derive(Debug)]
 struct RunningServer {
     server: Child,
     port: i32,
-}
-
-impl Drop for RunningServer {
-    fn drop(&mut self) {
-        tokio::task::block_in_place(|| async {
-            self.server.kill().await.unwrap();
-        });
-    }
+    username: String,
+    password: String,
+    tmp_dir: tempdir::TempDir,
 }
 
 async fn run_server() -> RunningServer {
-    use std::io::Write;
-
     use rand::thread_rng;
     use rand::Rng;
 
@@ -220,6 +213,8 @@ async fn run_server() -> RunningServer {
 
     let mut rng = thread_rng();
     let port = rng.gen_range(12000..20000);
+    let username = Alphanumeric.sample_string(&mut rng, 5);
+    let password = Alphanumeric.sample_string(&mut rng, 12);
     let tmp_dir = tempdir::TempDir::new("pslink_test_env").expect("create temp dir");
     // generate .env file
     let _output = get_test_bin("pslink")
@@ -254,12 +249,14 @@ async fn run_server() -> RunningServer {
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn()
-        .expect("Failed to migrate the database");
+        .expect("Failed to create a user");
     let mut procin = input.stdin.take().unwrap();
 
-    procin.write_all(b"test\n").await.unwrap();
+    procin.write_all(username.as_bytes()).await.unwrap();
+    procin.write_all(b"\n").await.unwrap();
     procin.write_all(b"test@mail.test\n").await.unwrap();
-    procin.write_all(b"testpw\n").await.unwrap();
+    procin.write_all(password.as_bytes()).await.unwrap();
+    procin.write_all(b"\n").await.unwrap();
 
     let r = input.wait().await.unwrap();
     println!("Exitstatus is: {}", r);
@@ -275,28 +272,28 @@ async fn run_server() -> RunningServer {
         "Failed to create an admin! See previous tests!"
     );
 
-    let mut server = get_test_bin("pslink")
+    let server = get_test_bin("pslink")
         .args(&["runserver"])
         .current_dir(&tmp_dir)
         .stdout(std::process::Stdio::piped())
         .spawn()
         .unwrap();
 
-    // Wait until the server signals it is up and running.
-    let mut sout = server.stdout.take().unwrap();
-    let mut buffer = [0; 15];
-    println!("Running the webserver for testing #############");
-    loop {
-        let num = sout.read(&mut buffer[..]).await.unwrap();
-        println!("{}", num);
-        let t = std::str::from_utf8(&buffer).unwrap();
-        println!("{:?}", std::str::from_utf8(&buffer));
-        if num > 0 && t.contains("/app") {
-            break;
-        }
-    }
+    wait_for_server(
+        &format!("http://localhost:{}/", port),
+        20,
+        Duration::from_millis(50),
+    )
+    .await
+    .expect("Server did not start in time");
 
-    RunningServer { server, port }
+    RunningServer {
+        server,
+        port,
+        username,
+        password,
+        tmp_dir,
+    }
 }
 
 async fn wait_for_server(url: &str, retries: u32, delay: Duration) -> Result<(), String> {
@@ -306,7 +303,7 @@ async fn wait_for_server(url: &str, retries: u32, delay: Duration) -> Result<(),
         if response.is_ok() {
             return Ok(());
         }
-        println!("Server not ready, retrying ({})...", x);
+        println!("Server not ready, retrying ({}. {:?})...", x, response);
         sleep(delay).await;
     }
     Err("Server not ready".to_string())
@@ -314,14 +311,24 @@ async fn wait_for_server(url: &str, retries: u32, delay: Duration) -> Result<(),
 
 #[actix_rt::test]
 async fn test_web_paths() {
-    let server = run_server().await;
-    let base_url = format!("localhost:{}/", server.port);
+    let RunningServer {
+        mut server,
+        port,
+        username,
+        password,
+        tmp_dir: _,
+    } = run_server().await;
+    tokio::spawn(async move {
+        let stdout = server.stdout.take().unwrap();
+        let mut reader = BufReader::new(stdout).lines();
+        loop {
+            if let Some(line) = reader.next_line().await.unwrap() {
+                println!("Runserver-Ausgabe: {}", line);
+            }
+        }
+    });
+    let base_url = format!("http://localhost:{}/", port);
     println!("# BaseUrl: {}", base_url);
-
-    // Wartezeit und Wiederholungsversuche hinzufügen
-    wait_for_server(&base_url, 120, Duration::from_millis(100))
-        .await
-        .unwrap();
 
     let cookie_store = reqwest_cookie_store::CookieStore::new(None);
     let cookie_store = reqwest_cookie_store::CookieStoreMutex::new(cookie_store);
@@ -348,11 +355,7 @@ async fn test_web_paths() {
     assert!(location.to_str().unwrap().contains("github"));
 
     let app_url = base_url.clone() + "app/";
-    // Act
-    let json_data = json!({
-        "username": "test",
-        "password": "testpw"
-    });
+
     let response = client
         .get(&app_url.clone())
         .send()
@@ -368,11 +371,10 @@ async fn test_web_paths() {
         content.contains(r#"init('/static/wasm/app_bg.wasm');"#),
         "The app page has unexpected content!"
     );
-
     // Act
     let mut formdata = HashMap::new();
-    formdata.insert("username", "test");
-    formdata.insert("password", "testpw");
+    formdata.insert("username", username.clone());
+    formdata.insert("password", password.clone());
     let response = client
         .post(&(base_url.clone() + "admin/json/login_user/"))
         .json(&formdata)
@@ -381,7 +383,17 @@ async fn test_web_paths() {
         .expect("Failed to execute request.");
 
     println!("Login response:\n {:?}", response);
+    println!("Login content:\n {:?}", response.text().await.unwrap());
 
+    let mut formdata = HashMap::new();
+    formdata.insert("username", username.clone());
+    formdata.insert("password", password.clone());
+    let response = client
+        .post(&(base_url.clone() + "admin/json/login_user/"))
+        .json(&formdata)
+        .send()
+        .await
+        .expect("Failed to execute request.");
     // It is possible to login
     assert!(response.status().is_success());
 
@@ -398,8 +410,8 @@ async fn test_web_paths() {
             .unwrap()
             .to_string()
     };
-    println!("{:?}", cookie);
-    assert!(cookie.starts_with("auth-cookie="));
+    println!("Cookie: {:?}", cookie);
+    assert!(cookie.starts_with("pslink-session="));
 
     let content = response.text().await.unwrap();
     println!("Content: {:?}", content);
@@ -409,12 +421,46 @@ async fn test_web_paths() {
     custom_headers.insert("content-type", "application/json".parse().unwrap());
     custom_headers.insert("Cookie", cookie.parse().unwrap());
 
+    // After login this should return one user
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_users/"))
+        .headers(custom_headers.clone())
+        .body(
+            r#"{"filter": {
+    "Id": { "sieve": "" },
+    "Username": { "sieve": "" },
+    "Email": { "sieve": "" }
+  },
+  "order": null,
+  "amount": 20
+}"#,
+        )
+        .build()
+        .unwrap();
+    println!("Query Users: {:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content is an empty list as until now no links were created.
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(&username),
+        "The admin user has been created and is listed"
+    );
+
     // After login this should return an empty list
     let query = client
         .post(&(base_url.clone() + "admin/json/list_links/"))
         .headers(custom_headers.clone())
-        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20}"#).build().unwrap();
-    println!("{:?}", query);
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20, "offset":0}"#).build().unwrap();
+    println!("Query: {:?}", query);
     let response = client
         .execute(query)
         .await
@@ -458,7 +504,7 @@ async fn test_web_paths() {
     let query = client
         .post(&(base_url.clone() + "admin/json/list_links/"))
         .headers(custom_headers.clone())
-        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20}"#).build().unwrap();
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20, "offset":0}"#).build().unwrap();
     println!("{:?}", query);
     let response = client
         .execute(query)
@@ -531,7 +577,7 @@ async fn test_web_paths() {
     let query = client
         .post(&(base_url.clone() + "admin/json/list_links/"))
         .headers(custom_headers.clone())
-        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20}"#).build().unwrap();
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20, "offset":0}"#).build().unwrap();
     println!("{:?}", query);
     let response = client
         .execute(query)
@@ -558,7 +604,7 @@ async fn test_web_paths() {
     let query = client
         .post(&(base_url.clone() + "admin/json/list_links/"))
         .headers(custom_headers.clone())
-        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":"se"},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20}"#).build().unwrap();
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":"se"},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20, "offset":0}"#).build().unwrap();
     println!("{:?}", query);
     let response = client
         .execute(query)
@@ -611,7 +657,6 @@ async fn test_web_paths() {
         .to_str()
         .unwrap()
         .contains("https://crates.io/crates/pslink"));
-    drop(server);
 }
 
 /// Returns the crate's binary as a `Command` that can be used for integration
