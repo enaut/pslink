@@ -3,8 +3,9 @@ use std::ops::Deref;
 
 use crate::apirequests::users::Role;
 use serde::{Deserialize, Serialize, Serializer};
-use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
-/// A generic list returntype containing the User and a Vec containing e.g. Links or Users
+use strum_macros::{AsRefStr, EnumIter, EnumString};
+
+/// A generic list return type containing the User and a Vec containing e.g. Links or Users
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ListWithOwner<T> {
     pub user: User,
@@ -38,7 +39,14 @@ impl PartialEq for Clicks {
 
 impl PartialOrd for Clicks {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+        match (self, other) {
+            (Self::Count(l0), Self::Count(r0)) => l0.number.partial_cmp(&r0.number),
+            (Self::Extended(l0), Self::Extended(r0)) => {
+                l0.total.number.partial_cmp(&r0.total.number)
+            }
+            (Clicks::Count(l0), Clicks::Extended(r0)) => l0.number.partial_cmp(&r0.total.number),
+            (Clicks::Extended(l0), Clicks::Count(r0)) => l0.total.number.partial_cmp(&r0.number),
+        }
     }
 }
 
@@ -89,12 +97,11 @@ pub struct WeekCount {
     pub total: Count,
     pub week: i32,
 }
-
 impl Eq for WeekCount {}
 
 impl PartialOrd for WeekCount {
     fn partial_cmp(&self, other: &Self) -> std::option::Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+        self.total.number.partial_cmp(&other.total.number)
     }
 }
 impl Ord for WeekCount {
@@ -183,17 +190,7 @@ impl<T> Deref for Loadable<T> {
 /// To add an additional language add it to this enum as well as an appropriate file into the locales folder.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    EnumIter,
-    EnumString,
-    Display,
-    AsRefStr,
-    Eq,
-    PartialEq,
-    Serialize,
-    Deserialize,
+    Debug, Copy, Clone, EnumIter, EnumString, AsRefStr, Eq, PartialEq, Serialize, Deserialize,
 )]
 #[strum(ascii_case_insensitive)]
 pub enum Lang {
@@ -201,4 +198,10 @@ pub enum Lang {
     EnUS,
     #[strum(serialize = "de-DE", serialize = "de", serialize = "deDE")]
     DeDE,
+}
+
+impl std::fmt::Display for Lang {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }

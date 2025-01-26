@@ -14,7 +14,7 @@ use seed::{
 };
 use web_sys::{IntersectionObserver, IntersectionObserverEntry, IntersectionObserverInit};
 
-use shared::{
+use pslink_shared::{
     apirequests::{
         general::{EditMode, Message, Operation, Ordering, Status},
         links::{LinkDelta, LinkOverviewColumns, LinkRequestForm, StatisticsRequest},
@@ -22,7 +22,7 @@ use shared::{
     datatypes::{Clicks, Count, FullLink, Lang, Loadable, Statistics, User, WeekCount},
 };
 
-use crate::{get_host, i18n::I18n, unwrap_or_return};
+use crate::{get_host, unwrap_or_return, I18n};
 
 /// Setup the page
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>, i18n: I18n) -> Model {
@@ -455,31 +455,26 @@ fn consecutive_load(model: &Model, orders: &mut impl Orders<Msg>) {
 fn load_links(orders: &mut impl Orders<Msg>, data: LinkRequestForm) {
     orders.perform_cmd(async {
         let data = data;
-        // create a request
         let request = unwrap_or_return!(
             Request::post("/admin/json/list_links/").json(&data),
-            Msg::SetMessage("Failed to parse data".to_string())
-        );
-        // send the request and receive a response
+            Msg::SetMessage("Failed to load links (json)".into())
+        )
+        .send();
         let response = unwrap_or_return!(
-            request.send().await,
-            Msg::SetMessage("Failed to send data".to_string())
+            request.await,
+            Msg::SetMessage("Failed to load links (await)".into())
         );
-        // check the html status to be 200
         if !response.ok() {
-            Msg::SetMessage("Wrong response code".to_string())
-        } else {
-            // unpack the response into the `Vec<FullLink>`
-            let links: Vec<FullLink> = unwrap_or_return!(
-                response.json().await,
-                Msg::SetMessage("Invalid response".to_string())
-            );
-            // The message that is sent by perform_cmd after this async block is completed
-            match data.offset.cmp(&0) {
-                std::cmp::Ordering::Less => unreachable!(),
-                std::cmp::Ordering::Equal => Msg::Query(QueryMsg::Received(links)),
-                std::cmp::Ordering::Greater => Msg::Query(QueryMsg::ReceivedAdditional(links)),
-            }
+            return Msg::SetMessage("Failed to load links (http)".into());
+        }
+        let links: Vec<FullLink> = unwrap_or_return!(
+            response.json().await,
+            Msg::SetMessage("Failed to load links (parse)".into())
+        );
+        match data.offset.cmp(&0) {
+            std::cmp::Ordering::Less => unreachable!(),
+            std::cmp::Ordering::Equal => Msg::Query(QueryMsg::Received(links)),
+            std::cmp::Ordering::Greater => Msg::Query(QueryMsg::ReceivedAdditional(links)),
         }
     });
 }
@@ -596,33 +591,25 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
 
 /// Send a link save request to the server.
 fn save_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
-    let data = link_delta;
     orders.perform_cmd(async {
-        let data = data;
-        // create the request
+        let data = link_delta;
         let request = unwrap_or_return!(
-            Request::post(match data.edit {
-                EditMode::Create => "/admin/json/create_link/",
-                EditMode::Edit => "/admin/json/edit_link/",
-            })
-            .json(&data),
-            Msg::SetMessage("Failed to encode the link!".to_string())
+            Request::post("/admin/json/create_link/").json(&data),
+            Msg::SetMessage("Failed to save link (json)".into())
+        )
+        .send();
+        let response = unwrap_or_return!(
+            request.await,
+            Msg::SetMessage("Failed to save link (await)".into())
         );
-        // perform the request
-        let response =
-            unwrap_or_return!(request.send().await, Msg::Edit(EditMsg::FailedToCreateLink));
-
-        // check the response status
-        if !response.ok() {
-            Msg::SetMessage("Wrong response code".to_string())
-        } else {
-            // Parse the response
+        if response.ok() {
             let message: Status = unwrap_or_return!(
                 response.json().await,
-                Msg::SetMessage("Invalid response!".to_string())
+                Msg::SetMessage("Failed to save link (parse)".into())
             );
-
             Msg::Edit(EditMsg::Created(message))
+        } else {
+            Msg::SetMessage("Failed to save link (http)".into())
         }
     });
 }
@@ -630,29 +617,23 @@ fn save_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
 /// Send a link delete request to the server.
 fn delete_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async move {
-        // create the request
         let request = unwrap_or_return!(
             Request::post("/admin/json/delete_link/").json(&link_delta),
-            Msg::SetMessage("serialization failed".to_string())
+            Msg::SetMessage("Failed to delete link (json)".into())
+        )
+        .send();
+        let response = unwrap_or_return!(
+            request.await,
+            Msg::SetMessage("Failed to delete link (await)".into())
         );
-        // perform the request and recieve a respnse
-        let response =
-            unwrap_or_return!(request.send().await, Msg::Edit(EditMsg::FailedToDeleteLink));
-
-        // check the status of the response
-        if !response.ok() {
-            Msg::SetMessage("Wrong response code!".to_string())
-        } else {
-            // deserialize the response
+        if response.ok() {
             let message: Status = unwrap_or_return!(
                 response.json().await,
-                Msg::SetMessage(
-                    "Failed to parse the response! The link might or might not be deleted!"
-                        .to_string()
-                )
+                Msg::SetMessage("Failed to delete link (parse)".into())
             );
-
             Msg::Edit(EditMsg::DeletedLink(message))
+        } else {
+            Msg::SetMessage("Failed to delete link (http)".into())
         }
     });
 }
@@ -819,16 +800,16 @@ fn view_link<F: Fn(&str) -> String>(
     logged_in_user: &User,
     t: F,
 ) -> Node<Msg> {
-    use shared::apirequests::users::Role;
+    use pslink_shared::apirequests::users::Role;
     let link = LinkDelta::from(l.data.clone());
     tr![
         IF! (logged_in_user.role == Role::Admin
             || (logged_in_user.role == Role::Regular) && l.user.id == logged_in_user.id =>
             ev(Ev::Click, |_| Msg::Edit(EditMsg::EditSelected(link)))),
-        td![C!["cursor-pointer"], &l.link.code],
-        td![C!["cursor-pointer"], &l.link.title],
-        td![C!["cursor-pointer"], &l.link.target],
-        td![C!["cursor-pointer"], &l.user.username],
+        td![&l.link.code],
+        td![&l.link.title],
+        td![&l.link.target],
+        td![&l.user.username],
         match &l.clicks {
             Clicks::Count(Count { number }) => td![number],
             Clicks::Extended(statistics) =>
@@ -864,7 +845,6 @@ fn view_link<F: Fn(&str) -> String>(
         {
             let link = LinkDelta::from(l.data.clone());
             td![
-                C!["cursor-pointer"],
                 ev(Ev::Click, |event| {
                     event.stop_propagation();
                     Msg::Edit(EditMsg::MayDeleteSelected(link))
@@ -889,7 +869,7 @@ fn render_stats(q: Statistics, maximum: &WeekCount) -> Node<Msg> {
             let cw = week.iso_week().week() as i32;
             if with_clicks.week == cw {
                 full.push(with_clicks);
-                week += chrono::Duration::weeks(1);
+                week = week + chrono::Duration::weeks(1);
                 break;
             }
             // otherwise add another empty week
@@ -899,7 +879,7 @@ fn render_stats(q: Statistics, maximum: &WeekCount) -> Node<Msg> {
                 week: cw,
             };
             full.push(nstat);
-            week += chrono::Duration::weeks(1);
+            week = week + chrono::Duration::weeks(1);
         }
     }
     loop {
@@ -912,7 +892,7 @@ fn render_stats(q: Statistics, maximum: &WeekCount) -> Node<Msg> {
                 week: cw,
             };
             full.push(nstat);
-            week += chrono::Duration::weeks(1);
+            week = week + chrono::Duration::weeks(1);
         } else {
             break;
         }
@@ -1044,7 +1024,7 @@ fn generate_qr_png(code: &str) -> Vec<u8> {
         format!("http://{}/{}", get_host(), code),
         qrcode::EcLevel::L,
     )
-    .unwrap();
+    .expect("Failed to create the qr-code");
     let png = qr.render::<Luma<u8>>().quiet_zone(false).build();
     let mut temporary_data = std::io::Cursor::new(Vec::new());
     DynamicImage::ImageLuma8(png)

@@ -1,10 +1,10 @@
 //! Create the top menu of the app
 use fluent::fluent_args;
-use seed::{a, attrs, div, li, nav, nodes, ol, prelude::*, Url, C};
-use shared::{
+use pslink_shared::{
     apirequests::users::Role,
     datatypes::{Lang, User},
 };
+use seed::{a, attrs, div, li, nav, nodes, ol, prelude::*, Url, C};
 
 use crate::{i18n::I18n, Msg};
 
@@ -15,7 +15,7 @@ use crate::{i18n::I18n, Msg};
 pub fn navigation(i18n: &I18n, base_url: &Url, user: &User) -> Node<Msg> {
     // A shortcut for translating strings.
     let t = move |key: &str| i18n.translate(key, None);
-    // Translate the wellcome message
+    // Translate the welcome message
     let welcome = i18n.translate(
         "welcome-user",
         Some(&fluent_args![ "username" => user.username.clone()]),

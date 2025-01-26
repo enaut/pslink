@@ -1,15 +1,25 @@
-use serde_json::json;
+use rand::distributions::{Alphanumeric, DistString as _};
+// Add methods on commands
+use reqwest::header::HeaderMap;
+use std::{collections::HashMap, time::Duration};
+use tokio::{
+    io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader},
+    process::Child,
+    time::sleep,
+};
 
-#[test]
-fn test_help_of_command_for_breaking_changes() {
-    let output = test_bin::get_test_bin("pslink")
+#[actix_rt::test]
+async fn test_help_of_command_for_breaking_changes() {
+    let output = get_test_bin("pslink")
         .output()
+        .await
         .expect("Failed to start pslink");
     assert!(String::from_utf8_lossy(&output.stdout).contains("Usage"));
 
-    let output = test_bin::get_test_bin("pslink")
+    let output = get_test_bin("pslink")
         .args(["--help"])
         .output()
+        .await
         .expect("Failed to start pslink");
     let outstring = String::from_utf8_lossy(&output.stdout);
 
@@ -39,14 +49,15 @@ fn test_help_of_command_for_breaking_changes() {
     }
 }
 
-#[test]
-fn test_generate_env() {
+#[actix_rt::test]
+async fn test_generate_env() {
     use std::io::BufRead;
     let tmp_dir = tempdir::TempDir::new("pslink_test_env").expect("create temp dir");
-    let output = test_bin::get_test_bin("pslink")
+    let output = get_test_bin("pslink")
         .args(["generate-env", "--secret", "abcdefghijklmnopqrstuvw"])
         .current_dir(&tmp_dir)
         .output()
+        .await
         .expect("Failed to start pslink");
     let envfile = tmp_dir.path().join(".env");
     let dbfile = tmp_dir.path().join("links.db");
@@ -84,10 +95,11 @@ fn test_generate_env() {
         }),
         "The secret has not made it into the .env file!"
     );
-    let output = test_bin::get_test_bin("pslink")
+    let output = get_test_bin("pslink")
         .args(["generate-env"])
         .current_dir(&tmp_dir)
         .output()
+        .await
         .expect("Failed to start pslink");
     let second_out = String::from_utf8_lossy(&output.stdout);
     assert!(!second_out.contains("secret"));
@@ -95,7 +107,6 @@ fn test_generate_env() {
 
 #[actix_rt::test]
 async fn test_migrate_database() {
-    use std::io::Write;
     #[derive(serde::Serialize, Debug)]
     pub struct Count {
         pub number: i64,
@@ -104,18 +115,20 @@ async fn test_migrate_database() {
     let tmp_dir = tempdir::TempDir::new("pslink_test_env").expect("create temp dir");
     println!("Created temp dir");
     // generate .env file
-    let _output = test_bin::get_test_bin("pslink")
+    let _output = get_test_bin("pslink")
         .args(["generate-env"])
         .current_dir(&tmp_dir)
         .output()
+        .await
         .expect("Failed generate .env");
     println!("Generated .env file");
 
     // migrate the database
-    let output = test_bin::get_test_bin("pslink")
+    let output = get_test_bin("pslink")
         .args(["migrate-database"])
         .current_dir(&tmp_dir)
         .output()
+        .await
         .expect("Failed to migrate the database");
     println!("Output: {}", String::from_utf8_lossy(&output.stdout));
 
@@ -136,7 +149,7 @@ async fn test_migrate_database() {
 
     println!("Creating an admin");
     // create a new admin
-    let mut input = test_bin::get_test_bin("pslink")
+    let mut input = get_test_bin("pslink")
         .args(["create-admin"])
         .current_dir(&tmp_dir)
         .stdin(std::process::Stdio::piped())
@@ -147,27 +160,27 @@ async fn test_migrate_database() {
 
     async {
         println!("Writing username");
-        println!("Bytes written: {}", procin.write(b"test\n").unwrap());
-        procin.flush().unwrap();
+        println!("Bytes written: {}", procin.write(b"test\n").await.unwrap());
+        procin.flush().await.unwrap();
     }
     .await;
     async {
         println!("Writing email");
-        procin.write_all(b"test@mail.test\n").unwrap();
-        procin.flush().unwrap();
+        procin.write_all(b"test@mail.test\n").await.unwrap();
+        procin.flush().await.unwrap();
     }
     .await;
     async {
         println!("Writing password");
-        procin.write_all(b"testpw\n").unwrap();
-        procin.flush().unwrap();
+        procin.write_all(b"testpw\n").await.unwrap();
+        procin.flush().await.unwrap();
         drop(procin);
     }
     .await;
     //read_output(&mut procout);
     println!("Waiting for process to finish");
 
-    let r = input.wait().unwrap();
+    let r = input.wait().await.unwrap();
     println!("Exitstatus is: {:?}", r);
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
@@ -179,27 +192,49 @@ async fn test_migrate_database() {
     assert_eq!(num.number, 1, "Failed to create an admin!");
 }
 
-async fn run_server() -> (
-    tokio::task::JoinHandle<std::result::Result<(), std::io::Error>>,
-    tempdir::TempDir,
-) {
-    use std::io::Write;
+#[allow(dead_code)]
+#[derive(Debug)]
+struct RunningServer {
+    server: Child,
+    port: i32,
+    username: String,
+    password: String,
+    tmp_dir: tempdir::TempDir,
+}
+
+async fn run_server() -> RunningServer {
+    use rand::thread_rng;
+    use rand::Rng;
+
     #[derive(serde::Serialize, Debug)]
     pub struct Count {
         pub number: i64,
     }
+
+    let mut rng = thread_rng();
+    let port = rng.gen_range(12000..20000);
+    let username = Alphanumeric.sample_string(&mut rng, 5);
+    let password = Alphanumeric.sample_string(&mut rng, 12);
     let tmp_dir = tempdir::TempDir::new("pslink_test_env").expect("create temp dir");
     // generate .env file
-    let _output = test_bin::get_test_bin("pslink")
-        .args(["generate-env", "--secret", "abcdefghijklmnopqrstuvw"])
+    let _output = get_test_bin("pslink")
+        .args(&[
+            "generate-env",
+            "--secret",
+            "abcdefghijklmnopqrstuvw",
+            "--port",
+            &port.to_string(),
+        ])
         .current_dir(&tmp_dir)
         .output()
+        .await
         .expect("Failed generate .env");
     // migrate the database
-    let output = test_bin::get_test_bin("pslink")
-        .args(["migrate-database"])
+    let output = get_test_bin("pslink")
+        .args(&["migrate-database"])
         .current_dir(&tmp_dir)
         .output()
+        .await
         .expect("Failed to migrate the database");
 
     // create a database connection.
@@ -208,20 +243,22 @@ async fn run_server() -> (
     )
     .await
     .expect("Error: Failed to connect to database!"); // create a new admin
-    let mut input = test_bin::get_test_bin("pslink")
+    let mut input = get_test_bin("pslink")
         .args(&["create-admin"])
         .current_dir(&tmp_dir)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn()
-        .expect("Failed to migrate the database");
+        .expect("Failed to create a user");
     let mut procin = input.stdin.take().unwrap();
 
-    procin.write_all(b"test\n").unwrap();
-    procin.write_all(b"test@mail.test\n").unwrap();
-    procin.write_all(b"testpw\n").unwrap();
+    procin.write_all(username.as_bytes()).await.unwrap();
+    procin.write_all(b"\n").await.unwrap();
+    procin.write_all(b"test@mail.test\n").await.unwrap();
+    procin.write_all(password.as_bytes()).await.unwrap();
+    procin.write_all(b"\n").await.unwrap();
 
-    let r = input.wait().unwrap();
+    let r = input.wait().await.unwrap();
     println!("Exitstatus is: {}", r);
 
     println!("{}", String::from_utf8_lossy(&output.stdout));
@@ -235,43 +272,68 @@ async fn run_server() -> (
         "Failed to create an admin! See previous tests!"
     );
 
-    let server_config = pslink::ServerConfig {
-        secret: shared::datatypes::Secret::new("abcdefghijklmnopqrstuvw".to_string()),
-        db: std::path::PathBuf::from("links.db"),
-        db_pool,
-        public_url: "localhost:8085".to_string(),
-        internal_ip: "localhost".to_string(),
-        port: 8085,
-        protocol: pslink::Protocol::Http,
-        empty_forward_url: "https://github.com/enaut/pslink".to_string(),
-        brand_name: "Pslink".to_string(),
-    };
+    let server = get_test_bin("pslink")
+        .args(&["runserver"])
+        .current_dir(&tmp_dir)
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
 
-    let server = pslink::webservice(server_config);
+    wait_for_server(
+        &format!("http://localhost:{}/", port),
+        20,
+        Duration::from_millis(50),
+    )
+    .await
+    .expect("Server did not start in time");
 
-    let server_handle = tokio::spawn(
-        server
-            .await
-            .map_err(|e| {
-                println!("{:?}", e);
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                std::process::exit(0);
-            })
-            .expect("Failed to launch the service"),
-    );
-    println!("Server started");
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    println!("Waited for startup");
-    (server_handle, tmp_dir)
+    RunningServer {
+        server,
+        port,
+        username,
+        password,
+        tmp_dir,
+    }
+}
+
+async fn wait_for_server(url: &str, retries: u32, delay: Duration) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    for x in 0..retries {
+        let response = client.get(url).send().await;
+        if response.is_ok() {
+            return Ok(());
+        }
+        println!("Server not ready, retrying ({}. {:?})...", x, response);
+        sleep(delay).await;
+    }
+    Err("Server not ready".to_string())
 }
 
 #[actix_rt::test]
 async fn test_web_paths() {
-    let (server_handle, _tmp_dir) = run_server().await;
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let RunningServer {
+        mut server,
+        port,
+        username,
+        password,
+        tmp_dir: _,
+    } = run_server().await;
+    tokio::spawn(async move {
+        let stdout = server.stdout.take().unwrap();
+        let mut reader = BufReader::new(stdout).lines();
+        loop {
+            if let Some(line) = reader.next_line().await.unwrap() {
+                println!("Runserver-Ausgabe: {}", line);
+            }
+        }
+    });
+    let base_url = format!("http://localhost:{}/", port);
+    println!("# BaseUrl: {}", base_url);
+
     let cookie_store = reqwest_cookie_store::CookieStore::new(None);
     let cookie_store = reqwest_cookie_store::CookieStoreMutex::new(cookie_store);
     let cookie_store = std::sync::Arc::new(cookie_store);
+
     // We need to bring in `reqwest`
     // to perform HTTP requests against our application.
     let client = reqwest::Client::builder()
@@ -282,7 +344,7 @@ async fn test_web_paths() {
 
     // Act
     let response = client
-        .get("http://localhost:8085/")
+        .get(&base_url.clone())
         .send()
         .await
         .expect("Failed to execute request.");
@@ -292,86 +354,283 @@ async fn test_web_paths() {
     let location = response.headers().get("location").unwrap();
     assert!(location.to_str().unwrap().contains("github"));
 
-    // Act
-    let json_data = json!({
-        "username": "test",
-        "password": "testpw"
-    });
+    let app_url = base_url.clone() + "app/";
+
     let response = client
-        .post("http://localhost:8085/admin/json/login_user/")
-        .json(&json_data)
+        .get(&app_url.clone())
         .send()
         .await
         .expect("Failed to execute request.");
-    // It is possible to login
+
+    println!("{:?}", response);
+
+    // The app page is reachable and contains the wasm file!
     assert!(response.status().is_success());
-    let response_text = response.text().await.unwrap();
-    assert!(response_text.contains("\"username\":\"test\""));
-    assert!(response_text.contains("\"email\":\"test@mail.test\""));
-    assert!(!response_text.contains("testpw"));
-
-    let json_data = json!({
-        "filter": {
-            "Code": {"sieve": ""},
-            "Description": {"sieve": ""},
-            "Target": {"sieve": ""},
-            "Author": {"sieve": ""},
-            "Statistics": {"sieve": ""}
-        },
-        "order": null,
-        "offset": 0,
-        "amount": 60
-    });
-    // After login accessing the main page should work
-    let response = client
-        .post("http://localhost:8085/admin/json/list_links/")
-        .json(&json_data)
-        .send()
-        .await
-        .expect("Failed to execute request.");
-    println!("Response of /admin/json/list_links/: {:?}", response);
-
-    // The Loginpage redirects to link index when logged in
-    assert!(
-        response.status().is_success(),
-        "Could not get list of links: {}",
-        response.text().await.unwrap()
-    );
     let content = response.text().await.unwrap();
     assert!(
-        content.contains(r#"[]"#),
-        "The list of links is not empty: {}",
-        content
+        content.contains(r#"init('/static/wasm/app_bg.wasm');"#),
+        "The app page has unexpected content!"
     );
-
-    // Act title=haupt&target=http%3A%2F%2Fdas.geht%2Fjetzt%2F&code=tpuah
-    use serde_json::json;
-
-    let json_data = json!({
-        "edit": "Create",
-        "id": null,
-        "title": "mytite",
-        "target": "https://github.com/enaut/pslink/",
-        "code": "mycode",
-        "author": 0,
-        "created_at": null
-    });
+    // Act
+    let mut formdata = HashMap::new();
+    formdata.insert("username", username.clone());
+    formdata.insert("password", password.clone());
     let response = client
-        .post("http://localhost:8085/admin/json/create_link/")
-        .json(&json_data)
+        .post(&(base_url.clone() + "admin/json/login_user/"))
+        .json(&formdata)
         .send()
         .await
         .expect("Failed to execute request.");
 
+    println!("Login response:\n {:?}", response);
+    println!("Login content:\n {:?}", response.text().await.unwrap());
+
+    let mut formdata = HashMap::new();
+    formdata.insert("username", username.clone());
+    formdata.insert("password", password.clone());
+    let response = client
+        .post(&(base_url.clone() + "admin/json/login_user/"))
+        .json(&formdata)
+        .send()
+        .await
+        .expect("Failed to execute request.");
     // It is possible to login
     assert!(response.status().is_success());
-    let response_text = response.text().await.unwrap();
-    println!("Response of /admin/json/create_link/: {:?}", response_text);
-    assert!(response_text.contains("\"message\":\"Successfully saved link: mycode\""));
 
-    // Act
+    // Extract the cookie as it is not automatically saved for some reason.
+    let cookie = {
+        response
+            .headers()
+            .get("set-cookie")
+            .expect("A auth cookie is not set even though authentication succeeds")
+            .to_str()
+            .unwrap()
+            .split(';')
+            .next()
+            .unwrap()
+            .to_string()
+    };
+    println!("Cookie: {:?}", cookie);
+    assert!(cookie.starts_with("pslink-session="));
+
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(content.contains(r#""id":1"#), "id missing in content");
+
+    let mut custom_headers = HeaderMap::new();
+    custom_headers.insert("content-type", "application/json".parse().unwrap());
+    custom_headers.insert("Cookie", cookie.parse().unwrap());
+
+    // After login this should return one user
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_users/"))
+        .headers(custom_headers.clone())
+        .body(
+            r#"{"filter": {
+    "Id": { "sieve": "" },
+    "Username": { "sieve": "" },
+    "Email": { "sieve": "" }
+  },
+  "order": null,
+  "amount": 20
+}"#,
+        )
+        .build()
+        .unwrap();
+    println!("Query Users: {:?}", query);
     let response = client
-        .get("http://localhost:8085/mycode")
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content is an empty list as until now no links were created.
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(&username),
+        "The admin user has been created and is listed"
+    );
+
+    // After login this should return an empty list
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_links/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20, "offset":0}"#).build().unwrap();
+    println!("Query: {:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content is an empty list as until now no links were created.
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(content.contains(r#"[]"#), "id missing in content");
+
+    // Create a link
+    let query = client
+        .post(&(base_url.clone() + "admin/json/create_link/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"edit":"Create","id":null,"title":"ein testlink","target":"https://github.com/enaut/pslink","code":"test","author":0,"created_at":null}"#)
+        .build()
+        .unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content is a success message
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#""Success":"#),
+        "Make sure the link creation response contains Success"
+    );
+
+    // After inserting a link make sure the link is saved
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_links/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20, "offset":0}"#).build().unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content now contains the newly created link
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#""target":"https://github.com/enaut/pslink","code":"test""#),
+        "the new target and the new code are not in the result"
+    );
+
+    // Create a duplicate which should fail
+    let query = client
+        .post(&(base_url.clone() + "admin/json/create_link/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"edit":"Create","id":null,"title":"ein testlink","target":"https://github.com/enaut/pslink","code":"test","author":0,"created_at":null}"#)
+        .build()
+        .unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the status codes are correct
+    assert!(response.status().is_server_error());
+
+    // Make sure that the content is a error message
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#"error"#),
+        "Make sure the link creation response contains error"
+    );
+
+    // Create a second link
+    let query = client
+        .post(&(base_url.clone() + "admin/json/create_link/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"edit":"Create","id":null,"title":"ein second testlink","target":"https://crates.io/crates/pslink","code":"x","author":0,"created_at":null}"#)
+        .build()
+        .unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content is a success message
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#""Success":"#),
+        "Make sure the link creation response contains Success"
+    );
+
+    // After inserting a link make sure the link is saved
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_links/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":""},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20, "offset":0}"#).build().unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content now contains the newly created link
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    assert!(
+        content.contains(r#""target":"https://crates.io/crates/pslink","code":"x""#),
+        "the new target and the new code are not in the result"
+    );
+    assert!(
+        content.contains(r#""target":"https://github.com/enaut/pslink","code":"test""#),
+        "the new target and the new code are not in the result"
+    );
+
+    // After inserting two links make sure the filters work (searching for a description containing se)
+    let query = client
+        .post(&(base_url.clone() + "admin/json/list_links/"))
+        .headers(custom_headers.clone())
+        .body(r#"{"filter":{"Code":{"sieve":""},"Description":{"sieve":"se"},"Target":{"sieve":""},"Author":{"sieve":""},"Statistics":{"sieve":""}},"order":null,"amount":20, "offset":0}"#).build().unwrap();
+    println!("{:?}", query);
+    let response = client
+        .execute(query)
+        .await
+        .expect("Failed to execute request.");
+    println!("List urls response:\n {:?}", response);
+
+    // Make sure the list was retrieved and the status codes are correct
+    assert!(response.status().is_success());
+
+    // Make sure that the content now contains the newly created link
+    let content = response.text().await.unwrap();
+    println!("Content: {:?}", content);
+    // Code x should be in the result but not code test
+    assert!(
+        content.contains(r#""target":"https://crates.io/crates/pslink","code":"x""#),
+        "the new target and the new code are not in the result"
+    );
+    assert!(
+        !content.contains(r#""target":"https://github.com/enaut/pslink","code":"test""#),
+        "the new target and the new code are not in the result"
+    );
+
+    // Make sure we are redirected correctly.
+    let response = client
+        .get(&(base_url.clone() + "test"))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -382,7 +641,61 @@ async fn test_web_paths() {
     assert!(location
         .to_str()
         .unwrap()
-        .contains("https://github.com/enaut/pslink/"));
+        .contains("https://github.com/enaut/pslink"));
 
-    server_handle.abort();
+    // And for the second link - also check that casing is correctly ignored
+    let response = client
+        .get(&(base_url.clone() + "X"))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // The basic redirection is working!
+    assert!(response.status().is_redirection());
+    let location = response.headers().get("location").unwrap();
+    assert!(location
+        .to_str()
+        .unwrap()
+        .contains("https://crates.io/crates/pslink"));
+}
+
+/// Returns the crate's binary as a `Command` that can be used for integration
+/// tests.
+///
+/// # Arguments
+///
+/// * `bin_name` - The name of the binary you want to test.
+///
+/// # Remarks
+///
+/// It panics on error. This is by design so the test that uses it fails.
+pub fn get_test_bin(bin_name: &str) -> tokio::process::Command {
+    // Create full path to binary
+    let mut path = get_test_bin_dir();
+    path.push(bin_name);
+    path.set_extension(std::env::consts::EXE_EXTENSION);
+
+    assert!(path.exists());
+
+    // Create command
+    tokio::process::Command::new(path.into_os_string())
+}
+
+/// Returns the directory of the crate's binary.
+///
+/// # Remarks
+///
+/// It panics on error. This is by design so the test that uses it fails.
+fn get_test_bin_dir() -> std::path::PathBuf {
+    // Cargo puts the integration test binary in target/debug/deps
+    let current_exe =
+        std::env::current_exe().expect("Failed to get the path of the integration test binary");
+    let current_dir = current_exe
+        .parent()
+        .expect("Failed to get the directory of the integration test binary");
+
+    let test_bin_dir = current_dir
+        .parent()
+        .expect("Failed to get the binary folder");
+    test_bin_dir.to_owned()
 }
