@@ -14,7 +14,7 @@ license = "MIT OR Apache-2.0"
 name = "pslink"
 readme = "README.md"
 repository = "https://github.com/enaut/pslink/"
-version = "0.4.8"
+version = "0.4.9"
 [build-dependencies]
 actix-web-static-files = "4.0"
 static-files = "0.2"
@@ -60,7 +60,10 @@ opentelemetry-otlp = { version = "0.27.0", features = [
     "trace",
     "tonic",
 ] }
-actix-session = { version = "0.10.1", features = ["cookie-session", "redis-session"] }
+actix-session = { version = "0.10.1", features = [
+    "cookie-session",
+    "redis-session",
+] }
 
 [dependencies.chrono]
 features = ["serde"]
