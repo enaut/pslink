@@ -37,15 +37,18 @@ fn init_tracer() {
 #[instrument]
 #[actix_web::main]
 async fn main() -> std::result::Result<(), std::io::Error> {
-    /*     init_tracer();
-    let tracer = global::tracer(APP_NAME);
+    init_tracer();
+    let _tracer = global::tracer(APP_NAME);
     let exporter = opentelemetry_stdout::LogExporter::default();
     let provider: LoggerProvider = LoggerProvider::builder()
         .with_resource(Resource::empty())
         .with_simple_exporter(exporter)
         .build();
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);
-    tracing_subscriber::registry().with(layer).init(); */
+    tracing_subscriber::registry()
+        .with(layer)
+        .with(tracing_subscriber::filter::LevelFilter::INFO)
+        .init();
 
     match cli::setup().await {
         Ok(Some(server_config)) => {
