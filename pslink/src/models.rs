@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{Secret, ServerConfig, ServerError};
+use crate::{ServerConfig, ServerError};
 
 use async_trait::async_trait;
 use dotenv::dotenv;
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use argon2::PasswordHasher as _;
 use pslink_shared::{
     apirequests::{links::LinkDelta, users::Role},
-    datatypes::{Count, Lang, Link, Statistics, User, WeekCount},
+    datatypes::{Count, Lang, Link, Secret, Statistics, User, WeekCount},
 };
 use sqlx::Row;
 use tracing::{error, info, instrument};
