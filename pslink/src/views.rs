@@ -8,7 +8,6 @@ use actix_web::{
     web, HttpMessage as _, HttpRequest, HttpResponse,
 };
 use argon2::{Params, PasswordVerifier as _};
-use argonautica::Verifier;
 use fluent_langneg::{
     convert_vec_str_to_langids_lossy, negotiate_languages, parse_accepted_languages,
     LanguageIdentifier, NegotiationStrategy,

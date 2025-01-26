@@ -47,6 +47,7 @@ impl From<argon2::password_hash::Error> for ServerError {
 
 /// Any error can be rendered to a html string.
 impl ServerError {
+    #[allow(dead_code)]
     fn render_error(title: &str, content: &str) -> String {
         format!(
             "<!DOCTYPE html>
@@ -81,76 +82,9 @@ impl Responder for ServerError {
 }
 
 impl actix_web::error::ResponseError for ServerError {
-    /*     fn error_response2(&self) -> HttpResponse {
-        match self {
-            Self::Argonautica(e) => {
-                eprintln!("Argonautica Error happened: {:?}", e);
-                HttpResponse::InternalServerError()
-                    .body("Failed to encrypt the password - Aborting!")
-            }
-            Self::Database(e) => {
-                eprintln!("Database Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(Self::render_error(
-                    "Server Error",
-                    "Database could not be accessed! - It could be that this value already was in the database! If you are the admin look into the logs for a more detailed error.",
-                ))
-            }
-            Self::DatabaseMigration(e) => {
-                eprintln!("Migration Error happened: {:?}", e);
-                unimplemented!("A migration error should never be rendered")
-            }
-            Self::Environment(e) => {
-                eprintln!("Environment Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(Self::render_error(
-                  "Server Error",
-                  "This Server is not properly configured, if you are the admin look into the installation- or update instructions!",
-              ))
-            }
-            Self::Template(e) => {
-                eprintln!("Template Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(Self::render_error(
-                    "Server Error",
-                    "The templates could not be rendered.",
-                ))
-            }
-            Self::Qr(e) => {
-                eprintln!("QR Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(Self::render_error(
-                    "Server Error",
-                    "Could not generate the QR-code!",
-                ))
-            }
-            Self::Io(e) => {
-                eprintln!("Io Error happened: {:?}", e);
-                HttpResponse::InternalServerError().body(Self::render_error(
-                    "Server Error",
-                    "Some Files could not be read or written. If you are the admin look into the logfiles for more details.",
-                ))
-            }
-            Self::User(data) => {
-                eprintln!("User Error happened: {:?}", data);
-                HttpResponse::InternalServerError().body(Self::render_error(
-                    "Server Error",
-                    &format!("An error happened: {}", data),
-                ))
-            }
-        }
-    } */
-
     fn status_code(&self) -> actix_web::http::StatusCode {
         actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
     }
-
-    /*     fn error_response(&self) -> actix_web::BaseHttpResponse<actix_web::body::Body> {
-        let mut resp = actix_web::BaseHttpResponse::new(self.status_code());
-        let mut buf = web::BytesMut::new();
-        let _ = write!(Writer(&mut buf), "{}", self);
-        resp.headers_mut().insert(
-            reqwest::header::CONTENT_TYPE,
-            reqwest::header::HeaderValue::from_static("text/plain; charset=utf-8"),
-        );
-        resp.set_body(actix_web::body::Body::from(buf))
-    } */
 }
 
 /// The qr-code can contain two different protocolls
@@ -224,7 +158,7 @@ impl ServerConfig {
 }
 
 // include the static files into the binary
-include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+include!("generated.rs");
 
 static_loader! {
     static LOCALES = {
