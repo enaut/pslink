@@ -51,7 +51,7 @@ pub struct Message {
 
 /// Send a message on success and also one on error.
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub enum Status {
-    Success(Message),
+pub enum Status<T> {
+    Success(T),
     Error(Message),
 }
