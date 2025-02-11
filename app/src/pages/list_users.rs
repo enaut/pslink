@@ -5,9 +5,8 @@ use enum_map::EnumMap;
 use gloo_console::log;
 use gloo_net::http::Request;
 use pslink_shared::{
-    apirequests::general::{Operation, Ordering},
     apirequests::{
-        general::{EditMode, Status},
+        general::{EditMode, Message, Operation, Ordering, Status},
         users::{Role, UserDelta, UserOverviewColumns, UserRequestForm},
     },
     datatypes::{Lang, User},
@@ -39,7 +38,7 @@ pub struct Model {
     formconfig: UserRequestForm,
     inputs: EnumMap<UserOverviewColumns, FilterInput>,
     user_edit: Option<UserDelta>,
-    last_message: Option<Status>,
+    last_message: Option<Status<Message>>,
 }
 
 impl Model {
@@ -87,7 +86,7 @@ pub enum UserQueryMsg {
 pub enum UserEditMsg {
     EditUserSelected(UserDelta),
     CreateNewUser,
-    UserCreated(Status),
+    UserCreated(Status<Message>),
     EditUsernameChanged(String),
     EditEmailChanged(String),
     EditPasswordChanged(String),
@@ -274,7 +273,7 @@ fn update_privileges(user: UserDelta, orders: &mut impl Orders<Msg>) {
             Msg::Edit(UserEditMsg::FailedToCreateUser)
         } else {
             // deserialize the response
-            let message: Status = unwrap_or_return!(
+            let message: Status<Message> = unwrap_or_return!(
                 response.json().await,
                 Msg::Edit(UserEditMsg::FailedToCreateUser)
             );
@@ -303,7 +302,7 @@ fn save_user(user: UserDelta, orders: &mut impl Orders<Msg>) {
             Msg::Edit(UserEditMsg::FailedToCreateUser)
         } else {
             // deserialize the response
-            let message: Status = unwrap_or_return!(
+            let message: Status<Message> = unwrap_or_return!(
                 response.json().await,
                 Msg::Edit(UserEditMsg::FailedToCreateUser)
             );
