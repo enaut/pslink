@@ -105,7 +105,7 @@ enum Dialog {
         link_delta: LinkDelta,
         qr: Loadable<QrGuard>,
     },
-    Message(Status),
+    Message(Status<Message>),
     Question(EditMsg),
     None,
 }
@@ -185,7 +185,7 @@ pub enum EditMsg {
     GenerateQr(String),
     QrGenerated(Loadable<QrGuard>),
     CreateNewLink,
-    Created(Status),
+    Created(Status<Message>),
     EditCodeChanged(String),
     EditDescriptionChanged(String),
     EditTargetChanged(String),
@@ -194,7 +194,7 @@ pub enum EditMsg {
     SaveLink,
     FailedToCreateLink,
     FailedToDeleteLink,
-    DeletedLink(Status),
+    DeletedLink(Status<Message>),
 }
 
 /// hide all dialogs
@@ -335,7 +335,7 @@ pub fn process_query_messages(msg: QueryMsg, model: &mut Model, orders: &mut imp
         }
         QueryMsg::GetStatistics(link_id) => {
             orders.skip(); // No need to rerender
-            request_statistics(orders, link_id);
+                           //request_statistics(orders, link_id);
         }
         QueryMsg::ReceivedStatistics(statistics) => {
             for i in 1..model.links.len() {
@@ -603,7 +603,7 @@ fn save_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
             Msg::SetMessage("Failed to save link (await)".into())
         );
         if response.ok() {
-            let message: Status = unwrap_or_return!(
+            let message: Status<Message> = unwrap_or_return!(
                 response.json().await,
                 Msg::SetMessage("Failed to save link (parse)".into())
             );
@@ -627,7 +627,7 @@ fn delete_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
             Msg::SetMessage("Failed to delete link (await)".into())
         );
         if response.ok() {
-            let message: Status = unwrap_or_return!(
+            let message: Status<Message> = unwrap_or_return!(
                 response.json().await,
                 Msg::SetMessage("Failed to delete link (parse)".into())
             );

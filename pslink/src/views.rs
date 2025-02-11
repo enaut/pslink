@@ -282,9 +282,11 @@ pub async fn process_login_json(
                 Ok(h) => h,
                 Err(e) => {
                     info!("Failed to parse password hash for {}: {}", &u.username, e);
-                    return Ok(HttpResponse::Unauthorized().json(Status::Error(Message {
-                        message: "Failed to Login".to_string(),
-                    })));
+                    return Ok(HttpResponse::Unauthorized().json(Status::Error::<Message>(
+                        Message {
+                            message: "Failed to Login".to_string(),
+                        },
+                    )));
                 }
             };
             match argon2::Argon2::new_with_secret(
@@ -302,29 +304,35 @@ pub async fn process_login_json(
                     match Identity::login(&request.extensions(), session_token) {
                         Ok(_) => {
                             info!("Logged in user: {}", &u.username);
-                            return Ok(HttpResponse::Ok().json(&u));
+                            return Ok(HttpResponse::Ok().json(Status::Success(&u)));
                         }
                         Err(e) => {
                             info!("Failed to login: {}", e);
-                            return Ok(HttpResponse::Unauthorized().json(Status::Error(Message {
-                                message: "Failed to Login".to_string(),
-                            })));
+                            return Ok(HttpResponse::Unauthorized().json(
+                                Status::Error::<Message>(Message {
+                                    message: "Failed to Login".to_string(),
+                                }),
+                            ));
                         }
                     }
                 }
                 Err(e) => {
                     info!("Failed to login: {}", e);
-                    return Ok(HttpResponse::Unauthorized().json(Status::Error(Message {
-                        message: "Failed to Login".to_string(),
-                    })));
+                    return Ok(HttpResponse::Unauthorized().json(Status::Error::<Message>(
+                        Message {
+                            message: "Failed to Login".to_string(),
+                        },
+                    )));
                 }
             }
         }
         Err(e) => {
             info!("Failed to login: {}", e);
-            Ok(HttpResponse::Unauthorized().json(Status::Error(Message {
-                message: "Failed to Login".to_string(),
-            })))
+            Ok(
+                HttpResponse::Unauthorized().json(Status::Error::<Message>(Message {
+                    message: "Failed to Login".to_string(),
+                })),
+            )
         }
     }
 }
