@@ -593,11 +593,24 @@ pub fn process_edit_messages(msg: EditMsg, model: &mut Model, orders: &mut impl 
 fn save_link(link_delta: LinkDelta, orders: &mut impl Orders<Msg>) {
     orders.perform_cmd(async {
         let data = link_delta;
-        let request = unwrap_or_return!(
-            Request::post("/admin/json/create_link/").json(&data),
-            Msg::SetMessage("Failed to save link (json)".into())
-        )
-        .send();
+        let request = match data.edit {
+            EditMode::Create => {
+                let request = unwrap_or_return!(
+                    Request::post("/admin/json/create_link/").json(&data),
+                    Msg::SetMessage("Failed to save link (json)".into())
+                )
+                .send();
+                request
+            }
+            EditMode::Edit => {
+                let request = unwrap_or_return!(
+                    Request::post("/admin/json/edit_link/").json(&data),
+                    Msg::SetMessage("Failed to save link (json)".into())
+                )
+                .send();
+                request
+            }
+        };
         let response = unwrap_or_return!(
             request.await,
             Msg::SetMessage("Failed to save link (await)".into())
