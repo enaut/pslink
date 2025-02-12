@@ -8,6 +8,7 @@ use gloo_net::http::Request;
 use i18n::I18n;
 use pages::list_links;
 use pages::list_users;
+use pslink_shared::apirequests::general::Status;
 use pslink_shared::{
     apirequests::users::LoginUser,
     datatypes::{Lang, Loadable, User},
@@ -275,8 +276,13 @@ fn login_user(model: &mut Model, orders: &mut impl Orders<Msg>) {
         .send();
         let response = unwrap_or_return!(request.await, Msg::NotAuthenticated);
         if response.ok() {
-            let user: User = unwrap_or_return!(response.json().await, Msg::NotAuthenticated);
-            Msg::UserReceived(user)
+            if let Status::Success(user) =
+                unwrap_or_return!(response.json().await, Msg::NotAuthenticated)
+            {
+                Msg::UserReceived(user)
+            } else {
+                Msg::NotAuthenticated
+            }
         } else {
             Msg::NotAuthenticated
         }
