@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "Select * from links where id = ? ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "title",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "target",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "code",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "author",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 5,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5624dec3d87f37ae3f77fb265ace3075b8e46bdcc0af273e0f28d4e1a89b6e9e"
+}

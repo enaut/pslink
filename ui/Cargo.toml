@@ -1,0 +1,11 @@
+[package]
+name = "ui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+indexmap = "*"
+fast_qr = { version = "0.12.7", features = ["svg"] }
+dioxus = { workspace = true }
+backend = { workspace = true }
+pslink-shared = { workspace = true }

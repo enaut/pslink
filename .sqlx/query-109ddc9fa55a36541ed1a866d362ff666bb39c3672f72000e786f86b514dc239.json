@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "Select * from users where id = ? ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "username",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "email",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "password",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "role",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "language",
+        "ordinal": 5,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "109ddc9fa55a36541ed1a866d362ff666bb39c3672f72000e786f86b514dc239"
+}
