@@ -134,14 +134,17 @@ fn EditFooter(
     rsx! {
         footer { class: "modal-card-foot is-justify-content-flex-end",
             div { class: "buttons",
-                Buttons { edit_link }
+                Buttons { edit_link, links }
             }
         }
     }
 }
 
 #[component]
-fn Buttons(mut edit_link: Signal<Option<EditDialog>>) -> Element {
+fn Buttons(
+    mut edit_link: Signal<Option<EditDialog>>,
+    links: Resource<IndexMap<String, FullLink>>,
+) -> Element {
     if let Some(EditDialog { link_delta, .. }) = edit_link() {
         info!("Edit mode: {:?}", link_delta.edit);
         match link_delta.edit {
@@ -157,6 +160,8 @@ fn Buttons(mut edit_link: Signal<Option<EditDialog>>) -> Element {
                                         let link_delta = dialog.link_delta;
                                         info!("Link delta: {:?}", link_delta);
                                         let _res = backend::link_api::create_link(link_delta).await;
+                                        links.restart();
+                                        edit_link.set(None);
                                     }
                                 }
                             }
@@ -177,6 +182,8 @@ fn Buttons(mut edit_link: Signal<Option<EditDialog>>) -> Element {
                                         let link_delta = dialog.link_delta;
                                         info!("Link delta: {:?}", link_delta);
                                         let _res = backend::link_api::save_link(link_delta).await;
+                                        links.restart();
+                                        edit_link.set(None);
                                     }
                                 }
                             }
@@ -201,6 +208,8 @@ fn Buttons(mut edit_link: Signal<Option<EditDialog>>) -> Element {
                                                     link_delta.id.expect("Link ID must be set"),
                                                 )
                                                 .await;
+                                            links.restart();
+                                            edit_link.set(None);
                                         }
                                     }
                                 }
