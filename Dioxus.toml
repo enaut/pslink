@@ -1,0 +1,15 @@
+[application]
+
+
+[web.app]
+
+title = "Pslink Kurzlinks"
+base_path = "app"
+
+[Web.wasm_opt]
+level = "s"
+
+[bundle]
+identifier = "de.teilgedanken.pslink"
+publisher = "Franz Dietrich"
+icon = ["ui/assets/favicon.svg"]

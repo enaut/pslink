@@ -6,6 +6,8 @@ mod models;
 
 pub mod auth_api;
 pub mod link_api;
+#[cfg(feature = "server")]
+pub mod redirect_links;
 
 #[cfg(feature = "server")]
 use pslink_shared::datatypes::Secret;
@@ -81,10 +83,14 @@ pub fn launch_server(app: fn() -> Result<dioxus::prelude::VNode, dioxus::prelude
 
             //User::create_user_tables(&pool).await;
 
+            let admin = Router::new().serve_dioxus_application(ServeConfig::new().unwrap(), app);
+
             // build our application with some routes
             let axum_route = Router::new()
                 // Server side render the application, serve static assets, and register server functions
-                .serve_dioxus_application(ServeConfig::new().unwrap(), app)
+                .nest("/app/", admin)
+                .route("/:data", get(redirect_links::redirect))
+                .route("/", get(redirect_links::redirect_empty))
                 .layer(
                     axum_session_auth::AuthSessionLayer::<
                         auth::AuthAccount,
