@@ -1,3 +1,8 @@
+mod link_display;
+mod link_edit;
+mod new_link_button;
+mod stats;
+
 use dioxus::{logger::tracing::info, prelude::*};
 use fast_qr::{
     convert::{svg::SvgBuilder, Builder as _, Shape},
@@ -9,14 +14,16 @@ use pslink_shared::{
         general::{EditMode, Filter, Operation, Ordering},
         links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
     },
-    datatypes::{Clicks, FullLink},
+    datatypes::FullLink,
 };
 
+use crate::links::link_display::LinkDisplay;
+use crate::links::link_edit::LinkEdit;
+use crate::links::new_link_button::NewLinkButton;
 use crate::{navbar::Route, PslinkContext};
 
 const LINKS_CSS: Asset = asset!("/assets/styling/links.css");
 
-const TRASH_SVG: Asset = asset!("/assets/trash.svg");
 const SEARCH_SVG: Asset = asset!("/assets/search.svg");
 const RELOAD_SVG: Asset = asset!("/assets/reload.svg");
 
@@ -47,7 +54,6 @@ fn toggle_column(
 struct EditDialog {
     link_delta: LinkDelta,
     qr: String,
-    old_code: Option<String>,
 }
 
 trait OptionEditDialog {
@@ -58,11 +64,12 @@ trait OptionEditDialog {
         title: String,
         target: String,
         author: Option<i64>,
-        old_code: Option<String>,
+        edit_mode: EditMode,
     );
     fn update_code(&mut self, code: String);
     fn update_title(&mut self, title: String);
     fn update_target(&mut self, target: String);
+    fn set_edit_mode(&mut self, edit_mode: EditMode);
 }
 
 impl OptionEditDialog for Signal<Option<EditDialog>> {
@@ -73,19 +80,18 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
         title: String,
         target: String,
         author: Option<i64>,
-        old_code: Option<String>,
+        edit_mode: EditMode,
     ) {
         let qr_string = calculate_qr_code(&code);
         if let Some(mut dialog) = self() {
             dialog.link_delta = LinkDelta {
                 id,
                 author: None,
-                edit: EditMode::Edit,
+                edit: edit_mode,
                 title,
                 target,
                 code,
             };
-            dialog.old_code = old_code;
             dialog.qr = qr_string;
             self.set(Some(dialog));
         } else {
@@ -93,12 +99,11 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
                 link_delta: LinkDelta {
                     id,
                     author,
-                    edit: EditMode::Edit,
+                    edit: edit_mode,
                     title,
                     target,
                     code,
                 },
-                old_code,
                 qr: qr_string,
             }))
         }
@@ -123,6 +128,14 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
         info!("Updating target to: {}", target);
         if let Some(mut dialog) = self() {
             dialog.link_delta.target = target;
+            self.set(Some(dialog));
+        };
+    }
+
+    fn set_edit_mode(&mut self, edit_mode: EditMode) {
+        info!("Updating edit to: {:?}", &edit_mode);
+        if let Some(mut dialog) = self() {
+            dialog.link_delta.edit = edit_mode;
             self.set(Some(dialog));
         };
     }
@@ -309,6 +322,9 @@ pub fn Links() -> Element {
                         }
                     }
                 }
+                div {
+                    NewLinkButton { edit_link }
+                }
                 a { class: "loadmore button",
                     img { src: RELOAD_SVG, class: "reloadicon" }
                     "load more links"
@@ -322,188 +338,5 @@ pub fn Links() -> Element {
                 }
             }
         }
-    }
-}
-
-#[component]
-fn LinkDisplay(
-    current_code: String,
-    links: Resource<IndexMap<String, FullLink>>,
-    link_signal: Signal<Option<EditDialog>>,
-) -> Element {
-    let cached_code = current_code.clone();
-    let ll = use_memo(move || {
-        links
-            .as_ref()
-            .expect("Links loaded")
-            .get(&current_code)
-            .unwrap()
-            .clone()
-    });
-
-    rsx! {
-        tr {
-            onclick: move |_| {
-                info!("Edit link");
-                link_signal
-                    .set_edit_dialog(
-                        Some(ll().link.id),
-                        ll().link.code.clone(),
-                        ll().link.title.clone(),
-                        ll().link.target.clone(),
-                        None,
-                        Some(cached_code.clone()),
-                    );
-            },
-
-            td { "{ll().link.code}" }
-            td { "{ll().link.title}" }
-            td { "{ll().link.target}" }
-            td { "{ll().user.username}" }
-            td {
-                Stats { clicks: ll().clicks }
-            }
-            td { class: "table_qr" }
-            td {
-                img { src: TRASH_SVG, class: "trashicon" }
-            }
-        }
-    }
-}
-
-#[component]
-fn Stats(clicks: Clicks) -> Element {
-    match clicks {
-        Clicks::Count(count) => rsx! {
-            div { "{count.number}" }
-        },
-        Clicks::Extended(stats) => rsx! {
-            div { "{stats.total.number}" }
-        },
-    }
-}
-#[component]
-fn LinkEdit(
-    edit_link: Signal<Option<EditDialog>>,
-    links: Resource<IndexMap<String, FullLink>>,
-) -> Element {
-    if edit_link().is_some() {
-        rsx! {
-            div { class: "modal is-active",
-                div { class: "modal-background" }
-                div { class: "modal-card",
-                    header { class: "modal-card-head",
-                        p { class: "modal-card-title", "Edit link" }
-                        button {
-                            "aria-label": "close",
-                            class: "delete",
-                            onclick: move |_| {
-                                edit_link.set(None);
-                            },
-                        }
-                    }
-                    div { class: "modal-card-body",
-                        div { class: "field is-horizontal",
-                            div { class: "field-label is-normal",
-                                label { class: "label", "Description" }
-                            }
-                            div { class: "field-body",
-                                div { class: "field",
-                                    p { class: "control",
-                                        input {
-                                            placeholder: "Description",
-                                            value: "{edit_link().expect(\"dialog defined\").link_delta.title}",
-                                            r#type: "text",
-                                            class: "input",
-                                            oninput: move |e| {
-                                                edit_link.update_title(e.value());
-                                            },
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        div { class: "field is-horizontal",
-                            div { class: "field-label is-normal",
-                                label { class: "label", "Link target" }
-                            }
-                            div { class: "field-body",
-                                div { class: "field",
-                                    p { class: "control",
-                                        input {
-                                            placeholder: "Link target",
-                                            value: "{edit_link().expect(\"dialog defined\").link_delta.target}",
-                                            r#type: "text",
-                                            class: "input",
-                                            oninput: move |e| {
-                                                edit_link.update_target(e.value());
-                                            },
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        div { class: "field is-horizontal",
-                            div { class: "field-label is-normal",
-                                label { class: "label", "Link code" }
-                            }
-                            div { class: "field-body",
-                                div { class: "field",
-                                    p { class: "control",
-                                        input {
-                                            placeholder: "Link code",
-                                            value: "{edit_link().expect(\"dialog defined\").link_delta.code}",
-                                            r#type: "text",
-                                            class: "input",
-                                            oninput: move |e| {
-                                                edit_link.update_code(e.value());
-                                            },
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        div { class: "field is-horizontal",
-                            div { class: "field-label is-normal",
-                                label { class: "label", "QR Code" }
-                            }
-                            div { class: "field-body",
-                                div {
-                                    width: "133px",
-                                    dangerous_inner_html: "{edit_link().expect(\"dialog defined\").qr}",
-                                }
-                            }
-                        }
-                    }
-                    footer { class: "modal-card-foot is-justify-content-flex-end",
-                        div { class: "buttons",
-                            button {
-                                class: "button is-success",
-                                onclick: {
-                                    move |_e: Event<MouseData>| {
-                                        info!("Save edits");
-                                        async move {
-                                            if let Some(dialog) = edit_link() {
-                                                let link_delta = dialog.link_delta;
-                                                info!("Link delta: {:?}", link_delta);
-                                                let res = backend::link_api::save_link(link_delta).await;
-                                                links.restart();
-                                                info!("Save result: {:?}", res);
-                                                edit_link.set(None);
-                                            } else {
-                                                info!("Edit dialog is not open");
-                                            }
-                                        }
-                                    }
-                                },
-                                "Save Edits"
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        rsx! {}
     }
 }

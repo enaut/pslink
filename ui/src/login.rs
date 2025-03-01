@@ -2,7 +2,7 @@ use dioxus::{logger::tracing::info, prelude::*};
 
 use crate::{navbar::Route, PslinkContext};
 
-const BLOG_CSS: Asset = asset!("/assets/styling/login.css");
+const LOGIN_CSS: Asset = asset!("/assets/styling/login.css");
 
 #[component]
 pub fn LoginScreen() -> Element {
@@ -13,7 +13,7 @@ pub fn LoginScreen() -> Element {
 
     info!("Rendering login screen with username: {}", username);
     rsx! {
-        document::Stylesheet { href: BLOG_CSS }
+        document::Stylesheet { href: LOGIN_CSS }
         form { onsubmit: move |event| { info!("Submitted! {event:?}") },
             div { class: "center login",
                 h1 { "Login {user:?}" }
