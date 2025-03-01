@@ -12,4 +12,9 @@ level = "s"
 [bundle]
 identifier = "de.teilgedanken.pslink"
 publisher = "Franz Dietrich"
-icon = ["ui/assets/favicon.svg"]
+icon = [
+    "ui/assets/favicon.svg",
+    "ui/assets/favicon.png",
+    "ui/assets/favicon.icns",
+    "ui/assets/favicon.ico",
+]
