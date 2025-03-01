@@ -9,3 +9,4 @@ fast_qr = { version = "0.12.7", features = ["svg"] }
 dioxus = { workspace = true }
 backend = { workspace = true }
 pslink-shared = { workspace = true }
+wasmtimer = "*"

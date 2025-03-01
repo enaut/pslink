@@ -22,7 +22,7 @@ sqlx = { workspace = true, features = [
     "tls-native-tls",
     "runtime-tokio",
 ], optional = true }
-tokio = { version = "1.40", optional = true }
+tokio = { version = "1.43", optional = true }
 pslink-shared = { workspace = true }
 async-trait = { version = "0.1.86", optional = true }
 argon2 = { version = "0.5.3", optional = true }

@@ -7,7 +7,9 @@ use pslink_shared::datatypes::FullLink;
 use crate::links::stats::Stats;
 use crate::links::EditDialog;
 use crate::links::OptionEditDialog as _;
+use crate::PslinkContext;
 const TRASH_SVG: Asset = asset!("/assets/trash.svg");
+const VANISHING_MESSAGE: Asset = asset!("/assets/styling/vanishing_message.css");
 
 #[component]
 pub fn LinkDisplay(
@@ -23,25 +25,48 @@ pub fn LinkDisplay(
             .unwrap()
             .clone()
     });
-
+    let mut nachricht = use_signal(move || None);
+    let PslinkContext { user } = use_context::<PslinkContext>();
+    let mut timer = use_resource(move || {
+        let delay = std::time::Duration::from_secs(3);
+        let mut nachricht = nachricht.clone();
+        async move {
+            wasmtimer::tokio::sleep(delay).await;
+            nachricht.set(None);
+        }
+    });
     rsx! {
+        document::Stylesheet { href: VANISHING_MESSAGE }
+
         tr {
+
+
             onclick: move |_| {
                 info!("Edit link");
-                link_signal
-                    .set_edit_dialog(
-                        Some(ll().link.id),
-                        ll().link.code.clone(),
-                        ll().link.title.clone(),
-                        ll().link.target.clone(),
-                        None,
-                        EditMode::Edit,
-                    );
+                if user().unwrap().id != ll().link.author {
+                    nachricht.set(Some("You are not the author of this link".to_string()));
+                    timer.restart();
+                } else {
+                    link_signal
+                        .set_edit_dialog(
+                            Some(ll().link.id),
+                            ll().link.code.clone(),
+                            ll().link.title.clone(),
+                            ll().link.target.clone(),
+                            None,
+                            EditMode::Edit,
+                        );
+                }
             },
 
             td { "{ll().link.code}" }
             td { "{ll().link.title}" }
-            td { "{ll().link.target}" }
+            td {
+                if nachricht().is_some() {
+                    div { class: "is-danger notification vanishing-message", "{nachricht().unwrap()}" }
+                }
+                "{ll().link.target}"
+            }
             td { "{ll().user.username}" }
             td {
                 Stats { clicks: ll().clicks }
