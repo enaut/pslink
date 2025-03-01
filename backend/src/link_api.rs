@@ -1,3 +1,4 @@
+#[cfg(feature = "server")]
 use std::str::FromStr;
 
 #[cfg(feature = "server")]

@@ -314,7 +314,7 @@ pub fn Links() -> Element {
                             for code in link_codes().expect("Links not loaded") {
                                 LinkDisplay {
                                     key: code.clone(),
-                                    current_code: code,
+                                    current_code: code.clone(),
                                     links,
                                     link_signal: edit_link.clone(),
                                 }
