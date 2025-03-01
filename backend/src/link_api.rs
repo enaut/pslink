@@ -235,3 +235,31 @@ pub async fn get_link_simple(link_code: String) -> Result<Link, ServerFnError> {
     info!("Foun d link for {:?}", link);
     Ok(link)
 }
+
+#[server(DeleteLink)]
+pub async fn delete_link(link_id: i64) -> Result<(), ServerFnError> {
+    let auth = crate::auth::get_session().await?;
+    if auth.is_anonymous() {
+        return Err(ServerFnError::new("Not authenticated".to_owned()));
+    }
+    let user = auth
+        .current_user
+        .expect("not authenticated")
+        .get_user()
+        .expect("User is authenticated");
+
+    // Get existing link first
+    let link = Link::get_link_by_id(link_id).await?;
+
+    // Verify ownership
+    if link.author != user.id {
+        return Err(ServerFnError::new(
+            "Not authorized to delete this link".to_owned(),
+        ));
+    }
+
+    // Use the trait method to delete
+    Link::delete_link_by_code(&link.code).await?;
+
+    Ok(())
+}
