@@ -11,9 +11,9 @@ pub enum Route {
     #[layout(WebNavbar)]
     #[route("/login")]
     LoginScreen {},
-    #[route("/app/links")]
+    #[route("/links")]
     Links {},
-    #[route("/app")]
+    #[route("/")]
     Home {},
     // PageNotFound is a catch all route that will match any route and placing the matched segments in the route field
     #[route("/:..route")]
@@ -47,9 +47,6 @@ pub fn Navbar(children: Element) -> Element {
                 ol {
                     li {
                         Link { to: Route::Links {}, "List of existing links" }
-                    }
-                    li {
-                        a { href: "/app/list_links/create_link", "Add a new link" }
                     }
                     li {
                         a { href: "/app/list_users/create_user", "Invite a new user" }
