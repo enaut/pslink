@@ -172,7 +172,14 @@ fn Buttons(
             }
             EditMode::Edit => {
                 return rsx! {
-                    button {
+                        button {
+                            class: "button is-danger",
+                            onclick: move |_e: Event<MouseData>| {
+                                edit_link.set_edit_mode(EditMode::Delete(true));
+                            },
+                            "Link Löschen"
+                        }
+                        button {
                         class: "button is-success",
                         onclick: {
                             move |_e: Event<MouseData>| {
