@@ -211,7 +211,7 @@ pub async fn save_link(data: LinkDelta) -> Result<Item<Link>, ServerFnError> {
     let mut link = Link::get_link_by_id(data.id.expect("Link ID must be set")).await?;
 
     // Verify ownership
-    if link.author != user.id {
+    if user.role != Role::Admin && link.author != user.id {
         return Err(ServerFnError::new(
             "Not authorized to edit this link".to_owned(),
         ));
