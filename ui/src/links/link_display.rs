@@ -2,6 +2,7 @@ use dioxus::logger::tracing::info;
 use dioxus::prelude::*;
 use indexmap::IndexMap;
 use pslink_shared::apirequests::general::EditMode;
+use pslink_shared::apirequests::users::Role;
 use pslink_shared::datatypes::FullLink;
 
 use crate::links::stats::Stats;
@@ -42,8 +43,9 @@ pub fn LinkDisplay(
 
 
             onclick: move |_| {
-                info!("Edit link");
-                if user().unwrap().id != ll().link.author {
+                info!("Edit link {:?}", user().unwrap().role);
+                if user().unwrap().role != Role::Admin && user().unwrap().id != ll().link.author
+                {
                     nachricht.set(Some("You are not the author of this link".to_string()));
                     timer.restart();
                 } else {
