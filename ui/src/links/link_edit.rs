@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use dioxus::{logger::tracing::info, prelude::*};
 use indexmap::IndexMap;
 use pslink_shared::{apirequests::general::EditMode, datatypes::FullLink};
@@ -9,9 +11,24 @@ pub fn LinkEdit(
     edit_link: Signal<Option<EditDialog>>,
     links: Resource<IndexMap<String, FullLink>>,
 ) -> Element {
+    let on_esc_event = move |evt: KeyboardEvent| {
+        if evt.key() == Key::Escape {
+            edit_link.set(None);
+        }
+    };
+    let mut description_field: Signal<Option<Rc<MountedData>>> = use_signal(|| None);
+    let _focus_grabber = use_resource(move || async move {
+        if description_field().is_some() {
+            description_field()
+                .expect("username field visible")
+                .set_focus(true)
+                .await
+                .expect("failed to set focus");
+        }
+    });
     if edit_link().is_some() {
         rsx! {
-            div { class: "modal is-active",
+            div { class: "modal is-active", onkeydown: on_esc_event,
                 div { class: "modal-background" }
                 div { class: "modal-card",
                     header { class: "modal-card-head",
@@ -33,6 +50,10 @@ pub fn LinkEdit(
                                 div { class: "field",
                                     p { class: "control",
                                         input {
+                                            autofocus: true,
+                                            onmounted: move |e| {
+                                                description_field.set(Some(e.data()));
+                                            },
                                             placeholder: "Description",
                                             value: "{edit_link().expect(\"dialog defined\").link_delta.title}",
                                             r#type: "text",
@@ -172,14 +193,14 @@ fn Buttons(
             }
             EditMode::Edit => {
                 return rsx! {
-                        button {
-                            class: "button is-danger",
-                            onclick: move |_e: Event<MouseData>| {
-                                edit_link.set_edit_mode(EditMode::Delete(true));
-                            },
-                            "Link Löschen"
-                        }
-                        button {
+                    button {
+                        class: "button is-danger",
+                        onclick: move |_e: Event<MouseData>| {
+                            edit_link.set_edit_mode(EditMode::Delete(true));
+                        },
+                        "Link Löschen"
+                    }
+                    button {
                         class: "button is-success",
                         onclick: {
                             move |_e: Event<MouseData>| {

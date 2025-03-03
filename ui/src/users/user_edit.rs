@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use dioxus::{logger::tracing::info, prelude::*};
 use indexmap::IndexMap;
 use pslink_shared::{
@@ -12,21 +14,24 @@ pub fn UserEdit(
     edit_dialog_signal: Signal<Option<EditDialog>>,
     users: Resource<IndexMap<String, User>>,
 ) -> Element {
-    let change_evt = move |evt: KeyboardEvent| {
+    let on_esc_event = move |evt: KeyboardEvent| {
         if evt.key() == Key::Escape {
             edit_dialog_signal.set(None);
         }
     };
-    let mut grab_focus = use_signal(move || true);
+    let mut username_field: Signal<Option<Rc<MountedData>>> = use_signal(|| None);
     let _focus_grabber = use_resource(move || async move {
-        if grab_focus() && edit_dialog_signal().is_some() {
-            edit_dialog_signal.focus_username().await;
-            grab_focus.set(false);
+        if username_field().is_some() {
+            username_field()
+                .expect("username field visible")
+                .set_focus(true)
+                .await
+                .expect("failed to set focus");
         }
     });
     if edit_dialog_signal().is_some() {
         rsx! {
-            div { class: "modal is-active", onkeydown: change_evt,
+            div { class: "modal is-active", onkeydown: on_esc_event,
                 div { class: "modal-background" }
                 div { class: "modal-card",
                     header { class: "modal-card-head",
@@ -52,8 +57,7 @@ pub fn UserEdit(
                                         input {
                                             autofocus: true,
                                             onmounted: move |e| {
-                                                edit_dialog_signal.set_username_field(Some(e.data()));
-                                                grab_focus.set(true);
+                                                username_field.set(Some(e.data()));
                                             },
                                             placeholder: "Username",
                                             value: "{edit_dialog_signal().expect(\"dialog defined\").user_delta.username}",

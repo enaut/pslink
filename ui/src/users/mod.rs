@@ -2,8 +2,6 @@ mod new_user_button;
 mod user_display;
 mod user_edit;
 
-use std::rc::Rc;
-
 use dioxus::{logger::tracing::info, prelude::*};
 
 use indexmap::IndexMap;
@@ -51,7 +49,6 @@ fn toggle_column(
 #[derive(Clone)]
 struct EditDialog {
     user_delta: UserDelta,
-    username_field: Option<Rc<MountedData>>,
 }
 
 trait OptionUserEditDialog {
@@ -69,8 +66,6 @@ trait OptionUserEditDialog {
     fn update_password(&mut self, password: Option<String>);
     fn update_role(&mut self, role: Role);
     fn set_edit_mode(&mut self, edit_mode: EditMode);
-    fn set_username_field(&mut self, username_field: Option<Rc<MountedData>>);
-    async fn focus_username(&self);
 }
 
 impl OptionUserEditDialog for Signal<Option<EditDialog>> {
@@ -103,7 +98,6 @@ impl OptionUserEditDialog for Signal<Option<EditDialog>> {
                     password,
                     role,
                 },
-                username_field: None,
             }))
         }
     }
@@ -145,24 +139,6 @@ impl OptionUserEditDialog for Signal<Option<EditDialog>> {
         if let Some(mut dialog) = self() {
             dialog.user_delta.edit = edit_mode;
             self.set(Some(dialog));
-        }
-    }
-
-    fn set_username_field(&mut self, username_field: Option<Rc<MountedData>>) {
-        if let Some(mut dialog) = self() {
-            dialog.username_field = username_field;
-            self.set(Some(dialog));
-        }
-    }
-
-    async fn focus_username(&self) {
-        if let Some(dialog) = self() {
-            if let Some(username_field) = &dialog.username_field {
-                username_field
-                    .set_focus(true)
-                    .await
-                    .expect("failed to focus");
-            }
         }
     }
 }
