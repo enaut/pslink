@@ -22,7 +22,7 @@ use crate::links::link_edit::LinkEdit;
 use crate::links::new_link_button::NewLinkButton;
 use crate::{navbar::Route, PslinkContext};
 
-const LINKS_CSS: Asset = asset!("/assets/styling/links.css");
+const LINKS_CSS: Asset = asset!("/assets/styling/lists.css");
 
 const SEARCH_SVG: Asset = asset!("/assets/search.svg");
 const RELOAD_SVG: Asset = asset!("/assets/reload.svg");

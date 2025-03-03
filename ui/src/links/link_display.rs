@@ -26,7 +26,7 @@ pub fn LinkDisplay(
             .unwrap()
             .clone()
     });
-    let mut nachricht = use_signal(move || None);
+    let mut nachricht: Signal<Option<String>> = use_signal(move || None);
     let PslinkContext { user } = use_context::<PslinkContext>();
     let mut timer = use_resource(move || {
         let delay = std::time::Duration::from_secs(3);

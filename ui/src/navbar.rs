@@ -1,4 +1,4 @@
-use crate::{home::Home, links::Links, login::LoginScreen, PslinkContext};
+use crate::{home::Home, links::Links, login::LoginScreen, users::Users, PslinkContext};
 use backend::auth_api::get_session_info;
 use dioxus::{logger::tracing::info, prelude::*};
 
@@ -13,6 +13,8 @@ pub enum Route {
     LoginScreen {},
     #[route("/links")]
     Links {},
+    #[route("/users")]
+    Users {},
     #[route("/")]
     Home {},
     // PageNotFound is a catch all route that will match any route and placing the matched segments in the route field
@@ -46,13 +48,10 @@ pub fn Navbar(children: Element) -> Element {
             nav {
                 ol {
                     li {
-                        Link { to: Route::Links {}, "List of existing links" }
+                        Link { to: Route::Links {}, "Short Urls" }
                     }
                     li {
-                        a { href: "/app/list_users/create_user", "Invite a new user" }
-                    }
-                    li {
-                        a { href: "/app/list_users", "List of existing users" }
+                        Link { to: Route::Users {}, "Users" }
                     }
                 }
                 ol {
