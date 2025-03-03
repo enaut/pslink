@@ -24,6 +24,7 @@ pub trait UserDbOperations<T> {
     async fn toggle_admin(self) -> Result<(), ServerFnError>;
     async fn set_language(self, new_language: Lang) -> Result<(), ServerFnError>;
     async fn count_admins() -> Result<Count, ServerFnError>;
+    async fn delete_user(id: i64, current_user_id: i64) -> Result<(), ServerFnError>;
 }
 
 impl UserDbOperations<Self> for User {
@@ -170,6 +171,28 @@ impl UserDbOperations<Self> for User {
             .fetch_one(&db)
             .await?;
         Ok(num)
+    }
+
+    /// Delete a user by their ID and reassign their links to another user
+    ///
+    /// This first reassigns all links created by the deleted user to the current user,
+    /// then removes the user from the database.
+    ///
+    /// # Errors
+    /// fails with [`ServerFnError`] if the database cannot be accessed or the user is not found.
+    async fn delete_user(id: i64, current_user_id: i64) -> Result<(), ServerFnError> {
+        let db = crate::get_db().await;
+        sqlx::query!(
+            "UPDATE links SET author = ? where author = ?",
+            current_user_id,
+            id
+        )
+        .execute(&db)
+        .await?;
+        sqlx::query!("DELETE from users where id = ? ", id)
+            .execute(&db)
+            .await?;
+        Ok(())
     }
 }
 

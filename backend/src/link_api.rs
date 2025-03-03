@@ -101,6 +101,7 @@ pub async fn list_all_allowed(
 /// Generate a filter statement for the SQL-Query according to the parameters...
 ///
 /// Todo: this function only naively protects agains SQL-injections use better variants.
+#[cfg(feature = "server")]
 fn generate_filter_sql(filters: &EnumMap<LinkOverviewColumns, Filter>) -> String {
     let mut result = String::new();
     let filterstring = filters
@@ -150,6 +151,7 @@ macro_rules! ts {
 }
 
 /// Generate a order statement for the SQL-Query according to the parameters...
+#[cfg(feature = "server")]
 fn generate_order_sql(order: &Operation<LinkOverviewColumns, Ordering>) -> String {
     match order.column {
         LinkOverviewColumns::Code => {

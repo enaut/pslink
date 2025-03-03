@@ -8,6 +8,7 @@ pub mod auth_api;
 pub mod link_api;
 #[cfg(feature = "server")]
 pub mod redirect_links;
+pub mod user_api;
 
 #[cfg(feature = "server")]
 use pslink_shared::datatypes::Secret;
