@@ -4,6 +4,7 @@ mod new_link_button;
 mod stats;
 
 use dioxus::{logger::tracing::info, prelude::*};
+use dioxus_i18n::t;
 use fast_qr::{
     convert::{svg::SvgBuilder, Builder as _, Shape},
     QRBuilder,
@@ -208,35 +209,35 @@ pub fn Links() -> Element {
                                 onclick: move |_| {
                                     order_by.set(toggle_column(order_by(), LinkOverviewColumns::Code));
                                 },
-                                "Link code"
+                                {t!("links-table-header-code")} // Column header for link code
                             }
                             th {
                                 class: "headlines",
                                 onclick: move |_| {
                                     order_by.set(toggle_column(order_by(), LinkOverviewColumns::Description));
                                 },
-                                "Description"
+                                {t!("links-table-header-description")} // Column header for description
                             }
                             th {
                                 class: "headlines",
                                 onclick: move |_| {
                                     order_by.set(toggle_column(order_by(), LinkOverviewColumns::Target));
                                 },
-                                "Link target"
+                                {t!("links-table-header-target")} // Column header for link target
                             }
                             th {
                                 class: "headlines",
                                 onclick: move |_| {
                                     order_by.set(toggle_column(order_by(), LinkOverviewColumns::Author));
                                 },
-                                "Username"
+                                {t!("links-table-header-username")} // Column header for username
                             }
                             th {
                                 class: "headlines",
                                 onclick: move |_| {
                                     order_by.set(toggle_column(order_by(), LinkOverviewColumns::Statistics));
                                 },
-                                "Statistics"
+                                {t!("links-table-header-statistics")} // Column header for statistics
                             }
                             th {}
                             th {}
@@ -246,7 +247,7 @@ pub fn Links() -> Element {
                                 div { class: "control has-icons-left has-icons-right is-small",
                                     input {
                                         r#type: "search",
-                                        placeholder: "Filter according to...",
+                                        placeholder: t!("links-table-filter-placeholder"), // Placeholder text for filter input field
                                         value: "{code_filter}",
                                         class: "input is-small",
                                         oninput: move |e| {
@@ -263,7 +264,7 @@ pub fn Links() -> Element {
                                     input {
                                         value: "{description_filter}",
                                         r#type: "search",
-                                        placeholder: "Filter according to...",
+                                        placeholder: t!("links-table-filter-placeholder"), // Placeholder text for filter input field
                                         class: "input is-small",
                                         oninput: move |e| {
                                             description_filter.set(e.value());
@@ -279,7 +280,7 @@ pub fn Links() -> Element {
                                     input {
                                         r#type: "search",
                                         value: "{target_filter}",
-                                        placeholder: "Filter according to...",
+                                        placeholder: t!("links-table-filter-placeholder"), // Placeholder text for filter input field
                                         class: "input is-small",
                                         oninput: move |e| {
                                             target_filter.set(e.value());
@@ -293,7 +294,7 @@ pub fn Links() -> Element {
                             td {
                                 div { class: "control has-icons-left has-icons-right is-small",
                                     input {
-                                        placeholder: "Filter according to...",
+                                        placeholder: t!("links-table-filter-placeholder"), // Placeholder text for filter input field
                                         value: "{username_filter}",
                                         class: "input is-small",
                                         r#type: "search",
@@ -327,14 +328,14 @@ pub fn Links() -> Element {
                 }
                 a { class: "loadmore button",
                     img { src: RELOAD_SVG, class: "reloadicon" }
-                    "load more links"
+                    {t!("links-button-load-more")} // Button text to load more links
                 }
             }
         } else {
             div { class: "centered",
                 div { class: "boxed",
-                    div { "Loading..." }
-                    Link { to: Route::LoginScreen {}, "Login" }
+                    div { {t!("links-loading")} } // Text displayed while loading links data
+                    Link { to: Route::LoginScreen {}, {t!("links-login")} } // Text for login link
                 }
             }
         }

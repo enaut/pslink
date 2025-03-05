@@ -10,3 +10,4 @@ dioxus = { workspace = true }
 backend = { workspace = true }
 pslink-shared = { workspace = true }
 wasmtimer = "*"
+dioxus-i18n = "0.4.2"

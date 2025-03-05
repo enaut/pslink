@@ -263,3 +263,20 @@ pub async fn delete_user(user_id: i64) -> Result<(), ServerFnError> {
         Err(ServerFnError::new("Permission denied!".to_owned()))
     }
 }
+
+/// Set a users language
+#[server(SetUserLanguage)]
+pub async fn set_user_language(language: Lang) -> Result<(), ServerFnError> {
+    let auth = crate::auth::get_session().await?;
+    let user = auth
+        .current_user
+        .expect("not authenticated")
+        .get_user()
+        .expect("User is authenticated");
+    let user_id = user.id;
+    println!("Setting {}'s language to {:?}", user.username, language);
+    let res = user.set_language(language).await?;
+    let auth = crate::auth::get_session().await?;
+    auth.cache_clear_user(user_id);
+    Ok(res)
+}

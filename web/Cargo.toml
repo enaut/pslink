@@ -8,6 +8,7 @@ dioxus = { workspace = true, features = ["router"] }
 ui = { workspace = true }
 backend = { workspace = true }
 pslink-shared = { workspace = true }
+dioxus-i18n = "0.4.2"
 
 [features]
 default = []

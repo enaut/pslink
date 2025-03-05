@@ -3,6 +3,7 @@ mod user_display;
 mod user_edit;
 
 use dioxus::{logger::tracing::info, prelude::*};
+use dioxus_i18n::t;
 
 use indexmap::IndexMap;
 use new_user_button::NewUserButton;
@@ -190,30 +191,30 @@ pub fn Users() -> Element {
                                 onclick: move |_| {
                                     order_by.set(toggle_column(order_by(), UserOverviewColumns::Id));
                                 },
-                                "User ID"
+                                {t!("users-table-header-user-id")} // Column header for user ID
                             }
                             th {
                                 class: "headlines",
                                 onclick: move |_| {
                                     order_by.set(toggle_column(order_by(), UserOverviewColumns::Username));
                                 },
-                                "Username"
+                                {t!("users-table-header-username")} // Column header for username
                             }
                             th {
                                 class: "headlines",
                                 onclick: move |_| {
                                     order_by.set(toggle_column(order_by(), UserOverviewColumns::Email));
                                 },
-                                "E-Mail"
+                                {t!("users-table-header-email")} // Column header for email address
                             }
-                            th { class: "headlines", "Role" }
+                            th { class: "headlines", {t!("users-table-header-role")} } // Column header for user role
                         }
                         tr {
                             td {
                                 div { class: "control has-icons-left has-icons-right is-small",
                                     input {
                                         r#type: "search",
-                                        placeholder: "Filter according to...",
+                                        placeholder: t!("users-table-filter-placeholder"), // Placeholder text for filter input field
                                         value: "{id_filter}",
                                         class: "input is-small",
                                         oninput: move |e| {
@@ -230,7 +231,7 @@ pub fn Users() -> Element {
                                     input {
                                         value: "{username_filter}",
                                         r#type: "search",
-                                        placeholder: "Filter according to...",
+                                        placeholder: t!("users-table-filter-placeholder"), // Placeholder text for filter input field
                                         class: "input is-small",
                                         oninput: move |e| {
                                             username_filter.set(e.value());
@@ -246,7 +247,7 @@ pub fn Users() -> Element {
                                     input {
                                         r#type: "search",
                                         value: "{email_filter}",
-                                        placeholder: "Filter according to...",
+                                        placeholder: t!("users-table-filter-placeholder"), // Placeholder text for filter input field
                                         class: "input is-small",
                                         oninput: move |e| {
                                             email_filter.set(e.value());
@@ -275,15 +276,15 @@ pub fn Users() -> Element {
                     NewUserButton { edit_dialog_signal }
                     a { class: "loadmore button",
                         img { src: RELOAD_SVG, class: "reloadicon" }
-                        "load more users"
+                        {t!("users-button-load-more")} // Button text to load more users
                     }
                 }
             }
         } else {
             div { class: "centered",
                 div { class: "boxed",
-                    div { "Loading..." }
-                    Link { to: Route::LoginScreen {}, "Login" }
+                    div { {t!("users-loading")} } // Text displayed while loading user data
+                    Link { to: Route::LoginScreen {}, {t!("users-login")} } // Text for login link
                 }
             }
         }

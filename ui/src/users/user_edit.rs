@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use dioxus::{logger::tracing::info, prelude::*};
+use dioxus_i18n::t;
 use indexmap::IndexMap;
 use pslink_shared::{
     apirequests::{general::EditMode, users::Role},
@@ -34,22 +35,11 @@ pub fn UserEdit(
             div { class: "modal is-active", onkeydown: on_esc_event,
                 div { class: "modal-background" }
                 div { class: "modal-card",
-                    header { class: "modal-card-head",
-                        p { class: "modal-card-title",
-                            "Edit User {edit_dialog_signal().expect(\"a user should be loaded.\").user_delta.username}"
-                        }
-                        button {
-                            "aria-label": "close",
-                            class: "delete",
-                            onclick: move |_| {
-                                edit_dialog_signal.set(None);
-                            },
-                        }
-                    }
+                    CardHeader { edit_dialog_signal }
                     div { class: "modal-card-body",
                         div { class: "field is-horizontal is-wider",
                             div { class: "field-label is-normal",
-                                label { class: "label", "Username" }
+                                label { class: "label", {t!("user-edit-label-username")} } // Label for username field in edit form
                             }
                             div { class: "field-body",
                                 div { class: "field",
@@ -59,7 +49,7 @@ pub fn UserEdit(
                                             onmounted: move |e| {
                                                 username_field.set(Some(e.data()));
                                             },
-                                            placeholder: "Username",
+                                            placeholder: t!("user-edit-placeholder-username"), // Placeholder text for username input field
                                             value: "{edit_dialog_signal().expect(\"dialog defined\").user_delta.username}",
                                             r#type: "text",
                                             class: "input",
@@ -73,13 +63,13 @@ pub fn UserEdit(
                         }
                         div { class: "field is-horizontal is-wider",
                             div { class: "field-label is-normal",
-                                label { class: "label", "Email" }
+                                label { class: "label", {t!("user-edit-label-email")} } // Label for email field in edit form
                             }
                             div { class: "field-body",
                                 div { class: "field",
                                     p { class: "control",
                                         input {
-                                            placeholder: "E-Mail",
+                                            placeholder: t!("user-edit-placeholder-email"), // Placeholder text for email input field
                                             value: "{edit_dialog_signal().expect(\"dialog defined\").user_delta.email}",
                                             r#type: "text",
                                             class: "input",
@@ -93,13 +83,13 @@ pub fn UserEdit(
                         }
                         div { class: "field is-horizontal is-wider",
                             div { class: "field-label is-normal",
-                                label { class: "label", "Password" }
+                                label { class: "label", {t!("user-edit-label-password")} } // Label for password field in edit form
                             }
                             div { class: "field-body",
                                 div { class: "field",
                                     p { class: "control",
                                         input {
-                                            placeholder: "Password",
+                                            placeholder: t!("user-edit-placeholder-password"), // Placeholder text for password input field
                                             value: if edit_dialog_signal().expect("dialog defined").user_delta.password.is_some() { "{edit_dialog_signal().expect(\"dialog defined\").user_delta.password.unwrap()}" },
                                             r#type: "text",
                                             class: "input",
@@ -118,7 +108,7 @@ pub fn UserEdit(
                         }
                         div { class: "field is-horizontal is-wider",
                             div { class: "field-label is-normal",
-                                label { class: "label", "Berechtigung" }
+                                label { class: "label", {t!("user-edit-label-role")} } // Label for role selection dropdown in edit form
                             }
                             div { class: "field-body",
                                 p { class: "control", style: "width: 100%",
@@ -134,19 +124,19 @@ pub fn UserEdit(
                                             option {
                                                 value: Role::Regular.to_i64(),
                                                 selected: edit_dialog_signal().expect("dialog defined").user_delta.role == Role::Regular,
-                                                "Normalnutzer"
+                                                {t!("user-edit-role-regular")} // Option for regular user role in dropdown
                                             }
                                             option {
                                                 value: Role::Admin.to_i64(),
                                                 selected: edit_dialog_signal().expect("dialog defined").user_delta.role == Role::Admin,
-                                                "Admin"
+                                                {t!("user-edit-role-admin")} // Option for admin role in dropdown
                                             }
                                             option {
                                                 value: Role::Disabled.to_i64(),
                                                 selected: edit_dialog_signal().expect("dialog defined").user_delta.role == Role::Disabled
                                                     || edit_dialog_signal().expect("dialog defined").user_delta.role
                                                         == Role::NotAuthenticated,
-                                                "Deaktiviert"
+                                                {t!("user-edit-role-disabled")} // Option for disabled role in dropdown
                                             }
 
                                         }
@@ -175,9 +165,7 @@ pub fn ConfirmDialog(
             return rsx! {};
         }
         rsx! {
-            div { class: "notification is-danger",
-                "Einen Nutzer zu löschen ist meist nicht sinnvoll, da die erstellten Links dann Besitzerlos sind. Besser wäre es einfach das Passwort zu ändern."
-            }
+            div { class: "notification is-danger", {t!("user-edit-delete-warning")} } // Warning message displayed when attempting to delete a user
         }
     } else {
         rsx! {}
@@ -224,7 +212,7 @@ fn Buttons(
                                 }
                             }
                         },
-                        "Neuen Nutzer erstellen"
+                        {t!("user-edit-button-create")} // Button text for creating a new user
                     }
                 };
             }
@@ -235,7 +223,7 @@ fn Buttons(
                         onclick: move |_e: Event<MouseData>| {
                             edit_dialog_signal.set_edit_mode(EditMode::Delete(true));
                         },
-                        "Nutzer Löschen"
+                        {t!("user-edit-button-delete")} // Button text for deleting a user
                     }
                     button {
                         class: "button is-success",
@@ -253,7 +241,7 @@ fn Buttons(
                                 }
                             }
                         },
-                        "Nutzer Verändern"
+                        {t!("user-edit-button-update")} // Button text for updating an existing user
                     }
                 };
             }
@@ -279,7 +267,7 @@ fn Buttons(
                                     }
                                 }
                             },
-                            "Nutzer wirklich Löschen"
+                            {t!("user-edit-button-confirm-delete")} // Button text for confirming user deletion
                         }
                     };
                 } else {
@@ -289,7 +277,7 @@ fn Buttons(
                             onclick: move |_e: Event<MouseData>| {
                                 edit_dialog_signal.set_edit_mode(EditMode::Delete(true));
                             },
-                            "Nutzer Löschen"
+                            {t!("user-edit-button-delete")} // Button text for deleting a user
                         }
                     };
                 }
@@ -297,5 +285,27 @@ fn Buttons(
         }
     } else {
         return rsx! {};
+    }
+}
+
+#[component]
+fn CardHeader(mut edit_dialog_signal: Signal<Option<EditDialog>>) -> Element {
+    if let Some(EditDialog { ref user_delta, .. }) = edit_dialog_signal() {
+        rsx! {
+            header { class: "modal-card-head",
+                p { class: "modal-card-title",
+                    {t!("user-edit-title", username : & user_delta.username)} // Title of the username in the edit dialog
+                }
+                button {
+                    "aria-label": "close",
+                    class: "delete",
+                    onclick: move |_| {
+                        edit_dialog_signal.set(None);
+                    },
+                }
+            }
+        }
+    } else {
+        rsx! {}
     }
 }

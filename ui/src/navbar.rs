@@ -1,6 +1,8 @@
 use crate::{home::Home, links::Links, login::LoginScreen, users::Users, PslinkContext};
-use backend::auth_api::get_session_info;
+use backend::{auth_api::get_session_info, user_api::set_user_language};
 use dioxus::{logger::tracing::info, prelude::*};
+use dioxus_i18n::{prelude::i18n, t, unic_langid::langid};
+use pslink_shared::datatypes::Lang;
 
 const NAVBAR_CSS: Asset = asset!("/assets/styling/navbar.css");
 const BULMA_CSS: Asset = asset!("/assets/styling/bulma.css");
@@ -24,6 +26,22 @@ pub enum Route {
 
 #[component]
 pub fn Navbar(children: Element) -> Element {
+    let mut language_selector = i18n();
+
+    let change_to_english = move |_| async move {
+        info!("Changing to English");
+        language_selector.set_language(langid!("en-US"));
+        set_user_language(Lang::EnUS)
+            .await
+            .expect("Failed to set language");
+    };
+    let change_to_german = move |_| async move {
+        info!("Changing to German");
+        language_selector.set_language(langid!("de-DE"));
+        set_user_language(Lang::DeDE)
+            .await
+            .expect("Failed to set language");
+    };
     let PslinkContext {
         user: mut user_signal,
     } = use_context::<PslinkContext>();
@@ -32,7 +50,6 @@ pub fn Navbar(children: Element) -> Element {
     let _ = use_resource(move || async move {
         if let Ok(session) = get_session_info().await {
             if let Some(user) = session.user {
-                info!("Setting user to: {:?}", &user);
                 user_signal.set(Some(user));
             } else {
                 info!("No user found in session");
@@ -42,28 +59,32 @@ pub fn Navbar(children: Element) -> Element {
     });
 
     rsx!(
-        if let Some(user) = user_signal.cloned() {
-            document::Stylesheet { href: NAVBAR_CSS }
-            document::Stylesheet { href: BULMA_CSS }
-            nav {
+        document::Stylesheet { href: NAVBAR_CSS }
+        document::Stylesheet { href: BULMA_CSS }
+        nav {
+            if let Some(_user) = user_signal.cloned() {
                 ol {
                     li {
-                        Link { to: Route::Links {}, "Short Urls" }
+                        Link { to: Route::Links {}, {t!("short_urls")} } // The menu entry for links
                     }
                     li {
-                        Link { to: Route::Users {}, "Users" }
+                        Link { to: Route::Users {}, {t!("users")} } // The menu entry for users
                     }
                 }
-                ol {
-                    li {
-                        div { class: "languageselector",
-                            "Language:"
-                            a { "de" }
-                            a { "en" }
-                        }
+            } else {
+                ol {}
+            }
+            ol {
+                li {
+                    div { class: "languageselector",
+                        {t!("language")} // The menu entry for language selection
+                        a { onclick: change_to_german, "de" }
+                        a { onclick: change_to_english, "en" }
                     }
+                }
+                if let Some(user) = user_signal.cloned() {
                     li {
-                        div { "Welcome {user.username}" }
+                        div { {t!("welcome-user", username : user.username)} }
                     }
                     li {
                         a {
@@ -76,22 +97,15 @@ pub fn Navbar(children: Element) -> Element {
                                     nav.push(Route::LoginScreen {});
                                 }
                             },
-                            "Logout"
+                            {t!("logout")} // The menu entry for logout
                         }
                     }
-                }
-            }
-        } else {
-            document::Stylesheet { href: NAVBAR_CSS }
-            nav {
-                ol {
-                    li { "Loading..." }
-                }
-                ol {
+                } else {
                     li {
-                        a { href: "/login/", "Login" }
+                        Link { to: Route::LoginScreen {}, {t!("login")} } // The menu entry for login
                     }
                 }
+
             }
         }
     )
@@ -113,9 +127,9 @@ pub fn PageNotFound(route: Vec<String>) -> Element {
                 div { class: "columns is-centered",
                     div { class: "column is-half",
                         div { class: "notification is-danger",
-                            h1 { class: "title", "404 - Page not found" }
-                            p { class: "subtitle", "The page you requested could not be found." }
-                            p { "Requested route: {route.join(\"/\")}" }
+                            h1 { class: "title", {t!("page-not-found")} } // The title of the page
+                            p { class: "subtitle", {t!("page-not-found-text")} } // The text of the page
+                            p { {t!("requested-route", route : route.join("/"))} } // The requested route on the 404 page
                         }
                     }
                 }

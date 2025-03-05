@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use dioxus::{logger::tracing::info, prelude::*};
+use dioxus_i18n::t;
 use indexmap::IndexMap;
 use pslink_shared::{apirequests::general::EditMode, datatypes::FullLink};
 
@@ -32,7 +33,7 @@ pub fn LinkEdit(
                 div { class: "modal-background" }
                 div { class: "modal-card",
                     header { class: "modal-card-head",
-                        p { class: "modal-card-title", "Edit link" }
+                        p { class: "modal-card-title", {t!("link-edit-modal-title")} } // Title for the link editing modal
                         button {
                             "aria-label": "close",
                             class: "delete",
@@ -44,7 +45,7 @@ pub fn LinkEdit(
                     div { class: "modal-card-body",
                         div { class: "field is-horizontal",
                             div { class: "field-label is-normal",
-                                label { class: "label", "Description" }
+                                label { class: "label", {t!("link-edit-field-description")} } // Label for description field
                             }
                             div { class: "field-body",
                                 div { class: "field",
@@ -54,7 +55,7 @@ pub fn LinkEdit(
                                             onmounted: move |e| {
                                                 description_field.set(Some(e.data()));
                                             },
-                                            placeholder: "Description",
+                                            placeholder: t!("link-edit-placeholder-description"), // Placeholder for description input
                                             value: "{edit_link().expect(\"dialog defined\").link_delta.title}",
                                             r#type: "text",
                                             class: "input",
@@ -68,13 +69,13 @@ pub fn LinkEdit(
                         }
                         div { class: "field is-horizontal",
                             div { class: "field-label is-normal",
-                                label { class: "label", "Link target" }
+                                label { class: "label", {t!("link-edit-field-target")} } // Label for link target field
                             }
                             div { class: "field-body",
                                 div { class: "field",
                                     p { class: "control",
                                         input {
-                                            placeholder: "Link target",
+                                            placeholder: t!("link-edit-placeholder-target"), // Placeholder for target input
                                             value: "{edit_link().expect(\"dialog defined\").link_delta.target}",
                                             r#type: "text",
                                             class: "input",
@@ -88,13 +89,13 @@ pub fn LinkEdit(
                         }
                         div { class: "field is-horizontal",
                             div { class: "field-label is-normal",
-                                label { class: "label", "Link code" }
+                                label { class: "label", {t!("link-edit-field-code")} } // Label for link code field
                             }
                             div { class: "field-body",
                                 div { class: "field",
                                     p { class: "control",
                                         input {
-                                            placeholder: "Link code",
+                                            placeholder: t!("link-edit-placeholder-code"), // Placeholder for code input
                                             value: "{edit_link().expect(\"dialog defined\").link_delta.code}",
                                             r#type: "text",
                                             class: "input",
@@ -108,7 +109,7 @@ pub fn LinkEdit(
                         }
                         div { class: "field is-horizontal",
                             div { class: "field-label is-normal",
-                                label { class: "label", "QR Code" }
+                                label { class: "label", {t!("link-edit-field-qrcode")} } // Label for QR code field
                             }
                             div { class: "field-body",
                                 div {
@@ -138,9 +139,7 @@ pub fn ConfirmDialog(
             return rsx! {};
         }
         rsx! {
-            div { class: "notification is-danger",
-                "Einen Link zu löschen ist in der Regel nicht empfehlenswert. Es sollten nur Links gelöscht werden, die nirgends veröffentlicht wurden, oder die absichtlich ins Leere führen sollen."
-            }
+            div { class: "notification is-danger", {t!("link-edit-delete-warning")} } // Warning message about deleting links
         }
     } else {
         rsx! {}
@@ -187,7 +186,7 @@ fn Buttons(
                                 }
                             }
                         },
-                        "Neuen Kurzlink erstellen"
+                        {t!("link-edit-button-create")} // Button text for creating a new link
                     }
                 };
             }
@@ -198,7 +197,7 @@ fn Buttons(
                         onclick: move |_e: Event<MouseData>| {
                             edit_link.set_edit_mode(EditMode::Delete(true));
                         },
-                        "Link Löschen"
+                        {t!("link-edit-button-delete")} // Button text for deleting a link
                     }
                     button {
                         class: "button is-success",
@@ -216,7 +215,7 @@ fn Buttons(
                                 }
                             }
                         },
-                        "Link Verändern"
+                        {t!("link-edit-button-modify")} // Button text for modifying a link
                     }
                 };
             }
@@ -242,7 +241,7 @@ fn Buttons(
                                     }
                                 }
                             },
-                            "Link wirklich Löschen"
+                            {t!("link-edit-button-confirm-delete")} // Button text for confirming link deletion
                         }
                     };
                 } else {
@@ -252,7 +251,7 @@ fn Buttons(
                             onclick: move |_e: Event<MouseData>| {
                                 edit_link.set_edit_mode(EditMode::Delete(true));
                             },
-                            "Link Löschen"
+                            {t!("link-edit-button-delete")} // Button text for deleting a link
                         }
                     };
                 }

@@ -1,5 +1,10 @@
 use dioxus::prelude::*;
 
+use dioxus_i18n::{
+    prelude::{i18n, use_init_i18n, I18nConfig},
+    unic_langid::langid,
+};
+use pslink_shared::datatypes::Lang;
 use ui::PslinkContext;
 
 mod views;
@@ -16,8 +21,30 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    use_init_i18n(|| {
+        I18nConfig::new(langid!("en-US"))
+            .with_locale((
+                langid!("en-US"),
+                include_str!("../../translations/en/US.ftl"),
+            ))
+            .with_locale((
+                langid!("de-DE"),
+                include_str!("../../translations/de/DE.ftl"),
+            ))
+    });
     // Build cool things ✌️
-    let _logged_user = use_context_provider(|| PslinkContext::default());
+    let logged_user = use_context_provider(|| PslinkContext::default());
+    let mut language_selector = i18n();
+    let _language_setter = use_memo(move || {
+        if let Some(user) = logged_user.user.read().as_ref() {
+            match user.language {
+                Lang::DeDE => language_selector.set_language(langid!("de-DE")),
+                Lang::EnUS => language_selector.set_language(langid!("en-US")),
+            }
+        } else {
+            language_selector.set_language(langid!("en-US"));
+        }
+    });
 
     rsx! {
         // Global app resources

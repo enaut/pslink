@@ -1,5 +1,6 @@
 use dioxus::logger::tracing::info;
 use dioxus::prelude::*;
+use dioxus_i18n::t;
 use indexmap::IndexMap;
 use pslink_shared::apirequests::general::EditMode;
 
@@ -45,10 +46,12 @@ pub fn UserDisplay(
             td { "{uu().email}" }
             td {
                 match uu().role {
-                    pslink_shared::apirequests::users::Role::NotAuthenticated => "Anonymous",
-                    pslink_shared::apirequests::users::Role::Disabled => "Disabled",
-                    pslink_shared::apirequests::users::Role::Regular => "Regular",
-                    pslink_shared::apirequests::users::Role::Admin => "Admin",
+                    pslink_shared::apirequests::users::Role::NotAuthenticated => {
+                        t!("users-role-anonymous")
+                    }
+                    pslink_shared::apirequests::users::Role::Disabled => t!("users-role-disabled"),
+                    pslink_shared::apirequests::users::Role::Regular => t!("users-role-regular"),
+                    pslink_shared::apirequests::users::Role::Admin => t!("users-role-admin"),
                 }
             }
         }

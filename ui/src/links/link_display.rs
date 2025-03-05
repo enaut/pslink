@@ -1,5 +1,6 @@
 use dioxus::logger::tracing::info;
 use dioxus::prelude::*;
+use dioxus_i18n::t;
 use indexmap::IndexMap;
 use pslink_shared::apirequests::general::EditMode;
 use pslink_shared::apirequests::users::Role;
@@ -46,7 +47,7 @@ pub fn LinkDisplay(
                 info!("Edit link {:?}", user().unwrap().role);
                 if user().unwrap().role != Role::Admin && user().unwrap().id != ll().link.author
                 {
-                    nachricht.set(Some("You are not the author of this link".to_string()));
+                    nachricht.set(Some(t!("links-error-not-author")));
                     timer.restart();
                 } else {
                     link_signal

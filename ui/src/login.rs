@@ -1,4 +1,5 @@
 use dioxus::{logger::tracing::info, prelude::*};
+use dioxus_i18n::t;
 
 use crate::{navbar::Route, PslinkContext};
 
@@ -16,27 +17,26 @@ pub fn LoginScreen() -> Element {
         document::Stylesheet { href: LOGIN_CSS }
         form { onsubmit: move |event| { info!("Submitted! {event:?}") },
             div { class: "center login",
-                h1 { "Login {user:?}" }
+                h1 { {t!("headline-login")} } // Headline on the login screen
                 div {
-                    label { "Benutzername" }
+                    label { {t!("username")} } // Username field label on the login screen
                     input {
                         r#type: "text",
                         autofocus: true,
                         value: "{username}",
-                        placeholder: "Benutzername",
+                        placeholder: t!("username"), // Username field placeholder on the login screen
                         oninput: move |e| {
                             username.set(e.value());
                         },
                     }
                 }
                 div {
-                    label { "Passwort" }
+                    label { {t!("password")} } // Password field label on the login screen
                     input {
                         r#type: "password",
-                        placeholder: "Passwort",
+                        placeholder: t!("password"), // Password field placeholder on the login screen
                         value: "{password}",
                         oninput: move |e| {
-                            info!("Setting password to: {}", e.value());
                             password.set(e.value());
                         },
                     }
@@ -44,8 +44,6 @@ pub fn LoginScreen() -> Element {
                 button {
                     onclick: move |_| {
                         async move {
-                            info!("Logging in with username: {}", username);
-                            info!("Setting password to: {}", password);
                             match backend::auth_api::login(username.to_string(), password.to_string())
                                 .await
                             {
@@ -59,7 +57,7 @@ pub fn LoginScreen() -> Element {
                             }
                         }
                     },
-                    "Login"
+                    {t!("login")} // Login button text
                 }
             }
         }
