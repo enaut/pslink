@@ -1,0 +1,47 @@
+name: Dioxus Fullstack App CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  frontend-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install Dioxus CLI
+        run: cargo install dioxus-cli
+
+      - name: Build Dioxus frontend
+        run: dx build --release --package web
+
+      - name: Create archive of build artifacts
+        run: tar -czvf web-release.tgz -C target/dx/web/release/web public
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: web-release.tgz
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts (for non-tagged builds)
+        uses: actions/upload-artifact@v2
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: web-build
+          path: web-release.tgz
