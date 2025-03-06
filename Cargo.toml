@@ -1,9 +1,0 @@
-[workspace]
-members = ["shared", "locales", "pslink", "app", "locales"]
-resolver = "2"
-
-[profile]
-[profile.release]
-lto = true
-#codegen-units = 1
-#opt-level = 'z' # Z is not supported by argonautica

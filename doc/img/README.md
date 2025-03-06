@@ -1,1 +1,0 @@
-Files that are used in documentation throughout the workspace.
