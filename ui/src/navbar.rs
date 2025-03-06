@@ -1,6 +1,6 @@
 use crate::{PslinkContext, home::Home, links::Links, login::LoginScreen, users::Users};
 use backend::{auth_api::get_session_info, user_api::set_user_language};
-use dioxus::{html::li, logger::tracing::info, prelude::*};
+use dioxus::{logger::tracing::info, prelude::*};
 use dioxus_i18n::{prelude::i18n, t, unic_langid::langid};
 use pslink_shared::datatypes::Lang;
 
