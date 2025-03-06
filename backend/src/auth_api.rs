@@ -2,7 +2,7 @@
 use crate::models::UserDbOperations as _;
 use dioxus::{
     logger::tracing::info,
-    prelude::{server, server_fn, ServerFnError},
+    prelude::{ServerFnError, server, server_fn},
 };
 use pslink_shared::{apirequests::users::SessionInfo, datatypes::User};
 
@@ -59,8 +59,16 @@ pub async fn logout() -> Result<(), ServerFnError> {
 #[server(GetSessionInfo)]
 pub async fn get_session_info() -> Result<SessionInfo, ServerFnError> {
     let auth = crate::auth::get_session().await;
+    let hostname = crate::auth::get_hostname().await;
     let auth = match auth {
         Ok(auth) => auth,
+        Err(e) => {
+            println!("Error: {:?}", e);
+            return Err(e);
+        }
+    };
+    let hostname = match hostname {
+        Ok(hostname) => hostname,
         Err(e) => {
             println!("Error: {:?}", e);
             return Err(e);
@@ -72,5 +80,8 @@ pub async fn get_session_info() -> Result<SessionInfo, ServerFnError> {
         Some(aa) => aa.get_user(),
         None => None,
     };
-    Ok(SessionInfo { user })
+    Ok(SessionInfo {
+        user,
+        hostname: hostname.0,
+    })
 }

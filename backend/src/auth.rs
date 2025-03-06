@@ -1,7 +1,8 @@
 #[cfg(feature = "server")]
 use crate::models::UserDbOperations;
 
-use dioxus::prelude::{extract, ServerFnError};
+use axum::extract::Host;
+use dioxus::prelude::{ServerFnError, extract};
 use pslink_shared::datatypes::User;
 
 #[derive(Debug, Clone)]
@@ -51,4 +52,10 @@ pub async fn get_session() -> Result<Session, ServerFnError> {
     extract::<_, _>()
         .await
         .map_err(|_| ServerFnError::new("AuthSessionLayer was not found"))
+}
+
+pub async fn get_hostname() -> Result<Host, ServerFnError> {
+    extract::<_, _>()
+        .await
+        .map_err(|_| ServerFnError::new("Hostname was not found"))
 }
