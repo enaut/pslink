@@ -21,18 +21,7 @@ fn main() {
 
 #[component]
 fn App() -> Element {
-    use_init_i18n(|| {
-        I18nConfig::new(langid!("en-US"))
-            .with_locale((
-                langid!("en-US"),
-                include_str!("../../translations/en/US.ftl"),
-            ))
-            .with_locale((
-                langid!("de-DE"),
-                include_str!("../../translations/de/DE.ftl"),
-            ))
-    });
-    // Build cool things ✌️
+    use_init_i18n(|| ui::translations::config(langid!("de-DE")));
     let logged_user = use_context_provider(|| PslinkContext::default());
     let mut language_selector = i18n();
     let _language_setter = use_memo(move || {

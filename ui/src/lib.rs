@@ -3,6 +3,7 @@
 pub mod home;
 mod links;
 pub mod login;
+pub mod translations;
 mod users;
 use dioxus::signals::Signal;
 pub use links::Links;
