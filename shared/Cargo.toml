@@ -7,13 +7,13 @@ categories = [
     "command-line-utilities",
 ]
 description = "A simple webservice that allows registered users to create short links including qr-codes.\nAnyone can visit the shortened links. This is an ideal setup for small busines or for publishing papers."
-edition = "2018"
+edition = "2024"
 keywords = ["url", "link", "webpage", "actix", "web"]
 license = "MIT OR Apache-2.0"
 name = "pslink-shared"
 readme = "../pslink/README.md"
 repository = "https://github.com/enaut/pslink/"
-version = "0.4.9"
+version = "0.5.0"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
