@@ -22,7 +22,7 @@ jobs:
           override: true
 
       - name: Install Dioxus CLI
-        run: cargo install dioxus-cli
+        run: cargo binstall dioxus-cli
 
       - name: Build Dioxus frontend
         run: dx build --release --package web
