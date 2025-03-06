@@ -5,13 +5,17 @@ use dioxus_i18n::t;
 use indexmap::IndexMap;
 use pslink_shared::{apirequests::general::EditMode, datatypes::FullLink};
 
-use crate::links::{EditDialog, OptionEditDialog as _};
+use crate::{
+    PslinkContext,
+    links::{EditDialog, OptionEditDialog as _},
+};
 
 #[component]
 pub fn LinkEdit(
     edit_link: Signal<Option<EditDialog>>,
     links: Resource<IndexMap<String, FullLink>>,
 ) -> Element {
+    let PslinkContext { hostname, .. } = use_context::<PslinkContext>();
     let on_esc_event = move |evt: KeyboardEvent| {
         if evt.key() == Key::Escape {
             edit_link.set(None);
@@ -43,7 +47,7 @@ pub fn LinkEdit(
                         }
                     }
                     div { class: "modal-card-body",
-                        div { class: "field is-horizontal",
+                        div { class: "field is-horizontal is-wider",
                             div { class: "field-label is-normal",
                                 label { class: "label", {t!("link-edit-field-description")} } // Label for description field
                             }
@@ -67,7 +71,7 @@ pub fn LinkEdit(
                                 }
                             }
                         }
-                        div { class: "field is-horizontal",
+                        div { class: "field is-horizontal is-wider",
                             div { class: "field-label is-normal",
                                 label { class: "label", {t!("link-edit-field-target")} } // Label for link target field
                             }
@@ -87,7 +91,7 @@ pub fn LinkEdit(
                                 }
                             }
                         }
-                        div { class: "field is-horizontal",
+                        div { class: "field is-horizontal is-wider",
                             div { class: "field-label is-normal",
                                 label { class: "label", {t!("link-edit-field-code")} } // Label for link code field
                             }
@@ -100,21 +104,23 @@ pub fn LinkEdit(
                                             r#type: "text",
                                             class: "input",
                                             oninput: move |e| {
-                                                edit_link.update_code(e.value());
+                                                edit_link.update_code(e.value(), &hostname());
                                             },
                                         }
                                     }
                                 }
                             }
                         }
-                        div { class: "field is-horizontal",
+                        div { class: "field is-horizontal is-wider",
                             div { class: "field-label is-normal",
                                 label { class: "label", {t!("link-edit-field-qrcode")} } // Label for QR code field
                             }
                             div { class: "field-body",
-                                div {
-                                    width: "133px",
-                                    dangerous_inner_html: "{edit_link().expect(\"dialog defined\").qr}",
+                                div { width: "133px",
+                                    a {
+                                        href: edit_link().expect("dialog defined").png_qr_url,
+                                        dangerous_inner_html: "{edit_link().expect(\"dialog defined\").qr}",
+                                    }
                                 }
                             }
                         }

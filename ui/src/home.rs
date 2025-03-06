@@ -4,7 +4,7 @@ use dioxus_i18n::t;
 
 #[component]
 pub fn Home() -> Element {
-    let PslinkContext { user } = use_context::<PslinkContext>();
+    let PslinkContext { user, .. } = use_context::<PslinkContext>();
 
     rsx! {
         if let Some(user) = user.cloned() {

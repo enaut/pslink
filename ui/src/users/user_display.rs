@@ -6,8 +6,8 @@ use pslink_shared::apirequests::general::EditMode;
 
 use pslink_shared::datatypes::User;
 
-use crate::users::OptionUserEditDialog as _;
 use crate::PslinkContext;
+use crate::users::OptionUserEditDialog as _;
 
 use super::EditDialog;
 
@@ -25,7 +25,7 @@ pub fn UserDisplay(
             .unwrap()
             .clone()
     });
-    let PslinkContext { user } = use_context::<PslinkContext>();
+    let PslinkContext { user, .. } = use_context::<PslinkContext>();
     rsx! {
         tr {
             onclick: move |_| {

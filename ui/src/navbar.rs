@@ -1,6 +1,6 @@
-use crate::{home::Home, links::Links, login::LoginScreen, users::Users, PslinkContext};
+use crate::{PslinkContext, home::Home, links::Links, login::LoginScreen, users::Users};
 use backend::{auth_api::get_session_info, user_api::set_user_language};
-use dioxus::{logger::tracing::info, prelude::*};
+use dioxus::{html::li, logger::tracing::info, prelude::*};
 use dioxus_i18n::{prelude::i18n, t, unic_langid::langid};
 use pslink_shared::datatypes::Lang;
 
@@ -44,6 +44,7 @@ pub fn Navbar(children: Element) -> Element {
     };
     let PslinkContext {
         user: mut user_signal,
+        hostname: mut hostname_signal,
     } = use_context::<PslinkContext>();
     let nav = navigator();
 
@@ -55,6 +56,7 @@ pub fn Navbar(children: Element) -> Element {
                 info!("No user found in session");
                 nav.push(Route::LoginScreen {});
             }
+            hostname_signal.set(session.hostname);
         }
     });
 
@@ -73,6 +75,11 @@ pub fn Navbar(children: Element) -> Element {
                 }
             } else {
                 ol {}
+            }
+            ol {
+                li {
+                    Link { to: Route::Home {}, {hostname_signal} }
+                }
             }
             ol {
                 li {

@@ -17,7 +17,7 @@ use pslink_shared::{
 use user_display::UserDisplay;
 use user_edit::UserEdit;
 
-use crate::{navbar::Route, PslinkContext};
+use crate::{PslinkContext, navbar::Route};
 
 const LISTS_CSS: Asset = asset!("/assets/styling/lists.css");
 
@@ -146,7 +146,7 @@ impl OptionUserEditDialog for Signal<Option<EditDialog>> {
 
 #[component]
 pub fn Users() -> Element {
-    let PslinkContext { user } = use_context::<PslinkContext>();
+    let PslinkContext { user, .. } = use_context::<PslinkContext>();
     let mut id_filter = use_signal(|| "".to_string());
     let mut email_filter = use_signal(|| "".to_string());
     let mut username_filter = use_signal(|| "".to_string());

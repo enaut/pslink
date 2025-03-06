@@ -6,10 +6,12 @@ use pslink_shared::apirequests::general::EditMode;
 use pslink_shared::apirequests::users::Role;
 use pslink_shared::datatypes::FullLink;
 
-use crate::links::stats::Stats;
+use crate::PslinkContext;
 use crate::links::EditDialog;
 use crate::links::OptionEditDialog as _;
-use crate::PslinkContext;
+use crate::links::generate_svg_qr_from_url;
+use crate::links::generate_url_for_code;
+use crate::links::stats::Stats;
 const TRASH_SVG: Asset = asset!("/assets/trash.svg");
 const VANISHING_MESSAGE: Asset = asset!("/assets/styling/vanishing_message.css");
 
@@ -28,7 +30,7 @@ pub fn LinkDisplay(
             .clone()
     });
     let mut nachricht: Signal<Option<String>> = use_signal(move || None);
-    let PslinkContext { user } = use_context::<PslinkContext>();
+    let PslinkContext { user, hostname } = use_context::<PslinkContext>();
     let mut timer = use_resource(move || {
         let delay = std::time::Duration::from_secs(3);
         let mut nachricht = nachricht.clone();
@@ -36,6 +38,11 @@ pub fn LinkDisplay(
             wasmtimer::tokio::sleep(delay).await;
             nachricht.set(None);
         }
+    });
+    let qr_code_svg = use_memo(move || {
+        let code = ll().link.code.clone();
+        let url = generate_url_for_code(&code, &hostname());
+        generate_svg_qr_from_url(&url)
     });
     rsx! {
         document::Stylesheet { href: VANISHING_MESSAGE }
@@ -58,6 +65,7 @@ pub fn LinkDisplay(
                             ll().link.target.clone(),
                             None,
                             EditMode::Edit,
+                            &hostname(),
                         );
                 }
             },
@@ -74,7 +82,7 @@ pub fn LinkDisplay(
             td {
                 Stats { clicks: ll().clicks }
             }
-            td { class: "table_qr" }
+            td { class: "table_qr", dangerous_inner_html: qr_code_svg }
             td {
                 onclick: move |e| {
                     info!("Delete link");
@@ -86,6 +94,7 @@ pub fn LinkDisplay(
                             ll().link.target.clone(),
                             None,
                             EditMode::Delete(false),
+                            &hostname(),
                         );
                     e.stop_propagation();
                 },

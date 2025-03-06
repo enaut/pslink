@@ -1,7 +1,7 @@
 use dioxus::{logger::tracing::info, prelude::*};
 use dioxus_i18n::t;
 
-use crate::{navbar::Route, PslinkContext};
+use crate::{PslinkContext, navbar::Route};
 
 const LOGIN_CSS: Asset = asset!("/assets/styling/login.css");
 
@@ -9,7 +9,7 @@ const LOGIN_CSS: Asset = asset!("/assets/styling/login.css");
 pub fn LoginScreen() -> Element {
     let mut username = use_signal(|| "".to_string());
     let mut password = use_signal(|| "".to_string());
-    let PslinkContext { mut user } = use_context::<PslinkContext>();
+    let PslinkContext { mut user, .. } = use_context::<PslinkContext>();
     let nav = navigator();
 
     info!("Rendering login screen with username: {}", username);

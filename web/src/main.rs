@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 use dioxus_i18n::{
-    prelude::{i18n, use_init_i18n, I18nConfig},
+    prelude::{I18nConfig, i18n, use_init_i18n},
     unic_langid::langid,
 };
 use pslink_shared::datatypes::Lang;

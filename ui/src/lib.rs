@@ -11,7 +11,9 @@ pub use links::Links;
 pub mod navbar;
 pub use navbar::Navbar;
 use pslink_shared::datatypes::User;
+
 #[derive(Clone, Copy, Default)]
 pub struct PslinkContext {
     pub user: Signal<Option<User>>,
+    pub hostname: Signal<String>,
 }

@@ -25,7 +25,16 @@ svg.statistics_graph {
 }
 
 td.table_qr svg {
-    max-height: 40px;
+    max-height: 50px;
+    padding: 0;
+    margin: 0;
+    margin-bottom: -10px;
+}
+
+td.table_qr {
+    padding: 0;
+    margin: 0;
+    width: 40px;
 }
 
 .cursor-pointer {

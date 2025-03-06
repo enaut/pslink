@@ -6,8 +6,8 @@ mod stats;
 use dioxus::{logger::tracing::info, prelude::*};
 use dioxus_i18n::t;
 use fast_qr::{
-    convert::{svg::SvgBuilder, Builder as _, Shape},
     QRBuilder,
+    convert::{Builder as _, Shape, image::ImageBuilder, svg::SvgBuilder},
 };
 use indexmap::IndexMap;
 use pslink_shared::{
@@ -17,11 +17,12 @@ use pslink_shared::{
     },
     datatypes::FullLink,
 };
+use web_sys::wasm_bindgen::JsValue;
 
 use crate::links::link_display::LinkDisplay;
 use crate::links::link_edit::LinkEdit;
 use crate::links::new_link_button::NewLinkButton;
-use crate::{navbar::Route, PslinkContext};
+use crate::{PslinkContext, navbar::Route};
 
 const LINKS_CSS: Asset = asset!("/assets/styling/lists.css");
 
@@ -55,6 +56,7 @@ fn toggle_column(
 struct EditDialog {
     link_delta: LinkDelta,
     qr: String,
+    png_qr_url: Option<String>,
 }
 
 trait OptionEditDialog {
@@ -66,8 +68,9 @@ trait OptionEditDialog {
         target: String,
         author: Option<i64>,
         edit_mode: EditMode,
+        host: &str,
     );
-    fn update_code(&mut self, code: String);
+    fn update_code(&mut self, code: String, host: &str);
     fn update_title(&mut self, title: String);
     fn update_target(&mut self, target: String);
     fn set_edit_mode(&mut self, edit_mode: EditMode);
@@ -82,8 +85,10 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
         target: String,
         author: Option<i64>,
         edit_mode: EditMode,
+        host: &str,
     ) {
-        let qr_string = calculate_qr_code(&code);
+        let url = generate_url_for_code(&code, host);
+        let qr_string = generate_svg_qr_from_url(&url);
         if let Some(mut dialog) = self() {
             dialog.link_delta = LinkDelta {
                 id,
@@ -106,14 +111,16 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
                     code,
                 },
                 qr: qr_string,
+                png_qr_url: Some(generate_blob_url_from_png(generate_png_qr_from_url(&url))),
             }))
         }
     }
-    fn update_code(&mut self, code: String) {
+    fn update_code(&mut self, code: String, host: &str) {
         info!("Updating code to: {}", code);
         if let Some(mut dialog) = self() {
-            dialog.qr = calculate_qr_code(&code);
-            dialog.link_delta.code = code;
+            let url = generate_url_for_code(&code, host);
+            dialog.qr = generate_svg_qr_from_url(&url);
+            dialog.link_delta.code = code.to_string();
             self.set(Some(dialog));
         }
     }
@@ -141,25 +148,10 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
         };
     }
 }
-fn calculate_qr_code(code: &str) -> String {
-    if code == "" {
-        return "".to_string();
-    }
-    let qrcode = QRBuilder::new(format!("http://fhs.li/{}/", code))
-        .ecl(fast_qr::ECL::L)
-        .build();
-    if let Ok(qrcode) = qrcode {
-        let svg = SvgBuilder::default().shape(Shape::Square).to_str(&qrcode);
-        svg
-    } else {
-        info!("Failed to create QR code");
-        "".to_string()
-    }
-}
 
 #[component]
 pub fn Links() -> Element {
-    let PslinkContext { user } = use_context::<PslinkContext>();
+    let PslinkContext { user, .. } = use_context::<PslinkContext>();
     let mut code_filter = use_signal(|| "".to_string());
     let mut description_filter = use_signal(|| "".to_string());
     let mut target_filter = use_signal(|| "".to_string());
@@ -340,4 +332,53 @@ pub fn Links() -> Element {
             }
         }
     }
+}
+
+/// generate a qr-code for a code
+pub fn generate_url_for_code(code: &str, host: &str) -> String {
+    format!("https://{}/{}", host, code)
+}
+
+/// generate a svg qr-code for a url
+fn generate_svg_qr_from_url(url: &str) -> String {
+    let qrcode = QRBuilder::new(url).ecl(fast_qr::ECL::L).build();
+    if let Ok(qrcode) = qrcode {
+        let svg = SvgBuilder::default().shape(Shape::Square).to_str(&qrcode);
+        svg
+    } else {
+        info!("Failed to create QR code");
+        "".to_string()
+    }
+}
+
+// generate a png qr-code for a url
+fn generate_png_qr_from_url(url: &str) -> Vec<u8> {
+    let qrcode = QRBuilder::new(url).ecl(fast_qr::ECL::L).build();
+
+    if let Ok(qrcode) = qrcode {
+        let png = ImageBuilder::default()
+            .shape(Shape::Square)
+            .fit_height((qrcode.size * 8).try_into().unwrap())
+            .fit_width((qrcode.size * 8).try_into().unwrap())
+            .to_bytes(&qrcode)
+            .expect("Failed to create png");
+        png
+    } else {
+        info!("Failed to create QR code");
+        vec![]
+    }
+}
+
+fn generate_blob_url_from_png(png: Vec<u8>) -> String {
+    let properties = web_sys::BlobPropertyBag::new();
+    properties.set_type("image/png");
+
+    let png_jsarray: JsValue = web_sys::js_sys::Uint8Array::from(&png[..]).into();
+    // the buffer has to be an array of arrays
+    let png_buffer: web_sys::js_sys::Array = IntoIterator::into_iter([png_jsarray]).collect();
+    let png_blob =
+        web_sys::Blob::new_with_buffer_source_sequence_and_options(&png_buffer, &properties)
+            .unwrap();
+    let url = web_sys::Url::create_object_url_with_blob(&png_blob).unwrap();
+    url
 }
