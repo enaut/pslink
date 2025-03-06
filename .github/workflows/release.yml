@@ -20,7 +20,7 @@ jobs:
         with:
           toolchain: stable
           override: true
-          
+
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main
 
@@ -31,7 +31,7 @@ jobs:
         run: dx build --release --package web
 
       - name: Create archive of build artifacts
-        run: tar -czvf web-release.tgz -C target/dx/web/release/web public
+        run: tar -czvf pslink-server-bundle.tgz -C target/dx/web/release/web
 
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v1
