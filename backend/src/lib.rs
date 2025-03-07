@@ -65,8 +65,6 @@ pub fn launch_server(app: fn() -> Result<dioxus::prelude::VNode, dioxus::prelude
     use dioxus_fullstack::ServeConfig;
     use pslink_shared::datatypes::Secret;
 
-    let secret = Secret::new("***REMOVED***".to_string());
-
     //simple_logger::SimpleLogger::new().init().unwrap();
     tokio::runtime::Runtime::new()
         .unwrap()
@@ -103,7 +101,7 @@ pub fn launch_server(app: fn() -> Result<dioxus::prelude::VNode, dioxus::prelude
                 )
                 .layer(axum_session::SessionLayer::new(session_store))
                 .with_state(pool)
-                .with_state(secret);
+                .with_state(get_secret());
             info!("Server configured");
 
             // run it
