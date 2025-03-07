@@ -7,3 +7,4 @@
 **/*.rs.bk
 links.db*
 Cargo.lock
+.env
