@@ -1,129 +1,131 @@
 # Generated translation template by dioxus-i18n-collect
-# Contains 64 translation keys
+# Contains 65 translation keys
 
-# Headline on the login screen
-# Source: ./ui/src/login.rs:20
+# Source: ./ui/src/login.rs:108
+# Parameters: $error
+failed-login = Benutzername oder passwort waren leider falsch, bitte versuche es erneut.
+
+# Source: ./ui/src/login.rs:36
 headline-login = Anmelden
 
 # The menu entry for language selection
-# Source: ./ui/src/navbar.rs:67
+# Source: ./ui/src/navbar.rs:86
 language = Sprachauswahl
 
 # Button text for confirming link deletion
-# Source: ./ui/src/links/link_edit.rs:244
+# Source: ./ui/src/links/link_edit.rs:250
 link-edit-button-confirm-delete = Diesen Link wirklich löschen
 
 # Button text for creating a new link
-# Source: ./ui/src/links/link_edit.rs:189
+# Source: ./ui/src/links/link_edit.rs:195
 link-edit-button-create = Link erstellen
 
 # Button text for deleting a link
-# Source: ./ui/src/links/link_edit.rs:200
+# Source: ./ui/src/links/link_edit.rs:206
 link-edit-button-delete = Link löschen
 
 # Button text for modifying a link
-# Source: ./ui/src/links/link_edit.rs:218
+# Source: ./ui/src/links/link_edit.rs:224
 link-edit-button-modify = Link verändern
 
 # Warning message about deleting links
-# Source: ./ui/src/links/link_edit.rs:142
+# Source: ./ui/src/links/link_edit.rs:148
 link-edit-delete-warning = Einen Link zu löschen ist in der Regel nicht empfehlenswert. Es sollten nur Links gelöscht werden, die nirgends veröffentlicht wurden, oder die absichtlich ins Leere führen sollen.
 
 # Label for link code field
-# Source: ./ui/src/links/link_edit.rs:92
+# Source: ./ui/src/links/link_edit.rs:96
 link-edit-field-code = Code
 
 # Label for description field
-# Source: ./ui/src/links/link_edit.rs:48
+# Source: ./ui/src/links/link_edit.rs:52
 link-edit-field-description = Beschreibung
 
 # Label for QR code field
-# Source: ./ui/src/links/link_edit.rs:112
+# Source: ./ui/src/links/link_edit.rs:116
 link-edit-field-qrcode = QR-Code
 
 # Label for link target field
-# Source: ./ui/src/links/link_edit.rs:72
+# Source: ./ui/src/links/link_edit.rs:76
 link-edit-field-target = Ziel der Weiterleitung
 
 # Title for the link editing modal
-# Source: ./ui/src/links/link_edit.rs:36
+# Source: ./ui/src/links/link_edit.rs:40
 link-edit-modal-title = Einen Link editieren
 
 # Placeholder for code input
-# Source: ./ui/src/links/link_edit.rs:98
+# Source: ./ui/src/links/link_edit.rs:102
 link-edit-placeholder-code = Code
 
 # Placeholder for description input
-# Source: ./ui/src/links/link_edit.rs:58
+# Source: ./ui/src/links/link_edit.rs:62
 link-edit-placeholder-description = Beschreibung
 
 # Placeholder for target input
-# Source: ./ui/src/links/link_edit.rs:78
+# Source: ./ui/src/links/link_edit.rs:82
 link-edit-placeholder-target = Ziel der Weiterleitung
 
 # Button text to load more links
-# Source: ./ui/src/links/mod.rs:331
+# Source: ./ui/src/links/mod.rs:323
 links-button-load-more = Mehr Links laden
 
 # Text displayed while loading links data
-# Source: ./ui/src/links/mod.rs:337
+# Source: ./ui/src/links/mod.rs:329
 links-loading = Die Links werden geladen
 
 # Text for login link
-# Source: ./ui/src/links/mod.rs:338
+# Source: ./ui/src/links/mod.rs:330
 links-login = Anmelden
 
 # Placeholder text for filter input field
-# Source: ./ui/src/links/mod.rs:250
+# Source: ./ui/src/links/mod.rs:242
 links-table-filter-placeholder = Filtere die Links nach…
 
 # Column header for link code
-# Source: ./ui/src/links/mod.rs:212
+# Source: ./ui/src/links/mod.rs:204
 links-table-header-code = Code
 
 # Column header for description
-# Source: ./ui/src/links/mod.rs:219
+# Source: ./ui/src/links/mod.rs:211
 links-table-header-description = Beschreibung
 
 # Column header for statistics
-# Source: ./ui/src/links/mod.rs:240
+# Source: ./ui/src/links/mod.rs:232
 links-table-header-statistics = Statistik
 
 # Column header for link target
-# Source: ./ui/src/links/mod.rs:226
+# Source: ./ui/src/links/mod.rs:218
 links-table-header-target = Ziel des Kurzlinks
 
 # Column header for username
-# Source: ./ui/src/links/mod.rs:233
+# Source: ./ui/src/links/mod.rs:225
 links-table-header-username = Author
 
 # The menu entry for login
-# Source: ./ui/src/navbar.rs:92
+# Source: ./ui/src/login.rs:146
 login = Anmelden
 
 # The menu entry for logout
-# Source: ./ui/src/navbar.rs:87
+# Source: ./ui/src/navbar.rs:106
 logout = Abmelden
 
 # The title of the page
-# Source: ./ui/src/navbar.rs:118
+# Source: ./ui/src/navbar.rs:136
 page-not-found = 404 – Seite nicht gefunden
 
 # The text of the page
-# Source: ./ui/src/navbar.rs:119
+# Source: ./ui/src/navbar.rs:137
 page-not-found-text = Diese Seite konnte nicht gefunden werden.
 
-# Password field label on the login screen
-# Source: ./ui/src/login.rs:34
+# Source: ./ui/src/login.rs:77
 password = Passwort
 
 # The requested route on the 404 page
-# Source: ./ui/src/navbar.rs:120
+# Source: ./ui/src/navbar.rs:138
 # Parameters: $route
 requested-route = Der Pfad, der gesucht wurde: {$route}
 
 # The menu entry for links
-# Source: ./ui/src/navbar.rs:55
+# Source: ./ui/src/navbar.rs:69
 short_urls = Kurzlinks
 
 # Button text for confirming user deletion
@@ -191,12 +193,11 @@ user-edit-role-regular = Regulär
 # Parameters: $username
 user-edit-title = Benutzerdaten
 
-# Username field label on the login screen
-# Source: ./ui/src/login.rs:22
+# Source: ./ui/src/login.rs:41
 username = Benutzername
 
 # The menu entry for users
-# Source: ./ui/src/navbar.rs:58
+# Source: ./ui/src/navbar.rs:72
 users = Benutzer
 
 # Button text to load more users
@@ -252,7 +253,7 @@ welcome = Herzlich willkommen {$username}
 # Source: ./ui/src/home.rs:13
 welcome-stranger = welcome-stranger
 
-# Source: ./ui/src/navbar.rs:74
+# Source: ./ui/src/navbar.rs:93
 # Parameters: $username
 welcome-user = Herzlich Wilkommen {$username}
 

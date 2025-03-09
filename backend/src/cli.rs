@@ -311,6 +311,7 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
                 error!("Afterwards restart the dx command.");
                 return Err(ServerFnError::new("Database not found".to_string()));
             } else {
+                init_db(&server_config.db.to_string_lossy()).await;
                 info!(
                     "Starting the server with the following configuration: {} {}",
                     server_config.internal_ip, server_config.port
