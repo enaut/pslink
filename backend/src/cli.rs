@@ -3,7 +3,7 @@ use dioxus::logger::tracing::{error, info, trace, warn};
 use dioxus::prelude::ServerFnError;
 use dotenv::dotenv;
 use pslink_shared::datatypes::{Secret, User};
-use sqlx::{Pool, Sqlite, migrate::Migrator};
+use sqlx::migrate::Migrator;
 use std::fmt::Display;
 use std::io::IsTerminal;
 use std::str::FromStr;
@@ -13,8 +13,8 @@ use std::{
     path::PathBuf,
 };
 
-use crate::init_db;
 use crate::models::{NewLink, NewUser, UserDbOperations as _};
+use crate::{get_db, init_db};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 
@@ -51,13 +51,10 @@ impl FromStr for Protocol {
 pub struct ServerConfig {
     pub secret: Secret,
     pub db: PathBuf,
-    pub db_pool: Pool<Sqlite>,
     pub public_url: String,
     pub internal_ip: String,
     pub port: u16,
     pub protocol: Protocol,
-    pub empty_forward_url: String,
-    pub brand_name: String,
 }
 
 /// The configuration can be serialized into an environment-file.
@@ -68,8 +65,6 @@ impl ServerConfig {
             format!("PSLINK_DATABASE=\"{}\"\n", self.db.display()),
             format!("PSLINK_PORT={}\n", self.port),
             format!("PSLINK_PUBLIC_URL=\"{}\"\n", self.public_url),
-            format!("PSLINK_EMPTY_FORWARD_URL=\"{}\"\n", self.empty_forward_url),
-            format!("PSLINK_BRAND_NAME=\"{}\"\n", self.brand_name),
             format!("PSLINK_IP=\"{}\"\n", self.internal_ip),
             format!("PSLINK_PROTOCOL=\"{}\"\n", self.protocol),
             concat!(
@@ -206,7 +201,7 @@ fn generate_cli() -> Command {
 
 /// parse the options to the [`ServerConfig`] struct
 async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
-    println!("Parsing the arguments");
+    info!("Parsing the arguments");
     let secret = config
         .get_one::<String>("secret")
         .expect("Failed to read the secret")
@@ -241,21 +236,9 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
         ))
         .parse::<PathBuf>()
         .expect("Failed to parse Database path.");
-    init_db(&db.to_string_lossy()).await;
-    let db_pool = Pool::<Sqlite>::connect(&db.display().to_string())
-        .await
-        .expect("Error: Failed to connect to database!");
     let public_url = config
         .get_one::<String>("public_url")
         .expect("Failed to read the host value")
-        .to_owned();
-    let empty_forward_url = config
-        .get_one::<String>("empty_forward_url")
-        .expect("Failed to read the empty_forward_url value")
-        .to_owned();
-    let brand_name = config
-        .get_one::<String>("brand_name")
-        .expect("Failed to read the brand_name value")
         .to_owned();
     let internal_ip = dioxus::cli_config::server_ip().map(|s| s.to_string());
     let internal_ip = config
@@ -275,17 +258,14 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
         .expect("Failed to read the protocol value")
         .parse::<Protocol>()
         .expect("Failed to parse the protocol");
-    println!("Arguments parsed");
+    info!("Arguments parsed");
     ServerConfig {
         secret,
         db,
-        db_pool,
         public_url,
         internal_ip,
         port: port,
         protocol,
-        empty_forward_url,
-        brand_name,
     }
 }
 
@@ -312,21 +292,48 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
     let app = generate_cli();
     let config = app.clone().get_matches();
 
-    let db = config
-        .get_one::<String>("database")
-        .expect(concat!(
-            "Neither the DATABASE_URL environment variable",
-            " nor the command line parameters",
-            " contain a valid database location."
-        ))
-        .parse::<PathBuf>()
-        .expect("Failed to parse Database path.");
+    let mut server_config: ServerConfig = parse_args_to_config(config.clone()).await;
+    if config.subcommand().is_none() {
+        // if the variable DIOXUS_CLI_ENABLED is true run the server
+        let dioxus_cli =
+            std::env::var("DIOXUS_CLI_ENABLED").map_or(false, |s| s.parse().unwrap_or(false));
+        if dioxus_cli {
+            server_config.internal_ip = dioxus::cli_config::server_ip()
+                .expect("Cli should be enabled")
+                .to_string();
+            server_config.port = dioxus::cli_config::server_port().expect("Cli should be enabled");
 
-    if !db.exists() {
+            // Check if database exists
+            if !server_config.db.exists() {
+                error!("Database not found at {}", server_config.db.display());
+                error!("Do you want to create a demo database? If so use the command:");
+                error!("target/dx/web/debug/web/server demo");
+                error!("Afterwards restart the dx command.");
+                return Err(ServerFnError::new("Database not found".to_string()));
+            } else {
+                info!(
+                    "Starting the server with the following configuration: {} {}",
+                    server_config.internal_ip, server_config.port
+                );
+                return Ok(Some(server_config));
+            }
+        } else {
+            println!("{}", generate_cli().render_usage());
+            return Err(ServerFnError::new(
+                "The command is missing try `runserver`".to_string(),
+            ));
+        }
+    }
+
+    let db = server_config.db.clone();
+    trace!("Checking if the database exists at {}", db.display());
+    if db.exists() {
+        init_db(&db.to_string_lossy()).await;
+    } else {
         trace!("No database file found {}", db.display());
-        if !(config.subcommand_matches("migrate-database").is_none()
-            | config.subcommand_matches("generate-env").is_none()
-            | config.subcommand_matches("demo").is_none())
+        if !(config.subcommand_matches("migrate-database").is_some()
+            | config.subcommand_matches("generate-env").is_some()
+            | config.subcommand_matches("demo").is_some())
         {
             let msg = format!(
                 concat!(
@@ -339,13 +346,12 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
             error!("{}", msg);
             eprintln!("{}", msg);
             return Ok(None);
+        } else {
+            warn!("Database not found at {}!", db.display());
         }
-        trace!("Creating database: {}", db.display());
-
-        // create an empty database file. The if above makes sure that this file does not exist.
-        File::create(db)?;
     };
-    let mut server_config: ServerConfig = parse_args_to_config(config.clone()).await;
+
+    trace!("Evaluation of the subcommands");
 
     if let Some(_migrate_config) = config.subcommand_matches("generate-env") {
         return match generate_env_file(&server_config) {
@@ -370,11 +376,6 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
     }
 
     if let Some(_runserver_config) = config.subcommand_matches("demo") {
-        let num_users = User::count_admins().await.expect("no admins");
-        if num_users.number > 0 {
-            return Err(ServerFnError::new("The database is not empty aborting because this could mean that creating a demo instance would lead in data loss.".to_string()));
-        }
-
         return generate_demo_data(server_config).await;
     }
 
@@ -393,73 +394,39 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
         trace!("Initialization finished starting the service.");
         Ok(Some(server_config))
     } else {
-        // if the variable DIOXUS_CLI_ENABLED is true run the server
-        let dioxus_cli =
-            std::env::var("DIOXUS_CLI_ENABLED").map_or(false, |s| s.parse().unwrap_or(false));
-        if dioxus_cli {
-            for var in std::env::vars() {
-                println!("{}: {}", var.0, var.1);
-            }
-            server_config.internal_ip = dioxus::cli_config::server_ip()
-                .expect("Cli should be enabled")
-                .to_string();
-            server_config.port = dioxus::cli_config::server_port().expect("Cli should be enabled");
-            info!(
-                "Starting the server with the following configuration: {} {}",
-                server_config.internal_ip, server_config.port
-            );
-            return Ok(Some(server_config));
-        } else {
-            println!("{}", generate_cli().render_usage());
-            Err(ServerFnError::new("Print usage."))
-        }
+        Err(ServerFnError::new("No command was provided.".to_string()))
     }
 }
 
 async fn add_example_links() {
-    NewLink {
-        title: "Pslink Repository".to_owned(),
-        target: "https://github.com/enaut/pslink".to_owned(),
-        code: "pslink".to_owned(),
-        author: 1,
-        created_at: chrono::Local::now().naive_utc(),
-    }
-    .insert()
-    .await
-    .expect("Failed to insert example 1");
+    let links = vec![
+        (
+            "Default for the empty url-code",
+            "",
+            "https://github.com/enaut/pslink",
+        ),
+        (
+            "Pslink Repository",
+            "pslink",
+            "https://github.com/enaut/pslink",
+        ),
+        ("Dioxus", "dioxus", "https://dioxuslabs.com/"),
+        ("Axum", "axum", "https://github.com/tokio-rs/axum"),
+        ("Rust", "rust", "https://www.rust-lang.org/"),
+    ];
 
-    NewLink {
-        title: "Seed".to_owned(),
-        target: "https://seed-rs.org/".to_owned(),
-        code: "seed".to_owned(),
-        author: 1,
-        created_at: chrono::Local::now().naive_utc(),
+    for (title, code, url) in links {
+        NewLink {
+            title: title.to_owned(),
+            target: url.to_owned(),
+            code: code.to_owned(),
+            author: 1,
+            created_at: chrono::Local::now().naive_utc(),
+        }
+        .insert()
+        .await
+        .expect("Failed to insert example 1");
     }
-    .insert()
-    .await
-    .expect("Failed to insert example 1");
-
-    NewLink {
-        title: "actix".to_owned(),
-        target: "https://actix.rs/".to_owned(),
-        code: "actix".to_owned(),
-        author: 1,
-        created_at: chrono::Local::now().naive_utc(),
-    }
-    .insert()
-    .await
-    .expect("Failed to insert example 1");
-
-    NewLink {
-        title: "rust".to_owned(),
-        target: "https://www.rust-lang.org/".to_owned(),
-        code: "rust".to_owned(),
-        author: 1,
-        created_at: chrono::Local::now().naive_utc(),
-    }
-    .insert()
-    .await
-    .expect("Failed to insert example 1");
 }
 
 /// Interactively create a new admin user.
@@ -519,7 +486,14 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerFnError> {
         "Creating a database file and running the migrations in the file {}:",
         &config.db.display()
     );
-    MIGRATOR.run(&config.db_pool).await?;
+    if config.db.exists() {
+        return Err(ServerFnError::new("The database is not empty aborting because this could mean that creating a demo instance would lead in data loss.".to_string()));
+    } else {
+        File::create(&config.db)?;
+        init_db(&config.db.to_string_lossy()).await;
+    }
+    let pool = get_db().await;
+    MIGRATOR.run(&pool).await?;
     info!("Migrations applied successfully.");
     Ok(())
 }
@@ -553,29 +527,30 @@ fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerFnError> 
 async fn generate_demo_data(
     server_config: ServerConfig,
 ) -> Result<Option<ServerConfig>, ServerFnError> {
-    let num_users = User::count_admins().await;
+    if server_config.db.exists() {
+        return Err(ServerFnError::new("The database is not empty aborting because this could mean that creating a demo instance would lead in data loss.".to_string()));
+    } else {
+        info!("Creating a demo database.");
+        generate_env_file(&server_config).expect("Failed to generate env file.");
 
-    match num_users {
-        Err(_) => {
-            generate_env_file(&server_config).expect("Failed to generate env file.");
-            apply_migrations(&server_config)
-                .await
-                .expect("Failed to apply migrations.");
-            let new_admin = NewUser::new(
-                "demo".to_string(),
-                "demo@teilgedanken.de".to_string(),
-                "demo",
-                &server_config.secret,
-            )
-            .expect("Failed to generate new user credentials.");
-            create_admin(&new_admin)
-                .await
-                .expect("Failed to create admin");
-            add_example_links().await;
-            return Ok(Some(server_config));
-        }
-        _ => {
-            return Err(ServerFnError::new("The database is not empty aborting because this could mean that creating a demo instance would lead in data loss.".to_string()));
-        }
+        dotenv().ok(); // create an empty database file. The if above makes sure that this file does not exist.
+        File::create(&server_config.db)?;
+        init_db(&server_config.db.to_string_lossy()).await;
+
+        apply_migrations(&server_config)
+            .await
+            .expect("Failed to apply migrations.");
+        let new_admin = NewUser::new(
+            "demo".to_string(),
+            "demo@teilgedanken.de".to_string(),
+            "demo",
+            &server_config.secret,
+        )
+        .expect("Failed to generate new user credentials.");
+        create_admin(&new_admin)
+            .await
+            .expect("Failed to create admin");
+        add_example_links().await;
+        return Ok(None);
     }
 }

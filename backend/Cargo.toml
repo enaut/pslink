@@ -55,5 +55,4 @@ server = [
     "dep:dotenv",
     "dep:clap",
     "dep:rpassword",
-    #    "dep:axum_session_redispool",
 ]

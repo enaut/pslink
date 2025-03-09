@@ -51,6 +51,7 @@ pub(crate) fn get_secret() -> Secret {
 
 #[cfg(feature = "server")]
 pub fn launch_pslink(app: fn() -> Result<dioxus::prelude::VNode, dioxus::prelude::RenderError>) {
+    dioxus::logger::init(dioxus::logger::tracing::Level::TRACE).unwrap();
     tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(async move {
@@ -93,12 +94,9 @@ async fn launch_server(
     use axum_session::SessionStore;
     use axum_session_auth::AuthConfig;
     use axum_session_auth::SessionSqlitePool;
-    use dioxus::logger::tracing::Level;
     use dioxus::logger::tracing::info;
     use dioxus::prelude::DioxusRouterExt;
     use dioxus_fullstack::ServeConfig;
-
-    dioxus::logger::init(Level::TRACE).unwrap();
 
     let pool = get_db().await;
 
