@@ -2,10 +2,9 @@ use crate::{PslinkContext, home::Home, links::Links, login::LoginScreen, users::
 use backend::{auth_api::get_session_info, user_api::set_user_language};
 use dioxus::{logger::tracing::info, prelude::*};
 use dioxus_i18n::{prelude::i18n, t, unic_langid::langid};
-use pslink_shared::datatypes::Lang;
+use pslink_shared::{BULMA_CSS, datatypes::Lang};
 
 const NAVBAR_CSS: Asset = asset!("/assets/styling/navbar.css");
-const BULMA_CSS: Asset = asset!("/assets/styling/bulma.css");
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]

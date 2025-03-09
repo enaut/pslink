@@ -9,7 +9,6 @@ axum_session = { workspace = true, optional = true }
 axum_session_auth = { workspace = true, optional = true, features = [
     "sqlite-rustls",
 ] }
-#axum_session_redispool = { version = "0.5.0", optional = true }
 dioxus = { workspace = true, features = ["fullstack"] }
 dioxus-fullstack = { workspace = true }
 anyhow = { workspace = true }
@@ -31,6 +30,14 @@ enum-map = { version = "2.7", features = ["serde"] }
 serde = "1.0"
 chrono = "0.4"
 rand = { version = "0.8", optional = true }
+dotenv = { version = "0.15", optional = true }
+clap = { version = "4", optional = true, features = [
+    "cargo",
+    "env",
+    "string",
+    "unicode",
+] }
+rpassword = { version = "7.3", optional = true }
 
 
 [features]
@@ -45,5 +52,8 @@ server = [
     "dep:argon2",
     "dep:once_cell",
     "dep:rand",
+    "dep:dotenv",
+    "dep:clap",
+    "dep:rpassword",
     #    "dep:axum_session_redispool",
 ]

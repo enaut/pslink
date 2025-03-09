@@ -16,7 +16,7 @@ fn main() {
     #[cfg(feature = "web")]
     dioxus::launch(App);
     #[cfg(feature = "server")]
-    backend::launch_server(App);
+    backend::launch_pslink(App);
 }
 
 #[component]
