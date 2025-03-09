@@ -533,13 +533,11 @@ async fn generate_demo_data(
         info!("Creating a demo database.");
         generate_env_file(&server_config).expect("Failed to generate env file.");
 
-        dotenv().ok(); // create an empty database file. The if above makes sure that this file does not exist.
-        File::create(&server_config.db)?;
-        init_db(&server_config.db.to_string_lossy()).await;
-
+        dotenv().ok();
         apply_migrations(&server_config)
             .await
             .expect("Failed to apply migrations.");
+
         let new_admin = NewUser::new(
             "demo".to_string(),
             "demo@teilgedanken.de".to_string(),

@@ -28,10 +28,16 @@ jobs:
         run: cargo binstall dioxus-cli
 
       - name: Build Dioxus frontend
-        run: dx build --release --package web
+        run: dx bundle --release --package web
+
+      - name: rename binary
+        run: mv target/dx/web/release/web/server target/dx/web/release/web/pslink
+
+      - name: rename binary
+        run: mv target/dx/web/release/web target/dx/web/release/pslink
 
       - name: Create archive of build artifacts
-        run: tar -czvf pslink-server-bundle.tgz -C target/dx/web/release web
+        run: tar -czvf pslink-server-bundle.tgz -C target/dx/web/release pslink
 
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2

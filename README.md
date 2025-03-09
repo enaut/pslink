@@ -52,16 +52,14 @@ The Page comes with a basic command line interface to setup the environment.
 ### Service
 
 * admin interface via wasm
-* Rest+Json server
-* Tracing via Jaeger
 
 ## Usage
 
-### install binary
+### Install the binary
 
-The pslink binary can be downloaded from the latest release at: https://github.com/enaut/pslink/releases
+The pslink bundle can be downloaded from the latest release at: https://github.com/enaut/pslink/releases
 
-These binaries are self contained and should run on any linux 64bit sy"stem. Just put them where you like them to be and make them executable. A sample install might be:
+Just extract the bundle wher you like. A sample install might be:
 
 ```bash
 # mkdir -p /opt/pslink
@@ -77,31 +75,14 @@ You could now adjust your `PATH` or setup an alias or just call the binary with 
 
 ### Build from source
 
-Checkout the git repository and within its root folder issue the following commands. Internet es required and some packages will be installed during the process.
+Checkout the git repository and within its directory issue the following commands. Internet is required and some packages will be installed during the process.
 
 ```bash
-$ cargo install cargo-make
-$ cargo make build_release
-# or to immediately start the server after building but
-# as you probably do not yet have a .env file or database
-# this will fail.
-$ cargo make start_release
+$ cargo install dioxus-cli
+$ dx bundle --package web
 ```
 
-If that succeeds you should now be able to call pslink. The binary is located at `target/release/pslink` and can be moved anywhere you want.
-
-When building manually with cargo you may have to have a sqlite database present or build it in offline mode. So on your first build you will most likely need to call:
-
-```bash
-SQLX_OFFLINE=1 cargo make build_release
-# or
-$ export SQLX_OFFLINE=1
-$ cargo make build_release
-```
-
-If pslink is built with `cargo make build_standalone` everything is embedded and it should be portable to any 64bit linux system. Otherwise the same or newer version of libc needs to be installed on the target linux system. Note that you need to install `musl-gcc` for this to work using: `sudo dnf install musl-libc musl-gcc` or `sudo apt-get install musl-tools`.
-
-Templates and migrations are always embedded in the binary so it should run standalone without anything extra.
+If that succeeds you should now be able to call pslink. The binary is located at `target/dx/web/release/web/server`. The directory `target/dx/web/release/web/` can be moved wherever you want it to be.
 
 ### Setup
 
