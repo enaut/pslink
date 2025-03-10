@@ -91,7 +91,7 @@ pub fn UserEdit(
                                         input {
                                             placeholder: t!("user-edit-placeholder-password"), // Placeholder text for password input field
                                             value: if edit_dialog_signal().expect("dialog defined").user_delta.password.is_some() { "{edit_dialog_signal().expect(\"dialog defined\").user_delta.password.unwrap()}" },
-                                            r#type: "text",
+                                            r#type: "password",
                                             class: "input",
                                             oninput: move |e| {
                                                 let e = e.value();
