@@ -15,12 +15,12 @@ The Username and Password are both `demo`. Do not use this for any production us
 
 ## What users can do
 
-  ### Guests (no account)
+* **Guests (no account):**
 
   * click on link get redirected to the page
   * error on invalid or deleted link
 
-  ### Users (regular account)
+* **Users (regular account):**
 
   * view all existing links
   * modify all own links
@@ -28,7 +28,7 @@ The Username and Password are both `demo`. Do not use this for any production us
   * download qr-codes of the links
   * modify own "profile" settings
 
-  ### Admins (privileged account)
+* **Admins (privileged account):**
 
   * everything from users
   * modify all links
@@ -40,18 +40,17 @@ The Username and Password are both `demo`. Do not use this for any production us
 
 ## What the program can do
 
-The Page comes with a basic command line interface to setup the environment.
 
-### Command line
+* **Command line**
 
-* create and read from a `.env` file in the current directory
-* create and migrate the database
-* create an admin user
-* run the webserver
+    * create and read from a `.env` file in the current directory
+    * create and migrate the database
+    * create an admin user
+    * run the webserver
 
-### Service
+* **Service**
 
-* admin interface via wasm
+    * admin interface via wasm
 
 ## Usage
 
@@ -63,8 +62,10 @@ Just extract the bundle wher you like. A sample install might be:
 
 ```bash
 # mkdir -p /opt/pslink
-# wget -o /opt/pslink/pslink https://github.com/enaut/pslink/releases/latest/download/pslink_linux_64bit
-# chmod +x /opt/pslink/pslink
+# cd /opt/pslink
+# wget https://github.com/enaut/pslink/releases/latest/download/pslink-linux-x86_64-bundle.tgz
+# tar -xf pslink-linux-x86_64-bundle.tgz
+# /opt/pslink/pslink help
 ```
 
 You could now adjust your `PATH` or setup an alias or just call the binary with the full path `/opt/pslink/pslink`
@@ -79,10 +80,12 @@ Checkout the git repository and within its directory issue the following command
 
 ```bash
 $ cargo install dioxus-cli
-$ dx bundle --package web
+$ dx bundle --release --package web
 ```
 
 If that succeeds you should now be able to call pslink. The binary is located at `target/dx/web/release/web/server`. The directory `target/dx/web/release/web/` can be moved wherever you want it to be.
+
+**In the binary releases and in this README the `server` binary is renamed to `pslink`.**
 
 ### Setup
 
@@ -110,7 +113,7 @@ To get Pslink up and running use the commands in the following order:
 
 ### Run the service
 
-If everything is correctly set up just do `pslink runserver` to launch the server.
+If everything is already correctly set up just do `pslink runserver` to launch the server.
 
 ### Update
 
@@ -140,17 +143,17 @@ After=network.target
 [Service]
 User=pslink
 Group=pslink
-EnvironmentFile=-/var/pslink/.env
+EnvironmentFile=-/opt/pslink/.env
 
 ProtectHome=true
 ProtectSystem=full
 PrivateDevices=true
 NoNewPrivileges=true
 PrivateTmp=true
-InaccessibleDirectories=/root /sys /srv -/opt /media -/lost+found
-ReadWriteDirectories=/var/pslink
-WorkingDirectory=/var/pslink
-ExecStart=/var/pslink/pslink runserver
+InaccessibleDirectories=/root /sys /srv /media -/lost+found
+ReadWriteDirectories=/opt/pslink
+WorkingDirectory=/opt/pslink
+ExecStart=/opt/pslink/pslink runserver
 
 [Install]
 WantedBy=multi-user.target

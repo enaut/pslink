@@ -33,11 +33,11 @@ jobs:
       - name: rename binary
         run: mv target/dx/web/release/web/server target/dx/web/release/web/pslink
 
-      - name: rename binary
+      - name: rename path
         run: mv target/dx/web/release/web target/dx/web/release/pslink
 
       - name: Create archive of build artifacts
-        run: tar -czvf pslink-server-bundle.tgz -C target/dx/web/release pslink
+        run: tar -czvf pslink-linux-x86_64-bundle.tgz -C target/dx/web/release pslink
 
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
@@ -51,4 +51,4 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
           name: web-build
-          path: pslink-server-bundle.tgz
+          path: target/dx/web/release/pslink
