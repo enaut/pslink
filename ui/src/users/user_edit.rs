@@ -8,13 +8,17 @@ use pslink_shared::{
     datatypes::User,
 };
 
-use crate::users::{EditDialog, OptionUserEditDialog as _};
+use crate::{
+    PslinkContext,
+    users::{EditDialog, OptionUserEditDialog as _},
+};
 
 #[component]
 pub fn UserEdit(
     edit_dialog_signal: Signal<Option<EditDialog>>,
     users: Resource<IndexMap<String, User>>,
 ) -> Element {
+    let PslinkContext { user, .. } = use_context::<PslinkContext>();
     let on_esc_event = move |evt: KeyboardEvent| {
         if evt.key() == Key::Escape {
             edit_dialog_signal.set(None);
@@ -114,6 +118,7 @@ pub fn UserEdit(
                                 p { class: "control", style: "width: 100%",
                                     div { class: "select is-fullwidth",
                                         select {
+                                            disabled: user().expect("logged in").role != Role::Admin,
                                             oninput: move |e| {
                                                 let role = e.value().parse::<i64>().expect("Role must be a number");
                                                 edit_dialog_signal.update_role(Role::convert(role));
@@ -138,12 +143,12 @@ pub fn UserEdit(
                                                         == Role::NotAuthenticated,
                                                 {t!("user-edit-role-disabled")} // Option for disabled role in dropdown
                                             }
-
                                         }
                                     }
                                 }
                             }
                         }
+
                         ConfirmDialog { edit_dialog_signal, users }
                     }
                     EditFooter { edit_dialog_signal, users }
@@ -191,6 +196,7 @@ fn Buttons(
     mut edit_dialog_signal: Signal<Option<EditDialog>>,
     users: Resource<IndexMap<String, User>>,
 ) -> Element {
+    let PslinkContext { user, .. } = use_context::<PslinkContext>();
     if let Some(EditDialog { user_delta, .. }) = edit_dialog_signal() {
         info!("Edit mode: {:?}", user_delta.edit);
         match user_delta.edit {
@@ -218,12 +224,14 @@ fn Buttons(
             }
             EditMode::Edit => {
                 return rsx! {
-                    button {
-                        class: "button is-danger",
-                        onclick: move |_e: Event<MouseData>| {
-                            edit_dialog_signal.set_edit_mode(EditMode::Delete(true));
-                        },
-                        {t!("user-edit-button-delete")} // Button text for deleting a user
+                    if user().expect("logged in").role == Role::Admin {
+                        button {
+                            class: "button is-danger",
+                            onclick: move |_e: Event<MouseData>| {
+                                edit_dialog_signal.set_edit_mode(EditMode::Delete(true));
+                            },
+                            {t!("user-edit-button-delete")} // Button text for deleting a user
+                        }
                     }
                     button {
                         class: "button is-success",
