@@ -1,3 +1,4 @@
+#[cfg(feature = "server")]
 use std::str::FromStr as _;
 
 #[cfg(feature = "server")]
@@ -5,14 +6,22 @@ use crate::{
     get_secret,
     models::{NewUser, UserDbOperations as _},
 };
-use dioxus::{logger::tracing::info, prelude::*};
+#[cfg(feature = "server")]
+use dioxus::logger::tracing::info;
+use dioxus::prelude::*;
+#[cfg(feature = "server")]
 use enum_map::EnumMap;
+use pslink_shared::{
+    apirequests::users::{UserDelta, UserRequestForm},
+    datatypes::Secret,
+};
+
 use pslink_shared::{
     apirequests::{
         general::{EditMode, Filter, Operation, Ordering},
-        users::{Role, UserDelta, UserOverviewColumns, UserRequestForm},
+        users::{Role, UserOverviewColumns},
     },
-    datatypes::{Item, Lang, ListWithOwner, Secret, User},
+    datatypes::{Item, Lang, ListWithOwner, User},
 };
 #[cfg(feature = "server")]
 use sqlx::Row;
@@ -109,6 +118,7 @@ fn generate_filter_users_sql(filters: &EnumMap<UserOverviewColumns, Filter>) -> 
     result
 }
 
+#[cfg(feature = "server")]
 /// A macro to translate the Ordering Type into a sql ordering string.
 macro_rules! ts {
     ($ordering:expr) => {
@@ -159,7 +169,7 @@ pub async fn create_user(data: UserDelta) -> Result<Item<User>, ServerFnError> {
         None => {
             return Err(ServerFnError::new(
                 "A new users does require a password".to_string(),
-            ))
+            ));
         }
     };
 
