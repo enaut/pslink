@@ -50,7 +50,9 @@ The Username and Password are both `demo`. Do not use this for any production us
 
 * **Service**
 
+    * redirect according to the database
     * admin interface via wasm
+    
 
 ## Usage
 
@@ -161,6 +163,8 @@ WantedBy=multi-user.target
 
 ### Setup a demo container
 
+Note that this is **absolutely not for a production use** and only for demo purposes as the links are **deleted on every restart**.
+
 First build the standalone binary:
 
 ```bash
@@ -181,5 +185,3 @@ $ podman run --expose 8080 -p=8080:8080 -it pslink-container ./pslink demo -i 0.
 ```
 
 On every restart a new container and volume is created. If the service is restarted often those should be dealt with.
-
-Note that this is **absolutely not for a production use** and only for demo purposes as the links are **deleted on every restart**.
