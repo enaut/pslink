@@ -12,13 +12,13 @@ axum_session_auth = { workspace = true, optional = true, features = [
 dioxus = { workspace = true, features = ["fullstack"] }
 dioxus-fullstack = { workspace = true }
 anyhow = { workspace = true }
-sqlx = { workspace = true, features = [
+sqlx = { version="0.7", features = [
     "macros",
     "migrate",
     "postgres",
     "sqlite",
     "_unstable-all-types",
-    "tls-native-tls",
+    "tls-rustls",
     "runtime-tokio",
 ], optional = true }
 tokio = { version = "1.43", optional = true }

@@ -1,48 +1,45 @@
-# Stage 1: Use debian-slim as the base image for building
-FROM ubuntu:latest AS builder
+# Stage 1: Builder mit Rust-Umgebung
+FROM rust:slim AS builder
 
-# Install necessary libraries
+# Installation notwendiger Build-Tools
 RUN apt-get update && apt-get install -y \
-    libssl3 \
-    libcrypto++8 \
-    libgcc-s1 \
-    libstdc++6 \
-    zlib1g \
+    build-essential \
+    pkg-config \
+    curl \
+    musl-tools \
+    musl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Stage 2: Create the final image
-FROM ubuntu:latest
+# Rust-Komponenten und Tools installieren
+RUN rustup target add wasm32-unknown-unknown x86_64-unknown-linux-musl
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+RUN cargo binstall -y dioxus-cli
 
-# Copy necessary libraries from the builder stage
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so.3 /usr/lib/x86_64-linux-gnu/
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libcrypto.so.3 /usr/lib/x86_64-linux-gnu/
-COPY --from=builder /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/
-COPY --from=builder /lib/x86_64-linux-gnu/libm.so.6 /lib/x86_64-linux-gnu/
-COPY --from=builder /lib/x86_64-linux-gnu/libc.so.6 /lib/x86_64-linux-gnu/
-COPY --from=builder /lib64/ld-linux-x86-64.so.2 /lib64/
-COPY --from=builder /lib/x86_64-linux-gnu/libz.so.1 /lib/x86_64-linux-gnu/
+# Arbeitsverzeichnis vorbereiten
+WORKDIR /build
+COPY . .
 
-# Create a non-root user to run the application
-RUN useradd -m appuser
+# Build ausführen
+RUN mkdir -p /pslink
 
-# Copy the server binary and set permissions
-COPY target/dx/web/release/web/server /app/server
-RUN chmod +x /app/server
+RUN dx bundle --platform web --package web --release --out-dir /pslink
+RUN dx bundle --platform server --package web --out-dir musl/server --release -- --target x86_64-unknown-linux-musl
+RUN mv musl/server/web/web /pslink/pslink
+RUN rm -f /pslink/server
+WORKDIR /pslink
+RUN /pslink/pslink demo
 
-# Copy the public directory
-COPY target/dx/web/release/web/public /app/public
+# Stage 2: Minimales Image für die Ausführung 
+FROM scratch
 
-# Set the working directory
+# Arbeitsverzeichnis erstellen
 WORKDIR /app
 
-# Change ownership of the application files to the non-root user
-RUN chown -R appuser:appuser /app
+# Statisch kompilierte Binaries und Assets kopieren
+COPY --from=builder /pslink/ /app/
 
-# Switch to the non-root user
-USER appuser
-
-# Expose the necessary port
+# Port freigeben
 EXPOSE 8080
 
-# Run demo data creation and then start the server
-CMD ["/bin/bash", "-c", "/app/server demo && /app/server runserver"]
+# Server starten
+CMD ["/app/pslink", "runserver", "--hostip", "0.0.0.0", "--port", "8080"]

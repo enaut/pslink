@@ -21,20 +21,13 @@ chrono = { version = "0.4", features = ["serde"] }
 enum-map = { version = "2.7", features = ["serde"] }
 strum_macros = "0.26"
 strum = "0.26"
-sqlx = { workspace = true, features = [
-    "macros",
-    "migrate",
-    "postgres",
-    "sqlite",
-    "_unstable-all-types",
-    "tls-native-tls",
-    "runtime-tokio",
-], optional = true }
 dioxus = { workspace = true, features = ["fullstack"] }
+rand = { version = "0.8", optional = true }
 
 
 [features]
 server = [
-    "dep:sqlx",
+    "dep:rand",
+    # "dep:sqlx",
     #    "dep:axum_session_redispool",
 ]

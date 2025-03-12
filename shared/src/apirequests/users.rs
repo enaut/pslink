@@ -83,22 +83,6 @@ pub enum Role {
     Regular,
     Admin,
 }
-#[cfg(feature = "server")]
-impl sqlx::Type<sqlx::sqlite::Sqlite> for Role {
-    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
-        <i64 as sqlx::Type<sqlx::sqlite::Sqlite>>::type_info()
-    }
-}
-
-#[cfg(feature = "server")]
-impl sqlx::decode::Decode<'_, sqlx::sqlite::Sqlite> for Role {
-    fn decode(
-        value: sqlx::sqlite::SqliteValueRef<'_>,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let value = <&str as sqlx::decode::Decode<sqlx::sqlite::Sqlite>>::decode(value)?;
-        Ok(Role::convert(value.parse()?))
-    }
-}
 
 impl Role {
     #[must_use]

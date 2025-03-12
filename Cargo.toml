@@ -10,7 +10,6 @@ anyhow = { version = "1.0.95" }
 
 dioxus = { version = "0.6" }
 dioxus-fullstack = { version = "0.6" }
-sqlx = { version = "0.7" }
 ui = { path = "ui" }
 backend = { path = "backend" }
 pslink-shared = { path = "shared" }

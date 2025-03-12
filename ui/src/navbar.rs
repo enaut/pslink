@@ -121,6 +121,7 @@ pub fn Navbar(children: Element) -> Element {
 pub fn WebNavbar() -> Element {
     rsx! {
         Navbar {}
+        DemoWarning {}
         Outlet::<Route> {}
     }
 }
@@ -141,5 +142,24 @@ pub fn PageNotFound(route: Vec<String>) -> Element {
                 }
             }
         }
+    }
+}
+
+#[component]
+fn DemoWarning() -> Element {
+    let demo_instance = use_resource(|| async move {
+        let res = backend::auth_api::demo().await;
+        info!("Demo result: {:?}", res);
+        res
+    });
+    match demo_instance() {
+        Some(Ok(true)) => {
+            info!("Demo mode is active");
+            rsx! {
+
+                div { class: "notification is-danger mx-6 my-3", {t!("demo-warning")} }
+            }
+        }
+        _ => rsx! {},
     }
 }

@@ -1,4 +1,6 @@
 #[cfg(feature = "server")]
+use crate::get_secret;
+#[cfg(feature = "server")]
 use crate::models::UserDbOperations as _;
 use dioxus::{
     logger::tracing::info,
@@ -84,4 +86,9 @@ pub async fn get_session_info() -> Result<SessionInfo, ServerFnError> {
         user,
         hostname: hostname.0,
     })
+}
+
+#[server(Demo)]
+pub async fn demo() -> Result<bool, ServerFnError> {
+    Ok(get_secret().is_random)
 }

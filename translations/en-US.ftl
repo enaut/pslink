@@ -257,3 +257,5 @@ welcome-stranger = Welcome stranger
 # Parameters: $username
 welcome-user = Welcome {$username}
 
+
+demo-warning = Diese Instanz ist nicht für dauerhaftes Speichern konfiguriert... Die eingegebenen Daten werden nur bis zum Neustart gespeichert.

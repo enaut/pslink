@@ -65,7 +65,6 @@ impl Ord for Clicks {
 impl Eq for Clicks {}
 
 /// A User of the pslink service
-#[cfg_attr(feature = "server", derive(sqlx::FromRow))]
 #[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct User {
     pub id: i64,
@@ -132,11 +131,15 @@ pub struct Click {
 #[serde(from = "String")]
 pub struct Secret {
     pub secret: Option<String>,
+    pub is_random: bool,
 }
 
 impl From<String> for Secret {
     fn from(_: String) -> Self {
-        Self { secret: None }
+        Self {
+            secret: None,
+            is_random: false,
+        }
     }
 }
 
@@ -154,6 +157,19 @@ impl Secret {
     pub const fn new(secret: String) -> Self {
         Self {
             secret: Some(secret),
+            is_random: false,
+        }
+    }
+    #[cfg(feature = "server")]
+    #[must_use]
+    pub fn random() -> Self {
+        let secret = rand::Rng::sample_iter(rand::thread_rng(), &rand::distributions::Alphanumeric)
+            .take(30)
+            .map(char::from)
+            .collect();
+        Self {
+            secret: Some(secret),
+            is_random: true,
         }
     }
 }
@@ -200,12 +216,6 @@ pub enum Lang {
     EnUS,
     #[strum(serialize = "de-DE", serialize = "de", serialize = "deDE")]
     DeDE,
-}
-#[cfg(feature = "server")]
-impl sqlx::Type<sqlx::sqlite::Sqlite> for Lang {
-    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
-        <String as sqlx::Type<sqlx::sqlite::Sqlite>>::type_info()
-    }
 }
 
 impl std::fmt::Display for Lang {

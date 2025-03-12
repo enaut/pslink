@@ -43,10 +43,12 @@ static SECRET: LazyLock<once_cell::sync::OnceCell<Secret>> =
     LazyLock::new(|| once_cell::sync::OnceCell::new());
 #[cfg(feature = "server")]
 pub(crate) fn get_secret() -> Secret {
-    let db = SECRET
-        .get_or_init(|| Secret::new(std::env::var("PSLINK_SECRET").unwrap()))
-        .clone();
-    db
+    SECRET.get().expect("Secret not initialized").clone()
+}
+
+#[cfg(feature = "server")]
+pub(crate) fn init_secret(secret: Secret) {
+    SECRET.set(secret).expect("Failed to initialize secret");
 }
 
 #[cfg(feature = "server")]

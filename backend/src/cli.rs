@@ -14,7 +14,7 @@ use std::{
 };
 
 use crate::models::{NewLink, NewUser, UserDbOperations as _};
-use crate::{get_db, init_db};
+use crate::{get_db, init_db, init_secret};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 
@@ -49,12 +49,12 @@ impl FromStr for Protocol {
 /// The configuration of the server. It is accessible by the views and other parts of the program. Globally valid settings should be stored here.
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
-    pub secret: Secret,
     pub db: PathBuf,
     pub public_url: String,
     pub internal_ip: String,
     pub port: u16,
     pub protocol: Protocol,
+    pub secret: Secret,
 }
 
 /// The configuration can be serialized into an environment-file.
@@ -79,6 +79,7 @@ impl ServerConfig {
                     .as_ref()
                     .expect("A Secret was not specified!")
             ),
+            format!("DEMO=\"{}\"\n", self.secret.is_random),
         ]
     }
 }
@@ -144,6 +145,13 @@ fn generate_cli() -> Command {
                 .global(true),
         )
         .arg(
+            Arg::new("demo")
+                .long("demo")
+                .help("The host (ip) that will run the pslink service")
+                .env("DEMO")
+                .global(true),
+        )
+        .arg(
             Arg::new("protocol")
                 .long("protocol")
                 .short('t')
@@ -202,14 +210,17 @@ fn generate_cli() -> Command {
 /// parse the options to the [`ServerConfig`] struct
 async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
     info!("Parsing the arguments");
+    let mut random_secret = false;
     let secret = config
         .get_one::<String>("secret")
         .expect("Failed to read the secret")
         .to_owned();
+    let demo = config
+        .get_one::<String>("demo")
+        .unwrap_or(&"false".to_string())
+        .parse::<bool>()
+        .expect("Failed to parse the demo value");
     let secret = if secret.len() < 5 {
-        use rand::distributions::Alphanumeric;
-        use rand::{Rng, thread_rng};
-
         if secret.is_empty() {
             warn!("No secret was found! Use the environment variable PSLINK_SECRET to set one.");
             warn!("If you change the secret all passwords will be invalid");
@@ -217,16 +228,12 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
         } else {
             warn!("The provided secret was too short. Using an auto generated one.");
         }
-
-        thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(30)
-            .map(char::from)
-            .collect()
+        Secret::random()
     } else {
+        let mut secret = Secret::new(secret);
+        secret.is_random = demo;
         secret
     };
-    let secret = Secret::new(secret);
     let db = config
         .get_one::<String>("database")
         .expect(concat!(
@@ -260,12 +267,12 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
         .expect("Failed to parse the protocol");
     info!("Arguments parsed");
     ServerConfig {
-        secret,
         db,
         public_url,
         internal_ip,
         port: port,
         protocol,
+        secret,
     }
 }
 
@@ -293,6 +300,7 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
     let config = app.clone().get_matches();
 
     let mut server_config: ServerConfig = parse_args_to_config(config.clone()).await;
+    init_secret(server_config.secret.clone());
     if config.subcommand().is_none() {
         // if the variable DIOXUS_CLI_ENABLED is true run the server
         let dioxus_cli =
