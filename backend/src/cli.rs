@@ -210,7 +210,6 @@ fn generate_cli() -> Command {
 /// parse the options to the [`ServerConfig`] struct
 async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
     info!("Parsing the arguments");
-    let mut random_secret = false;
     let secret = config
         .get_one::<String>("secret")
         .expect("Failed to read the secret")
