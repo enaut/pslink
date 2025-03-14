@@ -494,7 +494,7 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerFnError> {
         "Creating a database file and running the migrations in the file {}:",
         &config.db.display()
     );
-    if config.db.exists() {
+    if config.db.exists() && config.db.metadata().map(|m| m.len() > 0).unwrap_or(false) {
         return Err(ServerFnError::new("The database is not empty aborting because this could mean that creating a demo instance would lead in data loss.".to_string()));
     } else {
         File::create(&config.db)?;
@@ -508,9 +508,11 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerFnError> {
 
 /// The command line parameters provided or if missing the default parameters can be converted and written to a .env file. That way the configuration is saved and automatically reused for subsequent launches.
 fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerFnError> {
-    if std::path::Path::new(".env").exists() {
+    let env_path = std::path::Path::new(".env");
+    
+    if env_path.exists() && env_path.metadata().map(|m| m.len() > 0).unwrap_or(false) {
         return Err(ServerFnError::new(
-            "ERROR: There already is a .env file - ABORT!".to_string(),
+            "ERROR: There already is a non-empty .env file - ABORT!".to_string(),
         ));
     }
 
@@ -535,7 +537,7 @@ fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerFnError> 
 async fn generate_demo_data(
     server_config: ServerConfig,
 ) -> Result<Option<ServerConfig>, ServerFnError> {
-    if server_config.db.exists() {
+    if server_config.db.exists() && server_config.db.metadata().map(|m| m.len() > 0).unwrap_or(false) {
         return Err(ServerFnError::new("The database is not empty aborting because this could mean that creating a demo instance would lead in data loss.".to_string()));
     } else {
         info!("Creating a demo database.");
