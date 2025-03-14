@@ -8,7 +8,7 @@ So in general this is more a shared short url bookmark webpage than a short url 
 
 A demo instance is running under [https://pslink.teilgedanken.de/app/](https://pslink.teilgedanken.de/app/)
 
-The Username and Password are both `demo`. Do not use this for any production usecase as the database is wiped every 15 minutes. If your created links/users are suddenly missing this is due to such a database wipe.
+The Username and Password are both `demo`. Do not use this for any production use case as the database is wiped every 15 minutes. If your created links/users are suddenly missing this is due to such a database wipe.
 
 [![Screenshot](./doc/img/screenshot.png)](https://pslink.teilgedanken.de/app/)
 [![Screenshot](./doc/img/screenshot_edit.png)](https://pslink.teilgedanken.de/app/)
@@ -58,9 +58,9 @@ The Username and Password are both `demo`. Do not use this for any production us
 
 ### Install the binary
 
-The pslink bundle can be downloaded from the latest release at: https://github.com/enaut/pslink/releases
+The Pslink bundle can be downloaded from the latest release at: https://github.com/enaut/pslink/releases
 
-Just extract the bundle wher you like. A sample install might be:
+Just extract the bundle where you like. A sample install might be:
 
 ```bash
 # mkdir -p /opt/pslink
@@ -85,7 +85,7 @@ $ cargo install dioxus-cli
 $ dx bundle --release --package web
 ```
 
-If that succeeds you should now be able to call pslink. The binary is located at `target/dx/web/release/web/server`. The directory `target/dx/web/release/web/` can be moved wherever you want it to be.
+If that succeeds you should now be able to call Pslink. The binary is located at `target/dx/web/release/web/server`. The directory `target/dx/web/release/web/` can be moved wherever you want it to be.
 
 **In the binary releases and in this README the `server` binary is renamed to `pslink`.**
 
@@ -93,17 +93,21 @@ If that succeeds you should now be able to call pslink. The binary is located at
 
 To read the help and documentation of additional options call:
 
-```pslink help```
+```bash
+$ pslink help
+```
 
 To get Pslink up and running use the commands in the following order:
 
 1. `pslink generate-env`
 
-    this will generate a `.env` file in the current directory with the default settings. Edit this file to your liking. You can however skip this step and provide all the parameters via command line or environment variable. It is **not** recommended to provide PSLINK_SECRET with command line parameters as they can be read by every user on the system.
+    this will generate a `.env` file in the current directory with the default settings. Edit this file to your liking.
+    You can however skip this step and provide all the parameters via command line or environment variable.
+    It is **not** recommended to provide `PSLINK_SECRET` with command line parameters as they can be read by every user on the system.
 
 2. `pslink migrate-database`
 
-    will create a sqlite database in the location specified.
+    will create a sqlite database in the location specified in the .env file.
 
 3. `pslink create-admin`
 
@@ -111,7 +115,7 @@ To get Pslink up and running use the commands in the following order:
 
 4. `pslink runserver`
 
-    If everything is set up correctly this command will start the service. You should now be able to go to your url at [http://localhost/app/] and be presented with a login screen.
+    If everything is set up correctly this command will start the service. You should now be able to go to your url at [http://localhost/app/](http://localhost/app/) and you should be presented with a login screen where you can login with the credentials you just created (use the username not the email).
 
 ### Run the service
 
@@ -128,57 +132,87 @@ To update to a newer version execute the commands in the following order
 
 ### Help
 
-For a list of options use `pslink help`. If the help does not provide enough clues please file an issue at: https://github.com/enaut/pslink/issues/new
+For a list of options use `pslink help`. If the help does not provide enough clues please file an issue at: [https://github.com/enaut/pslink/issues/new](https://github.com/enaut/pslink/issues/new). Feel free to do so even for simple questions, comments or requests!
 
-### Systemd service file
+### Installation on the server using systemd
 
-If you want to automatically start this with systemd you can adjust the following template unit to your system. In this case a dedicated `pslink` user and group is used with the users home directory at `/var/pslink`. Some additional settings are in place to protect the system a little should anything go wrong.
+While there are probably millions of ways to set up Pslink as a service on a server, here is an example using systemd.
 
-```systemd
-# /etc/systemd/system/pslink.service
-[Unit]
-Description=Pslink the Urlshortener
-Documentation=https://github.com/enaut/Pslink
-Wants=network.target
-After=network.target
+In this case a dedicated `pslink` user and group is used with the users home directory at `/opt/pslink`.
+Some additional settings are in place to protect the system a little should anything go wrong.
 
-[Service]
-User=pslink
-Group=pslink
-EnvironmentFile=-/opt/pslink/.env
+1. create the user
+    ```bash 
+    # adduser pslink --home-dir /opt/pslink
+    ```
+2. create the directory and change its owner and permissions
+    ```bash
+    # mkdir -p /opt/pslink
+    # chown pslink:pslink /opt/pslink
+    # chmod 700 /opt/pslink
+    ```
+3. create the initial config file and database
+    ```bash
+    pslink$ cd /opt/pslink
+    pslink$ /opt/pslink/pslink generate-env
+    pslink$ /opt/pslink/pslink migrate-database
+    pslink$ /opt/pslink/pslink create-admin
+    ```
+4. create the systemd service file at `/etc/systemd/system/pslink.service` and adjust it to your liking:
+    ```systemd
+    # /etc/systemd/system/pslink.service
+    [Unit]
+    Description=Pslink the Urlshortener
+    Documentation=https://github.com/enaut/Pslink
+    Wants=network.target
+    After=network.target
 
-ProtectHome=true
-ProtectSystem=full
-PrivateDevices=true
-NoNewPrivileges=true
-PrivateTmp=true
-InaccessibleDirectories=/root /sys /srv /media -/lost+found
-ReadWriteDirectories=/opt/pslink
-WorkingDirectory=/opt/pslink
-ExecStart=/opt/pslink/pslink runserver
+    [Service]
+    User=pslink
+    Group=pslink
+    EnvironmentFile=-/opt/pslink/.env
 
-[Install]
-WantedBy=multi-user.target
-```
+    ProtectHome=true
+    ProtectSystem=full
+    PrivateDevices=true
+    NoNewPrivileges=true
+    PrivateTmp=true
+    InaccessibleDirectories=/root /sys /srv /media -/lost+found
+    ReadWriteDirectories=/opt/pslink
+    WorkingDirectory=/opt/pslink
+    ExecStart=/opt/pslink/pslink runserver
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+5. start and install the service
+    ```bash
+    # systemctl enable --now pslink
+    ```
+6. check the log file for errors:
+    ```bash
+    # systemctl status pslink
+    # journalctl -u pslink
+    ```
 
 ### Setup a demo container
 
 Note that this is **absolutely not for a production use** and only for demo purposes as the links are **deleted on every restart**.
 
-First build the standalone binary:
+1. build the standalone binary:
 
 ```bash
 $ cargo make build_standalone
 ```
 
-Create a temporary directory and copy the binary from above:
+2. create a temporary directory and copy the binary from above:
 
 ```bash
 $ mkdir /tmp/pslink-container/
 $ cp target/x86_64-unknown-linux-musl/release/pslink /tmp/pslink-container/
 ```
 
-Run the container (podman is used here but docker could be used exactly the same):
+3. run the container (podman is used here but docker could be used exactly the same):
 
 ```bash
 $ podman run --expose 8080 -p=8080:8080 -it pslink-container ./pslink demo -i 0.0.0.0
