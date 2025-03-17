@@ -32,7 +32,9 @@ When successfully started you can open http://localhost:8080/app/ to login.
 
 ### Run with Database and Environment File Persistence
 
-For production use with persistent data:
+For production use with persistent data, see the section [Database Setup](#database-setup) for instructions on generating the `.env` and `links.db` files.
+
+To launch with persistent data run:
 
 ```bash
 podman run -d --name pslink_container \
@@ -78,14 +80,6 @@ Options:
   -V, --version                        Print version
 ```
 
-## Environment Variables
-
-Create a `.env` file with the following variables:
-
-```
-PSLINK_SECRET="your-secret-key-here"
-```
-
 ## Container Management
 
 ```bash
@@ -99,7 +93,7 @@ podman stop pslink_container
 podman rm pslink_container
 ```
 
-## Database Setup
+## Database Setup for production use
 
 To start with a fresh config and database intended for production use:
 
