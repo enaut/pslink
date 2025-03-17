@@ -97,32 +97,48 @@ podman rm pslink_container
 
 To start with a fresh config and database intended for production use:
 
-```bash
-# Navigate to the directory where you want to have the configuration and data files.
-#
-# create empty files for mounting
-touch .env links.db
-# generate the .env-file contents with a default configuration
-podman run -it --name pslink_container \
-   -v ./links.db:/app/links.db:Z \
-   -v ./.env:/app/.env:Z \
-   pslink:latest /app/pslink generate-env
-# bring the database up to date
-podman run --replace -it --name  pslink_container \
-  -v ./links.db:/app/links.db:Z \
-  -v ./.env:/app/.env:Z \
-  pslink:latest /app/pslink migrate-database
-# start the container
-podman run --replace -d --name pslink_container \
-  -v ./links.db:/app/links.db:Z \
-  -v ./.env:/app/.env:Z \
-  -p 8080:8080 \
-  pslink:latest
-# create an admin user
-podman exec -it pslink_container /app/pslink create-admin
-# change the DEMO env variable to false so that the warning hint is disabled.
-sed -i 's/DEMO="true"/DEMO="false"/' .env
-# restart the container
-podman restart pslink_container
-```
+1. Navigate to the directory where you want to have the configuration and data files.
+    ```bash
+    mkdir ~/pslink-data
+    cd ~/pslink-data
+    ```
+
+2. create empty files for mounting
+    ```bash
+    touch .env links.db
+    ```
+3. generate the .env-file contents with a default configuration
+    ```bash
+    podman run -it --name pslink_container \
+      -v ./links.db:/app/links.db:Z \
+      -v ./.env:/app/.env:Z \
+      pslink:latest /app/pslink generate-env
+    ```
+4. bring the database up to date
+    ```bash
+    podman run --replace -it --name  pslink_container \
+      -v ./links.db:/app/links.db:Z \
+      -v ./.env:/app/.env:Z \
+      pslink:latest /app/pslink migrate-database
+    ```
+5. start the container
+    ```bash
+    podman run --replace -d --name pslink_container \
+      -v ./links.db:/app/links.db:Z \
+      -v ./.env:/app/.env:Z \
+      -p 8080:8080 \
+      pslink:latest
+    ```
+6. create an admin user
+    ```bash
+    podman exec -it pslink_container /app/pslink create-admin
+    ```
+7. change the DEMO env variable to false so that the warning hint is disabled.
+    ```bash
+    sed -i 's/DEMO="true"/DEMO="false"/' .env
+    ```
+8. restart the container
+    ```bash
+    podman restart pslink_container
+    ```
 
