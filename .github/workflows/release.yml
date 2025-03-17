@@ -1,7 +1,6 @@
 name: Dioxus Fullstack App CI
 
 on:
-  push:
   pull_request:
     branches:
       - main
