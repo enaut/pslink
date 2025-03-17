@@ -32,7 +32,7 @@ When successfully started you can open http://localhost:8080/app/ to login.
 
 ### Run with Database and Environment File Persistence
 
-For production use with persistent data, see the section [Database Setup](#database-setup) for instructions on generating the `.env` and `links.db` files.
+For production use with persistent data, see the section [Database Setup](#database-setup-for-production-use) for instructions on generating the `.env` and `links.db` files.
 
 To launch with persistent data run:
 
