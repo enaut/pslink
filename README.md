@@ -195,27 +195,6 @@ Some additional settings are in place to protect the system a little should anyt
     # journalctl -u pslink
     ```
 
-### Setup a demo container
+### Docker and Podman
 
-Note that this is **absolutely not for a production use** and only for demo purposes as the links are **deleted on every restart**.
-
-1. build the standalone binary:
-
-```bash
-$ cargo make build_standalone
-```
-
-2. create a temporary directory and copy the binary from above:
-
-```bash
-$ mkdir /tmp/pslink-container/
-$ cp target/x86_64-unknown-linux-musl/release/pslink /tmp/pslink-container/
-```
-
-3. run the container (podman is used here but docker could be used exactly the same):
-
-```bash
-$ podman run --expose 8080 -p=8080:8080 -it pslink-container ./pslink demo -i 0.0.0.0
-```
-
-On every restart a new container and volume is created. If the service is restarted often those should be dealt with.
+See the [Build Container](doc/BuildContainer.md) instructions.
