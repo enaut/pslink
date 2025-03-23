@@ -54,6 +54,7 @@ pub(crate) fn init_secret(secret: Secret) {
 #[cfg(feature = "server")]
 pub fn launch_pslink(app: fn() -> Result<dioxus::prelude::VNode, dioxus::prelude::RenderError>) {
     dioxus::logger::init(dioxus::logger::tracing::Level::TRACE).unwrap();
+
     tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(async move {
@@ -112,7 +113,6 @@ async fn launch_server(
             .unwrap();
 
     //User::create_user_tables(&pool).await;
-
     let admin = Router::new().serve_dioxus_application(ServeConfig::new().unwrap(), app);
 
     // build our application with some routes

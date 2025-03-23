@@ -258,4 +258,4 @@ welcome-stranger = Welcome stranger
 welcome-user = Welcome {$username}
 
 
-demo-warning = Diese Instanz ist nicht für dauerhaftes Speichern konfiguriert... Die eingegebenen Daten werden nur bis zum Neustart gespeichert.
+demo-warning = This instance is not created with a persistent storage. So all the links and useraccounts are lost on restart.

@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      channel:
+        required: true
+        description: Choose the version number to publish with. Must be a tag (ie v0.4.0)
+        type: string
 
 jobs:
   frontend-build:

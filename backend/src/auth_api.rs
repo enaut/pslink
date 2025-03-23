@@ -8,11 +8,18 @@ use dioxus::{
 };
 use pslink_shared::{apirequests::users::SessionInfo, datatypes::User};
 
-#[server(Login)]
+#[server(Login, endpoint = "login")]
 pub async fn login(username: String, password: String) -> Result<User, ServerFnError> {
     use argon2::{Params, PasswordVerifier as _};
     let auth = crate::auth::get_session().await?;
     let secret = crate::get_secret();
+    if username.is_empty() || password.is_empty() {
+        return Err(ServerFnError::new("Username or password cannot be empty"));
+    }
+    info!("Login attempt for user: {}", username);
+    if username.len() > 32 || password.len() > 32 {
+        return Err(ServerFnError::new("Username or password too long"));
+    }
 
     let user = User::get_user_by_name(&username).await;
     match user {
@@ -51,14 +58,14 @@ pub async fn login(username: String, password: String) -> Result<User, ServerFnE
     }
 }
 
-#[server(Logout)]
+#[server(Logout, endpoint = "logout")]
 pub async fn logout() -> Result<(), ServerFnError> {
     let auth = crate::auth::get_session().await?;
     auth.logout_user();
     Ok(())
 }
 
-#[server(GetSessionInfo)]
+#[server(GetSessionInfo, endpoint = "session")]
 pub async fn get_session_info() -> Result<SessionInfo, ServerFnError> {
     let auth = crate::auth::get_session().await;
     let hostname = crate::auth::get_hostname().await;
@@ -88,7 +95,7 @@ pub async fn get_session_info() -> Result<SessionInfo, ServerFnError> {
     })
 }
 
-#[server(Demo)]
+#[server(Demo, endpoint = "demo")]
 pub async fn demo() -> Result<bool, ServerFnError> {
     Ok(get_secret().is_random)
 }

@@ -23,7 +23,7 @@ use pslink_shared::{
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails.
-#[server(ListAllLinksFiltered)]
+#[server(ListAllLinksFiltered, endpoint = "list_all_links")]
 pub async fn list_all_allowed(
     parameters: LinkRequestForm,
 ) -> Result<ListWithOwner<FullLink>, ServerFnError> {
@@ -172,7 +172,7 @@ fn generate_order_sql(order: &Operation<LinkOverviewColumns, Ordering>) -> Strin
     }
 }
 
-#[server(CreateLink)]
+#[server(CreateLink, endpoint = "create_link")]
 pub async fn create_link(data: LinkDelta) -> Result<Item<Link>, ServerFnError> {
     let auth = crate::auth::get_session().await?;
     if auth.is_anonymous() {
@@ -197,7 +197,7 @@ pub async fn create_link(data: LinkDelta) -> Result<Item<Link>, ServerFnError> {
     })
 }
 
-#[server(SaveLink)]
+#[server(SaveLink, endpoint = "save_link")]
 pub async fn save_link(data: LinkDelta) -> Result<Item<Link>, ServerFnError> {
     let auth = crate::auth::get_session().await?;
     if auth.is_anonymous() {
@@ -230,7 +230,7 @@ pub async fn save_link(data: LinkDelta) -> Result<Item<Link>, ServerFnError> {
     Ok(Item { user, item: link })
 }
 
-#[server(GetLinkSimple)]
+#[server(GetLinkSimple, endpoint = "get_link_simple")]
 pub async fn get_link_simple(link_code: String) -> Result<Link, ServerFnError> {
     info!("Getting link for {:?}", link_code);
 
@@ -239,7 +239,7 @@ pub async fn get_link_simple(link_code: String) -> Result<Link, ServerFnError> {
     Ok(link)
 }
 
-#[server(DeleteLink)]
+#[server(DeleteLink, endpoint = "delete_link")]
 pub async fn delete_link(link_id: i64) -> Result<(), ServerFnError> {
     let auth = crate::auth::get_session().await?;
     if auth.is_anonymous() {
