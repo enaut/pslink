@@ -13,7 +13,7 @@ use crate::{
 #[component]
 pub fn LinkEdit(
     edit_link: Signal<Option<EditDialog>>,
-    links: Resource<IndexMap<String, FullLink>>,
+    links: Signal<IndexMap<String, FullLink>>,
 ) -> Element {
     let PslinkContext { hostname, .. } = use_context::<PslinkContext>();
     let on_esc_event = move |evt: KeyboardEvent| {
@@ -138,7 +138,7 @@ pub fn LinkEdit(
 #[component]
 pub fn ConfirmDialog(
     edit_link: Signal<Option<EditDialog>>,
-    links: Resource<IndexMap<String, FullLink>>,
+    links: Signal<IndexMap<String, FullLink>>,
 ) -> Element {
     if let Some(dialog) = edit_link() {
         if dialog.link_delta.edit != EditMode::Delete(true) {
@@ -155,7 +155,7 @@ pub fn ConfirmDialog(
 #[component]
 fn EditFooter(
     edit_link: Signal<Option<EditDialog>>,
-    links: Resource<IndexMap<String, FullLink>>,
+    links: Signal<IndexMap<String, FullLink>>,
 ) -> Element {
     rsx! {
         footer { class: "modal-card-foot is-justify-content-flex-end",
@@ -169,7 +169,7 @@ fn EditFooter(
 #[component]
 fn Buttons(
     mut edit_link: Signal<Option<EditDialog>>,
-    links: Resource<IndexMap<String, FullLink>>,
+    links: Signal<IndexMap<String, FullLink>>,
 ) -> Element {
     if let Some(EditDialog { link_delta, .. }) = edit_link() {
         info!("Edit mode: {:?}", link_delta.edit);
@@ -186,8 +186,8 @@ fn Buttons(
                                         let link_delta = dialog.link_delta;
                                         info!("Link delta: {:?}", link_delta);
                                         let _res = backend::link_api::create_link(link_delta).await;
-                                        links.restart();
-                                        edit_link.set(None);
+                                        links.set(IndexMap::new());
+                                            edit_link.set(None);
                                     }
                                 }
                             }
@@ -215,7 +215,7 @@ fn Buttons(
                                         let link_delta = dialog.link_delta;
                                         info!("Link delta: {:?}", link_delta);
                                         let _res = backend::link_api::save_link(link_delta).await;
-                                        links.restart();
+                                        links.set(IndexMap::new());
                                         edit_link.set(None);
                                     }
                                 }
@@ -241,7 +241,7 @@ fn Buttons(
                                                     link_delta.id.expect("Link ID must be set"),
                                                 )
                                                 .await;
-                                            links.restart();
+                                        links.set(IndexMap::new());
                                             edit_link.set(None);
                                         }
                                     }

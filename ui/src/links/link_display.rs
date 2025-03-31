@@ -18,13 +18,11 @@ const VANISHING_MESSAGE: Asset = asset!("/assets/styling/vanishing_message.css")
 #[component]
 pub fn LinkDisplay(
     current_code: String,
-    links: Resource<IndexMap<String, FullLink>>,
+    links: Signal<IndexMap<String, FullLink>>,
     link_signal: Signal<Option<EditDialog>>,
 ) -> Element {
     let ll = use_memo(move || {
-        links
-            .as_ref()
-            .expect("Links loaded")
+        links()
             .get(&current_code)
             .unwrap()
             .clone()

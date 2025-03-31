@@ -9,9 +9,6 @@ use ui::PslinkContext;
 
 mod views;
 
-const FAVICON: Asset = asset!("/assets/favicon.ico");
-const MAIN_CSS: Asset = asset!("/assets/main.css");
-
 fn main() {
     #[cfg(feature = "web")]
     dioxus::launch(App);
@@ -21,6 +18,8 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    const FAVICON: Asset = asset!("/assets/favicon.ico");
+    const MAIN_CSS: Asset = asset!("/assets/main.css");
     use_init_i18n(|| ui::translations::config(langid!("de-DE")));
     let logged_user = use_context_provider(|| PslinkContext::default());
     let mut language_selector = i18n();

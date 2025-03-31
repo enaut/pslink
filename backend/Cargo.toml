@@ -12,7 +12,7 @@ axum_session_auth = { workspace = true, optional = true, features = [
 dioxus = { workspace = true, features = ["fullstack"] }
 dioxus-fullstack = { workspace = true }
 anyhow = { workspace = true }
-sqlx = { version="0.7", features = [
+sqlx = { version = "0.7", features = [
     "macros",
     "migrate",
     "postgres",

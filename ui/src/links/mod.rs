@@ -158,34 +158,32 @@ pub fn Links() -> Element {
     let mut username_filter = use_signal(|| "".to_string());
     let mut order_by = use_signal(|| Option::<Operation<LinkOverviewColumns, Ordering>>::None);
     let edit_link = use_signal(|| None);
-    let links = use_resource(move || async move {
-        let mut form = LinkRequestForm::default();
-        form.filter[LinkOverviewColumns::Code] = Filter {
-            sieve: code_filter(),
-        };
-        form.filter[LinkOverviewColumns::Description] = Filter {
-            sieve: description_filter(),
-        };
-        form.filter[LinkOverviewColumns::Target] = Filter {
-            sieve: target_filter(),
-        };
-        form.filter[LinkOverviewColumns::Author] = Filter {
-            sieve: username_filter(),
-        };
-        form.order = order_by();
-        let res: IndexMap<String, FullLink> = backend::link_api::list_all_allowed(form)
-            .await
-            .expect("Links")
-            .list
-            .into_iter()
-            .map(|item| (item.link.code.clone(), item))
-            .collect();
-        res
-    });
-    let link_codes = use_memo(move || {
-        links()
-            .as_ref()
-            .map(|links| links.keys().cloned().collect::<Vec<String>>())
+    let mut links = use_signal(move || IndexMap::new());
+    let link_codes = use_memo(move || links().keys().cloned().collect::<Vec<String>>());
+
+    let _update_filters = use_resource(move || async move {
+        let code_filter = code_filter();
+        let description_filter = description_filter();
+        let target_filter = target_filter();
+        let username_filter = username_filter();
+        let order_by = order_by();
+
+        info!(
+            "Filters: {} {} {} {}",
+            code_filter, description_filter, target_filter, username_filter
+        );
+
+        let loaded_links = load_links(
+            0,
+            50,
+            code_filter,
+            description_filter,
+            target_filter,
+            username_filter,
+            order_by,
+        )
+        .await;
+        links.set(loaded_links);
     });
 
     rsx! {
@@ -303,8 +301,8 @@ pub fn Links() -> Element {
                             td {}
                             td {}
                         }
-                        if links().is_some() {
-                            for code in link_codes().expect("Links not loaded") {
+                        if ! links().is_empty() {
+                            for code in link_codes() {
                                 LinkDisplay {
                                     key: code.clone(),
                                     current_code: code.clone(),
@@ -319,6 +317,18 @@ pub fn Links() -> Element {
                     NewLinkButton { edit_link }
                 }
                 a { class: "loadmore button",
+                    onvisible: move |_|async move{
+                        let new_links = load_links(links().len(),50, code_filter(), description_filter(), target_filter(), username_filter(), order_by()).await;
+                        let mut old_links = links();
+                        old_links.extend(new_links);
+                        links.set(old_links);
+                    },
+                    onclick: move |_| async move{
+                        let new_links = load_links(links().len(),50, code_filter(), description_filter(), target_filter(), username_filter(), order_by()).await;
+                        let mut old_links = links();
+                        old_links.extend(new_links);
+                        links.set(old_links);
+                    },
                     img { src: RELOAD_SVG, class: "reloadicon" }
                     {t!("links-button-load-more")} // Button text to load more links
                 }
@@ -331,6 +341,41 @@ pub fn Links() -> Element {
                 }
             }
         }
+    }
+}
+
+async fn load_links(
+    offsett: usize,
+    amount: usize,
+    code_filter: String,
+    description_filter: String,
+    target_filter: String,
+    username_filter: String,
+    order: Option<Operation<LinkOverviewColumns, Ordering>>,
+) -> IndexMap<String, FullLink> {
+    {
+        let mut form = LinkRequestForm::default();
+        form.filter[LinkOverviewColumns::Code] = Filter { sieve: code_filter };
+        form.filter[LinkOverviewColumns::Description] = Filter {
+            sieve: description_filter,
+        };
+        form.filter[LinkOverviewColumns::Target] = Filter {
+            sieve: target_filter,
+        };
+        form.filter[LinkOverviewColumns::Author] = Filter {
+            sieve: username_filter,
+        };
+        form.order = order;
+        form.offset = offsett;
+        form.amount = amount;
+        let res: IndexMap<String, FullLink> = backend::link_api::list_all_allowed(form)
+            .await
+            .expect("Links")
+            .list
+            .into_iter()
+            .map(|item| (item.link.code.clone(), item))
+            .collect();
+        res
     }
 }
 

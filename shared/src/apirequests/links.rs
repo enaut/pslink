@@ -22,7 +22,7 @@ impl Default for LinkRequestForm {
             filter: EnumMap::default(),
             order: None,
             offset: 0,
-            amount: 60,
+            amount: 10,
         }
     }
 }

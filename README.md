@@ -6,7 +6,7 @@ So in general this is more a shared short url bookmark webpage than a short url 
 
 ## Demo
 
-A demo instance is running under [https://pslink.teilgedanken.de/app/](https://pslink.teilgedanken.de/app/)
+A demo instance is running under [https://demo.pslink.teilgedanken.de/app/](https://demo.pslink.teilgedanken.de/app/)
 
 The Username and Password are both `demo`. Do not use this for any production use case as the database is wiped every 15 minutes. If your created links/users are suddenly missing this is due to such a database wipe.
 

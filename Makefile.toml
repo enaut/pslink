@@ -1,0 +1,125 @@
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[tasks.build-x86_64]
+workspace = false
+description = "Build for x86_64 target"
+command = "cross"
+args = [
+    "build",
+    "--package",
+    "web",
+    "--features=server,dioxus/server",
+    "--target",
+    "x86_64-unknown-linux-musl",
+    "--release",
+]
+
+[tasks.build-aarch64]
+workspace = false
+description = "Build for aarch64 target"
+command = "cross"
+args = [
+    "build",
+    "--package",
+    "web",
+    "--features=server,dioxus/server",
+    "--target",
+    "aarch64-unknown-linux-musl",
+    "--release",
+]
+
+[tasks.create-bundle]
+workspace = false
+description = "Create a bundle to generate the public directory"
+command = "dx"
+args = ["bundle", "--package", "web"]
+
+
+[tasks.docker-build-x86_64]
+workspace = false
+description = "Build Docker image for x86_64"
+command = "podman"
+args = [
+    "build",
+    "-t",
+    "pslink:x86_64-latest",
+    "-f",
+    "x86_64.Dockerfile",
+    "--platform",
+    "linux/amd64",
+]
+dependencies = ["build-x86_64", "create-bundle"]
+
+[tasks.docker-build-aarch64]
+workspace = false
+description = "Build Docker image for aarch64"
+command = "podman"
+args = [
+    "build",
+    "-t",
+    "pslink:aarch64-latest",
+    "-f",
+    "aarch64.Dockerfile",
+    "--platform",
+    "linux/arm64",
+]
+dependencies = ["build-aarch64", "create-bundle"]
+
+[tasks.docker-push-x86_64]
+workspace = false
+description = "Push Docker image for x86_64"
+command = "podman"
+args = [
+    "push",
+    "pslink:x86_64-latest",
+    "docker://docker.io/enaut/pslink:x86_64-latest",
+]
+dependencies = ["docker-build-x86_64"]
+
+[tasks.docker-push-aarch64]
+workspace = false
+description = "Push Docker image for aarch64"
+command = "podman"
+args = [
+    "push",
+    "pslink:aarch64-latest",
+    "docker://docker.io/enaut/pslink:aarch64-latest",
+]
+dependencies = ["docker-build-aarch64"]
+
+[tasks.docker-manifest-clean]
+workspace = false
+description = "Clean up Docker manifest"
+command = "podman"
+args = ["manifest", "rm", "-i", "enaut/pslink:latest"]
+
+
+[tasks.docker-manifest-create]
+workspace = false
+description = "Create and push a Docker manifest"
+command = "podman"
+args = [
+    "manifest",
+    "create",
+    "enaut/pslink:latest",
+    "enaut/pslink:aarch64-latest",
+    "enaut/pslink:x86_64-latest",
+]
+dependencies = [
+    "docker-push-x86_64",
+    "docker-push-aarch64",
+    "docker-manifest-clean",
+]
+
+[tasks.docker-manifest-push]
+workspace = false
+description = "Push the Docker manifest"
+command = "podman"
+args = [
+    "manifest",
+    "push",
+    "enaut/pslink:latest",
+    "docker.io/enaut/pslink:latest",
+]
+dependencies = ["docker-manifest-create"]
