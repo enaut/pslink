@@ -17,7 +17,7 @@ The Username and Password are both `demo`. Do not use this for any production us
 
 * **Guests (no account):**
 
-  * click on link get redirected to the page
+  * click on link, get redirected to the page
   * error on invalid or deleted link
 
 * **Users (regular account):**
@@ -89,12 +89,12 @@ If that succeeds you should now be able to call Pslink. The binary is located at
 
 **In the binary releases and in this README the `server` binary is renamed to `pslink`.**
 
-### Setup
+### Configuration and setup
 
 To read the help and documentation of additional options call:
 
 ```bash
-$ pslink help
+ pslink help
 ```
 
 To get Pslink up and running use the commands in the following order:
@@ -143,24 +143,24 @@ Some additional settings are in place to protect the system a little should anyt
 
 1. create the user
     ```bash 
-    # adduser pslink --home-dir /opt/pslink
+    sudo adduser pslink --home-dir /opt/pslink
     ```
 2. create the directory and change its owner and permissions
     ```bash
-    # mkdir -p /opt/pslink
-    # chown pslink:pslink /opt/pslink
-    # chmod 700 /opt/pslink
+    sudo mkdir -p /opt/pslink
+    sudo chown pslink:pslink /opt/pslink
+    sudo chmod 700 /opt/pslink
     ```
 3. create the initial config file and database
     ```bash
-    pslink$ cd /opt/pslink
-    pslink$ /opt/pslink/pslink generate-env
-    pslink$ /opt/pslink/pslink migrate-database
-    pslink$ /opt/pslink/pslink create-admin
+    cd /opt/pslink
+    sudo -u pslink /opt/pslink/pslink generate-env
+    sudo -u pslink /opt/pslink/pslink migrate-database
+    sudo -u pslink /opt/pslink/pslink create-admin
     ```
 4. create the systemd service file at `/etc/systemd/system/pslink.service` and adjust it to your liking:
     ```systemd
-    # /etc/systemd/system/pslink.service
+    cat /etc/systemd/system/pslink.service
     [Unit]
     Description=Pslink the Urlshortener
     Documentation=https://github.com/enaut/Pslink
@@ -187,12 +187,12 @@ Some additional settings are in place to protect the system a little should anyt
     ```
 5. start and install the service
     ```bash
-    # systemctl enable --now pslink
+    sudo systemctl enable --now pslink
     ```
 6. check the log file for errors:
     ```bash
-    # systemctl status pslink
-    # journalctl -u pslink
+    sudo systemctl status pslink
+    sudo journalctl -u pslink
     ```
 
 ### Docker and Podman
