@@ -7,4 +7,4 @@
 **/*.rs.bk
 links.db*
 Cargo.lock
-.env
+.env*
