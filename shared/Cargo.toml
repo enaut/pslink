@@ -19,15 +19,11 @@ version = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 enum-map = { version = "2.7", features = ["serde"] }
-strum_macros = "0.26"
-strum = "0.26"
+strum_macros = "0.27"
+strum = "0.27"
 dioxus = { workspace = true, features = ["fullstack"] }
 rand = { version = "0.8", optional = true }
 
 
 [features]
-server = [
-    "dep:rand",
-    # "dep:sqlx",
-    #    "dep:axum_session_redispool",
-]
+server = ["dep:rand"]

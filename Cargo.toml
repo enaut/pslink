@@ -6,7 +6,7 @@ members = ["ui", "web", "backend", "shared"]
 axum = { version = "0.7.0" }
 axum_session = { version = "0.12.1" }
 axum_session_auth = { version = "0.12.1" }
-anyhow = { version = "1.0.95" }
+anyhow = { version = "1.0.97" }
 
 dioxus = { version = "0.6" }
 dioxus-fullstack = { version = "0.6" }
