@@ -35,6 +35,7 @@ pub struct Operation<T, V> {
 pub enum EditMode {
     Create,
     Edit,
+    Delete(bool),
 }
 
 impl Default for EditMode {

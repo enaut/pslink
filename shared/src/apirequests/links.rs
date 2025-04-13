@@ -22,7 +22,7 @@ impl Default for LinkRequestForm {
             filter: EnumMap::default(),
             order: None,
             offset: 0,
-            amount: 60,
+            amount: 10,
         }
     }
 }
@@ -35,8 +35,7 @@ pub struct LinkDelta {
     pub title: String,
     pub target: String,
     pub code: String,
-    pub author: i64,
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub author: Option<i64>,
 }
 
 impl From<Link> for LinkDelta {
@@ -48,12 +47,23 @@ impl From<Link> for LinkDelta {
             title: l.title,
             target: l.target,
             code: l.code,
-            author: l.author,
-            created_at: Some(l.created_at),
+            author: Some(l.author),
         }
     }
 }
-
+impl From<&Link> for LinkDelta {
+    /// Automatically create a `LinkDelta` from a Link.
+    fn from(l: &Link) -> Self {
+        Self {
+            edit: EditMode::Edit,
+            id: Some(l.id),
+            title: l.title.clone(),
+            target: l.target.clone(),
+            code: l.code.clone(),
+            author: Some(l.author),
+        }
+    }
+}
 impl From<FullLink> for LinkDelta {
     /// Automatically create a `LinkDelta` from a `FullLink`.
     fn from(l: FullLink) -> Self {
@@ -63,8 +73,20 @@ impl From<FullLink> for LinkDelta {
             title: l.link.title,
             target: l.link.target,
             code: l.link.code,
-            author: l.link.author,
-            created_at: Some(l.link.created_at),
+            author: Some(l.link.author),
+        }
+    }
+}
+impl From<&FullLink> for LinkDelta {
+    /// Automatically create a `LinkDelta` from a `FullLink`.
+    fn from(l: &FullLink) -> Self {
+        Self {
+            edit: EditMode::Edit,
+            id: Some(l.link.id),
+            title: l.link.title.clone(),
+            target: l.link.target.clone(),
+            code: l.link.code.clone(),
+            author: Some(l.link.author),
         }
     }
 }

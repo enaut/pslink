@@ -1,98 +1,125 @@
-[config]
-default_to_workspace = false
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 
-# ---- BUILD ----
-
-[tasks.build]
-description = "Build client and server"
-clear = true
-dependencies = ["build_client", "build_server"]
-
-[tasks.build_release]
-extend = "build"
-description = "Build client and server in release mode"
-dependencies = ["build_client_release", "build_server_release"]
-
-[tasks.build_standalone]
-extend = "build"
-description = "Build client and server with musl libc embedded"
-dependencies = ["build_client_release", "build_server_standalone"]
-
-[tasks.build_client]
-description = "Build client"
-install_crate = { crate_name = "wasm-pack", binary = "wasm-pack", test_arg = "-V" }
-command = "wasm-pack"
-args = ["build", "app", "--target", "web", "--out-name", "app", "--out-dir", "../pslink/static/wasm/", "--dev"]
-
-[tasks.build_client_release]
-extend = "build_client"
-description = "Build client in release mode"
-args = ["build", "app", "--target", "web", "--out-name", "app", "--out-dir", "../pslink/static/wasm/", "--release"]
-
-[tasks.build_server]
-env = { SQLX_OFFLINE = 1 }
-description = "Build server"
-command = "cargo"
-args = ["build", "--package", "pslink"]
-
-[tasks.build_server_release]
-extend = "build_server"
-description = "Build server in release mode"
-args = ["build", "--package", "pslink", "--release"]
-
-[tasks.build_server_standalone]
-extend = "build_server"
-description = "Build server with the musl libc embedded"
-args = ["build", "--package", "pslink", "--release", "--target", "x86_64-unknown-linux-musl"]
-
-# ---- START ----
-
-[tasks.start]
-description = "Build and start the pslink server in debug mode"
-command = "cargo"
-args = ["run", "--package", "pslink", "--", "runserver"]
-dependencies = ["build"]
-
-[tasks.start_release]
-extend = "start"
-description = "Build and start the pslink server in release mode"
-args = ["run", "--package", "pslink", "--release", "--", "runserver"]
-dependencies = ["build_release"]
-
-[tasks.start_standalone]
-extend = "start"
-description = "Build and start the pslink server with the musl c library embedded."
-args = ["run", "--package", "pslink", "--release", "--target", "x86_64-unknown-linux-musl", "--", "runserver"]
-dependencies = ["build_standalone"]
-
-# ---- TEST ----
-
-[tasks.test_firefox]
-description = "Test with wasm-pack in Firefox"
-command = "wasm-pack"
-args = ["test", "client", "--firefox", "--headless"]
-
-# ---- LINT ----
-
-[tasks.fmt]
-description = "Format with rustfmt"
-install_crate = { crate_name = "rustfmt-nightly", rustup_component_name = "rustfmt", binary = "rustfmt", test_arg = "--help" }
-command = "cargo"
-args = ["fmt", "--all"]
-
-[tasks.fmt_check]
-extend = "fmt"
-description = "Check format with rustfmt"
-args = ["fmt", "--all", "--", "--check"]
-
-[tasks.clippy]
-description = "Lint with Clippy"
-clear = true
-install_crate = { rustup_component_name = "clippy", binary = "cargo-clippy", test_arg = "--help" }
-command = "cargo"
-args = ["clippy", "--all-features", "--",
-    "--warn", "warnings",
-    "--warn", "clippy::pedantic",
-    "--warn", "clippy::nursery",
-    "--allow", "clippy::future_not_send", # JS/WASM is single threaded
+[tasks.build-x86_64]
+workspace = false
+description = "Build for x86_64 target"
+command = "cross"
+args = [
+    "build",
+    "--package",
+    "web",
+    "--features=server,dioxus/server",
+    "--target",
+    "x86_64-unknown-linux-musl",
+    "--release",
 ]
+
+[tasks.build-aarch64]
+workspace = false
+description = "Build for aarch64 target"
+command = "cross"
+args = [
+    "build",
+    "--package",
+    "web",
+    "--features=server,dioxus/server",
+    "--target",
+    "aarch64-unknown-linux-musl",
+    "--release",
+]
+
+[tasks.create-bundle]
+workspace = false
+description = "Create a bundle to generate the public directory"
+command = "dx"
+args = ["bundle", "--package", "web"]
+
+
+[tasks.docker-build-x86_64]
+workspace = false
+description = "Build Docker image for x86_64"
+command = "podman"
+args = [
+    "build",
+    "-t",
+    "pslink:x86_64-latest",
+    "-f",
+    "x86_64.Dockerfile",
+    "--platform",
+    "linux/amd64",
+]
+dependencies = ["build-x86_64", "create-bundle"]
+
+[tasks.docker-build-aarch64]
+workspace = false
+description = "Build Docker image for aarch64"
+command = "podman"
+args = [
+    "build",
+    "-t",
+    "pslink:aarch64-latest",
+    "-f",
+    "aarch64.Dockerfile",
+    "--platform",
+    "linux/arm64",
+]
+dependencies = ["build-aarch64", "create-bundle"]
+
+[tasks.docker-push-x86_64]
+workspace = false
+description = "Push Docker image for x86_64"
+command = "podman"
+args = [
+    "push",
+    "pslink:x86_64-latest",
+    "docker://docker.io/enaut/pslink:x86_64-latest",
+]
+dependencies = ["docker-build-x86_64"]
+
+[tasks.docker-push-aarch64]
+workspace = false
+description = "Push Docker image for aarch64"
+command = "podman"
+args = [
+    "push",
+    "pslink:aarch64-latest",
+    "docker://docker.io/enaut/pslink:aarch64-latest",
+]
+dependencies = ["docker-build-aarch64"]
+
+[tasks.docker-manifest-clean]
+workspace = false
+description = "Clean up Docker manifest"
+command = "podman"
+args = ["manifest", "rm", "-i", "enaut/pslink:latest"]
+
+
+[tasks.docker-manifest-create]
+workspace = false
+description = "Create and push a Docker manifest"
+command = "podman"
+args = [
+    "manifest",
+    "create",
+    "enaut/pslink:latest",
+    "enaut/pslink:aarch64-latest",
+    "enaut/pslink:x86_64-latest",
+]
+dependencies = [
+    "docker-push-x86_64",
+    "docker-push-aarch64",
+    "docker-manifest-clean",
+]
+
+[tasks.docker-manifest-push]
+workspace = false
+description = "Push the Docker manifest"
+command = "podman"
+args = [
+    "manifest",
+    "push",
+    "enaut/pslink:latest",
+    "docker.io/enaut/pslink:latest",
+]
+dependencies = ["docker-manifest-create"]

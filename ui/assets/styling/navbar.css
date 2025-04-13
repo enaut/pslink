@@ -1,0 +1,58 @@
+nav {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: space-between;
+  align-items: stretch;
+  width: 100%;
+  height: 60px;
+}
+
+nav ol {
+  display: flex;
+  align-items: center;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  height: 40px;
+}
+
+nav li a,
+nav li div.willkommen {
+  color: white;
+  text-align: center;
+  padding: 14px 16px;
+  text-decoration: none;
+  border-radius: 0 0 10px 10px;
+}
+
+nav li a {
+  background: rgb(2, 0, 36);
+  background: linear-gradient(180deg, rgba(2, 0, 36, 1) 0%, rgba(9, 9, 121, 1) 35%, rgb(0, 145, 174) 100%);
+}
+
+nav li {
+  float: left;
+}
+
+nav li a:hover {
+  background: rgb(2, 0, 36);
+  background: linear-gradient(180deg, rgba(2, 0, 36, 1) 0%, rgba(9, 9, 121, 1) 35%, rgb(60, 170, 255) 100%);
+}
+
+nav li {
+  margin: 5px;
+}
+
+nav li div {
+  background-color: burlywood;
+  text-align: center;
+  padding: 14px 16px;
+  border-radius: 0 0 10px 10px;
+}
+
+.languageselector a {
+  height: 70%;
+  padding: 5px;
+  margin: 3px;
+  border-radius: 50%;
+}

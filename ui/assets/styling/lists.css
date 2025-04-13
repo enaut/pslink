@@ -1,0 +1,115 @@
+svg.statistics_graph {
+    width: 120px;
+    height: 50px;
+}
+
+.stats_total {
+    display: block;
+    font-size: 0.7em;
+    background-color: rgba(255, 255, 255, 0.75);
+    padding: 3px;
+    border-radius: 14px;
+    bottom: 0;
+    margin-top: -83px;
+}
+
+svg.statistics_graph {
+    width: 120px;
+    height: 30px;
+}
+
+.stats_total {
+    display: block;
+    font-size: 0.7em;
+    margin-top: -4px;
+}
+
+td.table_qr svg {
+    max-height: 50px;
+    padding: 0;
+    margin: 0;
+    margin-bottom: -10px;
+}
+
+td.table_qr {
+    padding: 0;
+    margin: 0;
+    width: 40px;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+img.trashicon {
+    width: 0.5cm;
+    user-select: none;
+}
+
+.centered {
+    display: flex;
+    /* Makes the container a flexbox */
+    justify-content: center;
+    /* Centers the child horizontally */
+    height: 100vh;
+    /* Optional: to demonstrate centering within a full viewport height */
+}
+
+.boxed {
+    width: 200px;
+    height: 100px;
+    text-align: center;
+    line-height: 100px;
+    /* Optional: centers text vertically inside the box */
+}
+
+div.editdialog {
+    background-color: aliceblue;
+    border: 5px solid rgb(90, 90, 90);
+}
+
+div.closebutton a {
+    display: block;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: xx-large;
+    cursor: pointer;
+}
+
+.center {
+    position: fixed;
+    width: 600px;
+    max-width: 100%;
+    height: 500px;
+    max-height: 100%;
+    top: 50%;
+    left: 50%;
+    margin-left: -300px;
+    margin-top: -250px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+    color: #333;
+    overflow-y: scroll;
+    scrollbar-width: none;
+}
+
+.center input {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border-radius: 1px;
+    border: 1px solid rgb(90, 90, 90);
+    font-family: inherit;
+    background-color: #eae9ea;
+}
+
+@media screen and (min-width: 769px),
+print {
+    .is-wider .field-label {
+        flex-grow: 2 !important;
+    }
+}

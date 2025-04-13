@@ -1,0 +1,16 @@
+[package]
+name = "web"
+version = "0.5.0"
+edition = "2024"
+
+[dependencies]
+dioxus = { workspace = true, features = ["router"] }
+ui = { workspace = true }
+backend = { workspace = true }
+pslink-shared = { workspace = true }
+dioxus-i18n = "0.4.2"
+
+[features]
+default = []
+web = ["dioxus/web"]
+server = ["dioxus/server", "backend/server", "pslink-shared/server"]

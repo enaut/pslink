@@ -1,4 +1,5 @@
 //! Types for user requesting and saving
+
 use enum_map::{Enum, EnumMap};
 use serde::{Deserialize, Serialize};
 
@@ -57,6 +58,12 @@ impl From<User> for UserDelta {
             role: u.role,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionInfo {
+    pub user: Option<User>,
+    pub hostname: String,
 }
 
 /// The columns in the user view table. The table can be ordered according to these.

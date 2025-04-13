@@ -1,0 +1,58 @@
+[package]
+name = "backend"
+version = "0.5.0"
+edition = "2024"
+
+[dependencies]
+axum = { workspace = true, optional = true }
+axum_session = { workspace = true, optional = true }
+axum_session_auth = { workspace = true, optional = true, features = [
+    "sqlite-rustls",
+] }
+dioxus = { workspace = true, features = ["fullstack"] }
+dioxus-fullstack = { workspace = true }
+anyhow = { workspace = true }
+sqlx = { version = "0.7", features = [
+    "macros",
+    "migrate",
+    "postgres",
+    "sqlite",
+    "_unstable-all-types",
+    "tls-rustls",
+    "runtime-tokio",
+], optional = true }
+tokio = { version = "1.43", optional = true }
+pslink-shared = { workspace = true }
+async-trait = { version = "0.1.86", optional = true }
+argon2 = { version = "0.5.3", optional = true }
+once_cell = { version = "1.20.2", optional = true }
+enum-map = { version = "2.7", features = ["serde"] }
+serde = "1.0"
+chrono = "0.4"
+rand = { version = "0.8", optional = true }
+dotenv = { version = "0.15", optional = true }
+clap = { version = "4", optional = true, features = [
+    "cargo",
+    "env",
+    "string",
+    "unicode",
+] }
+rpassword = { version = "7.3", optional = true }
+
+
+[features]
+server = [
+    "dep:tokio",
+    "dep:axum",
+    "dioxus-fullstack/axum",
+    "dep:axum_session",
+    "dep:axum_session_auth",
+    "dep:sqlx",
+    "dep:async-trait",
+    "dep:argon2",
+    "dep:once_cell",
+    "dep:rand",
+    "dep:dotenv",
+    "dep:clap",
+    "dep:rpassword",
+]

@@ -1,42 +1,58 @@
+name: Dioxus Fullstack App CI
+
 on:
-  release:
-    types: [created]
-name: Handle Release
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      channel:
+        required: true
+        description: Choose the version number to publish with. Must be a tag (ie v0.4.0)
+        type: string
+
 jobs:
-  generate:
-    name: Create release-artifacts
+  frontend-build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        target: x86_64-unknown-linux-musl
-        override: true
-    - uses: davidB/rust-cargo-make@v1
-      with:
-        version: 'latest'
-    - uses: jetli/wasm-pack-action@v0.3.0
-      with:
-        version: 'latest'
-    - uses: actions/checkout@v2
-    - uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo
-    - name: Install musl-tools
-      run: sudo apt-get install musl-tools
-    - name: Build
-      run: cargo make build_standalone
-    - name: Rename
-      run: mv /home/runner/work/pslink/pslink/target/x86_64-unknown-linux-musl/release/pslink pslink_linux_64bit
-    - name: Upload the artifacts
-      uses: skx/github-action-publish-binaries@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        args: 'pslink_linux_64bit'
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+
+      - name: Install Dioxus CLI
+        run: cargo binstall dioxus-cli
+
+      - name: Build Dioxus frontend
+        run: dx bundle --release --package web
+
+      - name: rename binary
+        run: mv target/dx/web/release/web/server target/dx/web/release/web/pslink
+
+      - name: rename path
+        run: mv target/dx/web/release/web target/dx/web/release/pslink
+
+      - name: Create archive of build artifacts
+        run: tar -czvf pslink-linux-x86_64-bundle.tgz -C target/dx/web/release pslink
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: pslink-server-bundle.tgz
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts (for non-tagged builds)
+        uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: web-build
+          path: target/dx/web/release/pslink

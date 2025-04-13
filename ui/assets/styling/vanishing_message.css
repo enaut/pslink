@@ -1,0 +1,26 @@
+.vanishing-message {
+    animation: vanish 3s forwards;
+    overflow: hidden;
+    opacity: 0.9;
+    position: absolute;
+    z-index: 1;
+    left: 50%;
+    box-shadow: 0 0 10px 0 rgba(255, 0, 0, 0.7);
+}
+
+@keyframes vanish {
+    0% {
+        opacity: 0.9;
+        visibility: visible;
+    }
+
+    90% {
+        opacity: 0.8;
+        visibility: visible;
+    }
+
+    100% {
+        opacity: 0;
+        visibility: collapse;
+    }
+}

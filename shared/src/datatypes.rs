@@ -3,17 +3,18 @@ use std::ops::Deref;
 
 use crate::apirequests::users::Role;
 use serde::{Deserialize, Serialize, Serializer};
+
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
 /// A generic list return type containing the User and a Vec containing e.g. Links or Users
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct ListWithOwner<T> {
     pub user: User,
     pub list: Vec<T>,
 }
 
 /// A link together with its author and its click-count.
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct FullLink {
     pub link: Link,
     pub user: User,
@@ -75,7 +76,7 @@ pub struct User {
 }
 
 /// A short url of the link service
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Link {
     pub id: i64,
     pub title: String,
@@ -130,11 +131,15 @@ pub struct Click {
 #[serde(from = "String")]
 pub struct Secret {
     pub secret: Option<String>,
+    pub is_random: bool,
 }
 
 impl From<String> for Secret {
     fn from(_: String) -> Self {
-        Self { secret: None }
+        Self {
+            secret: None,
+            is_random: false,
+        }
     }
 }
 
@@ -152,6 +157,19 @@ impl Secret {
     pub const fn new(secret: String) -> Self {
         Self {
             secret: Some(secret),
+            is_random: false,
+        }
+    }
+    #[cfg(feature = "server")]
+    #[must_use]
+    pub fn random() -> Self {
+        let secret = rand::Rng::sample_iter(rand::thread_rng(), &rand::distributions::Alphanumeric)
+            .take(30)
+            .map(char::from)
+            .collect();
+        Self {
+            secret: Some(secret),
+            is_random: true,
         }
     }
 }
@@ -204,4 +222,11 @@ impl std::fmt::Display for Lang {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
+}
+
+/// A generic returntype containing the User and a single item
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct Item<T> {
+    pub user: User,
+    pub item: T,
 }

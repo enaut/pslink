@@ -6,7 +6,7 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Int64"
       },
       {
         "name": "username",
@@ -26,7 +26,7 @@
       {
         "name": "role",
         "ordinal": 4,
-        "type_info": "Integer"
+        "type_info": "Int64"
       },
       {
         "name": "language",

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE links SET author = ? where author = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "c2dc413e14456373d915dbfffebf888255618fe346acba0bd8b9a04defa08254"
+}
