@@ -56,6 +56,16 @@ The Username and Password are both `demo`. Do not use this for any production us
 
 ## Usage
 
+### Run the binary containerized
+
+You can most easily run the container with podman or docker. This will launch the pslink service in demo mode. So whenever the container is restarted everything is reset to the demo data.
+
+If you want to run in production mode you will need to set up and persist the `.env` file and the `links.db` sqlite database. See the [Container Documentation](doc/BuildContainer.md).
+
+```bash
+$ podman run ghcr.io/enaut/pslink:latest
+```
+
 ### Install the binary
 
 The Pslink bundle can be downloaded from the latest release at: https://github.com/enaut/pslink/releases
@@ -194,7 +204,3 @@ Some additional settings are in place to protect the system a little should anyt
     sudo systemctl status pslink
     sudo journalctl -u pslink
     ```
-
-### Docker and Podman
-
-See the [Build Container](doc/BuildContainer.md) instructions.

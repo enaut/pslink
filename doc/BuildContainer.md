@@ -7,14 +7,7 @@ This document describes how to build and run the Pslink server using containers.
 - Docker or Podman installed on your system
 - Rust toolchain (if building locally first)
 
-## Building the Container Image
 
-Navigate to the project root directory and build the image (podman and docker are interchangable use what you have installed):
-
-```bash
-# Using Podman
-podman build -t pslink:latest .
-```
 
 ## Running the Container
 
@@ -25,7 +18,7 @@ This run command does start pslink with some demo data. The username and passwor
 ```bash
 podman run -d --name pslink_container \
   -p 8080:8080 \
-  pslink:latest
+  ghcr.io/enaut/pslink:latest
 ```
 
 When successfully started you can open http://localhost:8080/app/ to login.
@@ -41,7 +34,7 @@ podman run -d --name pslink_container \
   -v ./links.db:/app/links.db:Z \
   -v ./.env:/app/.env:Z \
   -p 8080:8080 \
-  pslink:latest
+  ghcr.io/enaut/pslink:latest
 ```
 
 Replace `./links.db` and `./.env` with absolute paths if necessary. If SElinux is not used the `:Z` parameters can be omitted.
@@ -52,7 +45,7 @@ When starting the container, you can specify command line arguments :
 
 ```bash
 podman exec -it
-  pslink:latest /app/pslink --help
+  ghcr.io/enaut/pslink:latest /app/pslink --help
 ```
 
 ```
@@ -112,14 +105,14 @@ To start with a fresh config and database intended for production use:
     podman run -it --name pslink_container \
       -v ./links.db:/app/links.db:Z \
       -v ./.env:/app/.env:Z \
-      pslink:latest /app/pslink generate-env
+      ghcr.io/enaut/pslink:latest /app/pslink generate-env
     ```
 4. bring the database up to date
     ```bash
     podman run --replace -it --name  pslink_container \
       -v ./links.db:/app/links.db:Z \
       -v ./.env:/app/.env:Z \
-      pslink:latest /app/pslink migrate-database
+      ghcr.io/enaut/pslink:latest /app/pslink migrate-database
     ```
 5. start the container
     ```bash
@@ -127,7 +120,7 @@ To start with a fresh config and database intended for production use:
       -v ./links.db:/app/links.db:Z \
       -v ./.env:/app/.env:Z \
       -p 8080:8080 \
-      pslink:latest
+      ghcr.io/enaut/pslink:latest
     ```
 6. create an admin user
     ```bash
@@ -142,3 +135,11 @@ To start with a fresh config and database intended for production use:
     podman restart pslink_container
     ```
 
+## Building the Container Image
+
+Navigate to the project root directory and build the image (podman and docker are interchangable use what you have installed):
+
+```bash
+# Using Podman
+podman build -t pslink:latest .
+```
