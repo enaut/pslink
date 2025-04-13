@@ -52,7 +52,7 @@ jobs:
         with:
           files: pslink-linux-x86_64-bundle.tgz
           token: ${{ secrets.GITHUB_TOKEN }}
-          draft: false
+          draft: true
           generate_release_notes: true
 
       - name: Upload artifacts (for non-tagged builds)
