@@ -42,26 +42,21 @@ jobs:
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main
 
-      - name: Install cargo-make
-        run: cargo binstall cargo-make -y
-
       - name: Install cross
         run: cargo binstall cross -y
 
       - name: Install Dioxus CLI
         run: cargo binstall dioxus-cli -y
 
-      - name: Cache cargo dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Lowercase repository owner
+        id: lowercase_repo
+        run: echo "REPO_OWNER=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_ENV
 
       - name: Build for x86_64
         run: cross build --package web --features=server,dioxus/server --target x86_64-unknown-linux-musl --release
+
+      - name: Cleaning up target directory
+        run: cargo clean
 
       - name: Build for aarch64
         run: cross build --package web --features=server,dioxus/server --target aarch64-unknown-linux-musl --release
@@ -78,10 +73,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Lowercase repository owner
-        id: lowercase_repo
-        run: echo "REPO_OWNER=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_ENV
 
       - name: Build and push x86_64 image
         uses: docker/build-push-action@v5
