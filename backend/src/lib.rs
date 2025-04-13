@@ -12,6 +12,7 @@ pub mod link_api;
 pub mod redirect_links;
 pub mod user_api;
 
+#[cfg(feature = "server")]
 use dioxus::logger::tracing::info;
 #[cfg(feature = "server")]
 use pslink_shared::datatypes::Secret;

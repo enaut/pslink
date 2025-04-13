@@ -3,20 +3,25 @@ use std::str::FromStr;
 
 #[cfg(feature = "server")]
 use crate::models::{LinkDbOperations as _, NewLink};
-use dioxus::{
-    logger::tracing::info,
-    prelude::{server, server_fn, ServerFnError},
-};
+#[cfg(feature = "server")]
+use dioxus::logger::tracing::info;
+use dioxus::prelude::{ServerFnError, server, server_fn};
+#[cfg(feature = "server")]
 use enum_map::EnumMap;
+use pslink_shared::{
+    apirequests::links::{LinkDelta, LinkRequestForm},
+    datatypes::{FullLink, Item, Link, ListWithOwner},
+};
+
+#[cfg(feature = "server")]
 use pslink_shared::{
     apirequests::{
         general::{Filter, Operation, Ordering},
-        links::{LinkDelta, LinkOverviewColumns, LinkRequestForm},
+        links::LinkOverviewColumns,
         users::Role,
     },
-    datatypes::{Clicks, Count, FullLink, Item, Lang, Link, ListWithOwner, Secret, User},
+    datatypes::{Clicks, Count, Lang, Secret, User},
 };
-
 /// Returns a List of `FullLink` meaning `Links` enriched by their author and statistics. This returns all links if the user is either Admin or Regular user.
 ///
 /// Todo: this function only naively protects agains SQL-injections use better variants.
@@ -141,6 +146,7 @@ fn generate_filter_sql(filters: &EnumMap<LinkOverviewColumns, Filter>) -> String
 }
 
 /// A macro to translate the Ordering Type into a sql ordering string.
+#[cfg(feature = "server")]
 macro_rules! ts {
     ($ordering:expr) => {
         match $ordering {

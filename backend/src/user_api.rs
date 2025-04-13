@@ -11,17 +11,16 @@ use dioxus::logger::tracing::info;
 use dioxus::prelude::*;
 #[cfg(feature = "server")]
 use enum_map::EnumMap;
-use pslink_shared::{
-    apirequests::users::{UserDelta, UserRequestForm},
-    datatypes::Secret,
-};
+use pslink_shared::apirequests::users::{UserDelta, UserRequestForm};
 
+use pslink_shared::datatypes::{Item, Lang, ListWithOwner, User};
+#[cfg(feature = "server")]
 use pslink_shared::{
     apirequests::{
         general::{EditMode, Filter, Operation, Ordering},
         users::{Role, UserOverviewColumns},
     },
-    datatypes::{Item, Lang, ListWithOwner, User},
+    datatypes::Secret,
 };
 #[cfg(feature = "server")]
 use sqlx::Row;

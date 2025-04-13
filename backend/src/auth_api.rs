@@ -2,10 +2,9 @@
 use crate::get_secret;
 #[cfg(feature = "server")]
 use crate::models::UserDbOperations as _;
-use dioxus::{
-    logger::tracing::info,
-    prelude::{ServerFnError, server, server_fn},
-};
+#[cfg(feature = "server")]
+use dioxus::logger::tracing::info;
+use dioxus::prelude::{ServerFnError, server, server_fn};
 use pslink_shared::{apirequests::users::SessionInfo, datatypes::User};
 
 #[server(Login, endpoint = "login")]
