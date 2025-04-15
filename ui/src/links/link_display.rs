@@ -4,6 +4,7 @@ use dioxus_i18n::t;
 use indexmap::IndexMap;
 use pslink_shared::apirequests::general::EditMode;
 use pslink_shared::apirequests::users::Role;
+use pslink_shared::datatypes::Clicks;
 use pslink_shared::datatypes::FullLink;
 
 use crate::PslinkContext;
@@ -19,14 +20,10 @@ const VANISHING_MESSAGE: Asset = asset!("/assets/styling/vanishing_message.css")
 pub fn LinkDisplay(
     current_code: String,
     links: Signal<IndexMap<String, FullLink>>,
+    link_stats: Signal<IndexMap<String, Clicks>>,
     link_signal: Signal<Option<EditDialog>>,
 ) -> Element {
-    let ll = use_memo(move || {
-        links()
-            .get(&current_code)
-            .unwrap()
-            .clone()
-    });
+    let ll = use_memo(move || links().get(&current_code).unwrap().clone());
     let mut nachricht: Signal<Option<String>> = use_signal(move || None);
     let PslinkContext { user, hostname } = use_context::<PslinkContext>();
     let mut timer = use_resource(move || {
@@ -42,6 +39,13 @@ pub fn LinkDisplay(
         let url = generate_url_for_code(&code, &hostname());
         generate_svg_qr_from_url(&url)
     });
+    let stats = use_memo(move || {
+        link_stats()
+            .get(&ll().link.code)
+            .cloned()
+            .unwrap_or_else(|| ll().clicks)
+    });
+
     rsx! {
         document::Stylesheet { href: VANISHING_MESSAGE }
 
@@ -71,6 +75,7 @@ pub fn LinkDisplay(
             td { "{ll().link.code}" }
             td { "{ll().link.title}" }
             td {
+                style: "max-width:70%;word-wrap:anywhere;",
                 if nachricht().is_some() {
                     div { class: "is-danger notification vanishing-message", "{nachricht().unwrap()}" }
                 }
@@ -78,7 +83,8 @@ pub fn LinkDisplay(
             }
             td { "{ll().user.username}" }
             td {
-                Stats { clicks: ll().clicks }
+                Stats {
+                    clicks: stats() }
             }
             td { class: "table_qr", dangerous_inner_html: qr_code_svg }
             td {

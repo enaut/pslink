@@ -10,7 +10,7 @@ use dioxus::prelude::{ServerFnError, server, server_fn};
 use enum_map::EnumMap;
 use pslink_shared::{
     apirequests::links::{LinkDelta, LinkRequestForm},
-    datatypes::{FullLink, Item, Link, ListWithOwner},
+    datatypes::{Clicks, FullLink, Item, Link, ListWithOwner},
 };
 
 #[cfg(feature = "server")]
@@ -20,7 +20,7 @@ use pslink_shared::{
         links::LinkOverviewColumns,
         users::Role,
     },
-    datatypes::{Clicks, Count, Lang, Secret, User},
+    datatypes::{Count, Lang, Secret, User},
 };
 /// Returns a List of `FullLink` meaning `Links` enriched by their author and statistics. This returns all links if the user is either Admin or Regular user.
 ///
@@ -271,4 +271,22 @@ pub async fn delete_link(link_id: i64) -> Result<(), ServerFnError> {
     Link::delete_link_by_code(&link.code).await?;
 
     Ok(())
+}
+
+#[server(GetLinkStatistics, endpoint = "get_link_statistics")]
+pub async fn get_link_statistics(link_id: i64) -> Result<Clicks, ServerFnError> {
+    let auth = crate::auth::get_session().await?;
+    if auth.is_anonymous() {
+        return Err(ServerFnError::new("Not authenticated".to_owned()));
+    }
+    let _user = auth
+        .current_user
+        .expect("not authenticated")
+        .get_user()
+        .expect("User is authenticated");
+
+    // Get existing link first
+    let stats = Link::get_statistics(link_id).await?;
+
+    Ok(Clicks::Extended(stats))
 }

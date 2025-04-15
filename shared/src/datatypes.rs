@@ -111,7 +111,7 @@ impl Ord for WeekCount {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Statistics {
     pub link_id: i64,
     pub total: Count,

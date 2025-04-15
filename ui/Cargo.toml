@@ -17,3 +17,4 @@ web-sys = { version = "0.3", features = [
     "IntersectionObserverInit",
     "BlobPropertyBag",
 ] }
+chrono = "*"

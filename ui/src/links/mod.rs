@@ -3,7 +3,10 @@ mod link_edit;
 mod new_link_button;
 mod stats;
 
-use dioxus::{logger::tracing::info, prelude::*};
+use dioxus::{
+    logger::tracing::{info, trace},
+    prelude::*,
+};
 use dioxus_i18n::t;
 use fast_qr::{
     QRBuilder,
@@ -116,7 +119,7 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
         }
     }
     fn update_code(&mut self, code: String, host: &str) {
-        info!("Updating code to: {}", code);
+        trace!("Updating code to: {}", code);
         if let Some(mut dialog) = self() {
             let url = generate_url_for_code(&code, host);
             dialog.qr = generate_svg_qr_from_url(&url);
@@ -125,7 +128,7 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
         }
     }
     fn update_title(&mut self, title: String) {
-        info!("Updating title to: {}", title);
+        trace!("Updating title to: {}", title);
         if let Some(mut dialog) = self() {
             dialog.link_delta.title = title;
             info!("Updated dialog: {:?}", dialog.link_delta.title);
@@ -133,7 +136,7 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
         };
     }
     fn update_target(&mut self, target: String) {
-        info!("Updating target to: {}", target);
+        trace!("Updating target to: {}", target);
         if let Some(mut dialog) = self() {
             dialog.link_delta.target = target;
             self.set(Some(dialog));
@@ -141,7 +144,7 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
     }
 
     fn set_edit_mode(&mut self, edit_mode: EditMode) {
-        info!("Updating edit to: {:?}", &edit_mode);
+        trace!("Updating edit to: {:?}", &edit_mode);
         if let Some(mut dialog) = self() {
             dialog.link_delta.edit = edit_mode;
             self.set(Some(dialog));
@@ -158,8 +161,27 @@ pub fn Links() -> Element {
     let mut username_filter = use_signal(|| "".to_string());
     let mut order_by = use_signal(|| Option::<Operation<LinkOverviewColumns, Ordering>>::None);
     let edit_link = use_signal(|| None);
-    let mut links = use_signal(move || IndexMap::new());
+    let mut links: Signal<IndexMap<String, FullLink>> = use_signal(move || IndexMap::new());
     let link_codes = use_memo(move || links().keys().cloned().collect::<Vec<String>>());
+    let mut link_stats = use_signal(|| IndexMap::new());
+    let links_without_stats = use_resource(move || async move {
+        let codes_to_update: Vec<_> = links()
+            .iter()
+            .filter_map(|(code, link)| {
+                if link_stats.peek().get(code).is_none() {
+                    Some((code.clone(), link.link.id))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for (code, link_id) in codes_to_update {
+            if let Ok(statistics) = backend::link_api::get_link_statistics(link_id).await {
+                link_stats.write().insert(code, statistics);
+            }
+        }
+    });
 
     let _update_filters = use_resource(move || async move {
         let code_filter = code_filter();
@@ -168,7 +190,7 @@ pub fn Links() -> Element {
         let username_filter = username_filter();
         let order_by = order_by();
 
-        info!(
+        trace!(
             "Filters: {} {} {} {}",
             code_filter, description_filter, target_filter, username_filter
         );
@@ -227,7 +249,8 @@ pub fn Links() -> Element {
                                 onclick: move |_| {
                                     order_by.set(toggle_column(order_by(), LinkOverviewColumns::Statistics));
                                 },
-                                {t!("links-table-header-statistics")} // Column header for statistics
+                                {t!("links-table-header-statistics")}
+                                {format!("{}", links_without_stats().iter().len())}
                             }
                             th {}
                             th {}
@@ -301,12 +324,13 @@ pub fn Links() -> Element {
                             td {}
                             td {}
                         }
-                        if ! links().is_empty() {
+                        if !links().is_empty() {
                             for code in link_codes() {
                                 LinkDisplay {
-                                    key: code.clone(),
+                                    key: format!("{}{}", &code, link_stats().get(&code).is_some()),
                                     current_code: code.clone(),
                                     links,
+                                    link_stats,
                                     link_signal: edit_link.clone(),
                                 }
                             }
@@ -316,15 +340,34 @@ pub fn Links() -> Element {
                 div {
                     NewLinkButton { edit_link }
                 }
-                a { class: "loadmore button",
-                    onvisible: move |_|async move{
-                        let new_links = load_links(links().len(),50, code_filter(), description_filter(), target_filter(), username_filter(), order_by()).await;
+                a {
+                    class: "loadmore button",
+                    onvisible: move |_| async move {
+                        let new_links = load_links(
+                                links().len(),
+                                50,
+                                code_filter(),
+                                description_filter(),
+                                target_filter(),
+                                username_filter(),
+                                order_by(),
+                            )
+                            .await;
                         let mut old_links = links();
                         old_links.extend(new_links);
                         links.set(old_links);
                     },
-                    onclick: move |_| async move{
-                        let new_links = load_links(links().len(),50, code_filter(), description_filter(), target_filter(), username_filter(), order_by()).await;
+                    onclick: move |_| async move {
+                        let new_links = load_links(
+                                links().len(),
+                                50,
+                                code_filter(),
+                                description_filter(),
+                                target_filter(),
+                                username_filter(),
+                                order_by(),
+                            )
+                            .await;
                         let mut old_links = links();
                         old_links.extend(new_links);
                         links.set(old_links);

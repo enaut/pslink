@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "select id,code from links where id=?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "code",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "86474d3afa501597c7eeef4136a60d39c8a9cd5c327c4dff3776b4cfc37f1dc5"
+}

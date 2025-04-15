@@ -280,7 +280,7 @@ pub trait LinkDbOperations<T> {
     async fn get_link_by_id(id: i64) -> Result<T, ServerFnError>;
     async fn delete_link_by_code(code: &str) -> Result<(), ServerFnError>;
     async fn update_link(&self) -> Result<(), ServerFnError>;
-    async fn get_statistics(code: i64) -> Result<Statistics, ServerFnError>;
+    async fn get_statistics(link_id: i64) -> Result<Statistics, ServerFnError>;
 }
 
 impl LinkDbOperations<Self> for Link {
@@ -292,24 +292,37 @@ impl LinkDbOperations<Self> for Link {
     async fn get_statistics(link_id: i64) -> Result<Statistics, ServerFnError> {
         let db = crate::get_db().await;
         // Verify that the code exists to avoid injections in the next query
-        let code = sqlx::query!("select code from links where id=?", link_id)
+        let link = sqlx::query!("select id,code from links where id=?", link_id)
             .fetch_one(&db)
-            .await?
-            .code;
-        // The query to get the statistics carefully check code before to avoid injections.
-        let qry = format!(
-            r#"SELECT created_at AS month,
-    cast(strftime('%W', created_at) AS String) AS week,
-    count(*) AS total
-FROM clicks
-WHERE month > date('now', 'start of month', '-1 year')
-    AND link = '{}'
-GROUP BY week
-ORDER BY month"#,
-            link_id
-        );
+            .await?;
+        // Use proper parameter binding for SQLx static analysis
+        let qry = "WITH all_weeks AS (
+  WITH RECURSIVE weeks(date_value) AS (
+    SELECT datetime('now', 'start of month', '-1 year')
+    UNION ALL
+    SELECT datetime(date_value, '+7 days')
+    FROM weeks
+    WHERE date_value < date('now')
+  )
+  SELECT 
+    date_value AS month,
+    cast(strftime('%W', date_value) AS String) AS week
+  FROM weeks
+)
+SELECT 
+  aw.month,
+  aw.week,
+  COALESCE(COUNT(c.id), 0) AS total
+FROM all_weeks aw
+LEFT JOIN clicks c ON cast(strftime('%W', c.created_at) AS String) = aw.week 
+  AND c.link = ?  
+  AND c.created_at > date('now', 'start of month', '-1 year')
+GROUP BY aw.week
+ORDER BY aw.month";
+        let code = link.code;
         // Execute and map the query to the desired type
-        let values: Vec<WeekCount> = sqlx::query(&qry)
+        let values: Vec<WeekCount> = sqlx::query(qry)
+            .bind(link.id)
             .fetch_all(&db)
             .await?
             .into_iter()
@@ -326,13 +339,13 @@ ORDER BY month"#,
             "select count(*) as number from clicks join links on clicks.link = links.id where links.code = ?",
             code
         ).fetch_one(&db).await?;
-        info!("Found Statistics: {:?}", &values);
         Ok(Statistics {
             link_id,
             total,
             values,
         })
     }
+
     /// Get a link by its code (the short url code)
     ///
     /// # Errors

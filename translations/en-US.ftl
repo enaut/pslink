@@ -1,7 +1,10 @@
 # Generated translation template by dioxus-i18n-collect
-# Contains 65 translation keys
+# Contains 68 translation keys
 
-# Source: ./ui/src/login.rs:108
+# Source: ./ui/src/navbar.rs:160
+demo-warning = This instance is not created with a persistent storage. So all the links and useraccounts are lost on restart.
+
+# Source: ./ui/src/login.rs:103
 # Parameters: $error
 failed-login = Username and password did not match please try again.
 
@@ -65,43 +68,43 @@ link-edit-placeholder-description = Description
 link-edit-placeholder-target = Redirect target
 
 # Button text to load more links
-# Source: ./ui/src/links/mod.rs:323
+# Source: ./ui/src/links/mod.rs:355
 links-button-load-more = Load more links
 
 # Text displayed while loading links data
-# Source: ./ui/src/links/mod.rs:329
+# Source: ./ui/src/links/mod.rs:361
 links-loading = Loading links
 
 # Text for login link
-# Source: ./ui/src/links/mod.rs:330
+# Source: ./ui/src/links/mod.rs:362
 links-login = Login
 
 # Placeholder text for filter input field
-# Source: ./ui/src/links/mod.rs:242
+# Source: ./ui/src/links/mod.rs:261
 links-table-filter-placeholder = Filter links by...
 
 # Column header for link code
-# Source: ./ui/src/links/mod.rs:204
+# Source: ./ui/src/links/mod.rs:222
 links-table-header-code = Code
 
 # Column header for description
-# Source: ./ui/src/links/mod.rs:211
+# Source: ./ui/src/links/mod.rs:229
 links-table-header-description = Description
 
 # Column header for statistics
-# Source: ./ui/src/links/mod.rs:232
+# Source: ./ui/src/links/mod.rs:250
 links-table-header-statistics = Statistics
 
 # Column header for link target
-# Source: ./ui/src/links/mod.rs:218
+# Source: ./ui/src/links/mod.rs:236
 links-table-header-target = Short link target
 
 # Column header for username
-# Source: ./ui/src/links/mod.rs:225
+# Source: ./ui/src/links/mod.rs:243
 links-table-header-username = Author
 
 # The menu entry for login
-# Source: ./ui/src/login.rs:146
+# Source: ./ui/src/login.rs:141
 login = Login
 
 # The menu entry for logout
@@ -109,18 +112,18 @@ login = Login
 logout = Logout
 
 # The title of the page
-# Source: ./ui/src/navbar.rs:136
+# Source: ./ui/src/navbar.rs:137
 page-not-found = 404 Page not found
 
 # The text of the page
-# Source: ./ui/src/navbar.rs:137
+# Source: ./ui/src/navbar.rs:138
 page-not-found-text = The requested page was not found.
 
 # Source: ./ui/src/login.rs:77
 password = Password
 
 # The requested route on the 404 page
-# Source: ./ui/src/navbar.rs:138
+# Source: ./ui/src/navbar.rs:139
 # Parameters: $route
 requested-route = The requested route was {$route}
 
@@ -128,68 +131,78 @@ requested-route = The requested route was {$route}
 # Source: ./ui/src/navbar.rs:69
 short_urls = Short URLs
 
+# Displayed as a tooltip when there have been no clicks on this link in the last 12 months.
+# Source: ./ui/src/links/stats.rs:23
+# Parameters: $count
+tooltip_no_clicks = This link was not clicked in the last 12 months. Before that is was clicked {$count} times.
+
+# Text below the click statistic graph
+# Source: ./ui/src/links/stats.rs:17
+# Parameters: $count
+total_clicks = Total clicks: {$count}
+
 # Button text for confirming user deletion
-# Source: ./ui/src/users/user_edit.rs:270
+# Source: ./ui/src/users/user_edit.rs:278
 user-edit-button-confirm-delete = Actually delete user
 
 # Button text for creating a new user
-# Source: ./ui/src/users/user_edit.rs:215
+# Source: ./ui/src/users/user_edit.rs:221
 user-edit-button-create = Create user
 
 # Button text for deleting a user
-# Source: ./ui/src/users/user_edit.rs:226
+# Source: ./ui/src/users/user_edit.rs:233
 user-edit-button-delete = Delete user
 
 # Button text for updating an existing user
-# Source: ./ui/src/users/user_edit.rs:244
+# Source: ./ui/src/users/user_edit.rs:252
 user-edit-button-update = Edit user
 
 # Warning message displayed when attempting to delete a user
-# Source: ./ui/src/users/user_edit.rs:168
+# Source: ./ui/src/users/user_edit.rs:173
 user-edit-delete-warning = Deleting a user is usually not sensible as their created links would become ownerless. It's better to simply change the password.
 
 # Label for email field in edit form
-# Source: ./ui/src/users/user_edit.rs:66
+# Source: ./ui/src/users/user_edit.rs:70
 user-edit-label-email = Email
 
 # Label for password field in edit form
-# Source: ./ui/src/users/user_edit.rs:86
+# Source: ./ui/src/users/user_edit.rs:90
 user-edit-label-password = Password
 
 # Label for role selection dropdown in edit form
-# Source: ./ui/src/users/user_edit.rs:111
+# Source: ./ui/src/users/user_edit.rs:115
 user-edit-label-role = Role
 
 # Label for username field in edit form
-# Source: ./ui/src/users/user_edit.rs:42
+# Source: ./ui/src/users/user_edit.rs:46
 user-edit-label-username = Username
 
 # Placeholder text for email input field
-# Source: ./ui/src/users/user_edit.rs:72
+# Source: ./ui/src/users/user_edit.rs:76
 user-edit-placeholder-email = Email
 
 # Placeholder text for password input field
-# Source: ./ui/src/users/user_edit.rs:92
+# Source: ./ui/src/users/user_edit.rs:96
 user-edit-placeholder-password = Password
 
 # Placeholder text for username input field
-# Source: ./ui/src/users/user_edit.rs:52
+# Source: ./ui/src/users/user_edit.rs:56
 user-edit-placeholder-username = Username
 
 # Option for admin role in dropdown
-# Source: ./ui/src/users/user_edit.rs:132
+# Source: ./ui/src/users/user_edit.rs:137
 user-edit-role-admin = Administrator
 
 # Option for disabled role in dropdown
-# Source: ./ui/src/users/user_edit.rs:139
+# Source: ./ui/src/users/user_edit.rs:144
 user-edit-role-disabled = Disabled
 
 # Option for regular user role in dropdown
-# Source: ./ui/src/users/user_edit.rs:127
+# Source: ./ui/src/users/user_edit.rs:132
 user-edit-role-regular = Regular
 
 # Title of the username in the edit dialog
-# Source: ./ui/src/users/user_edit.rs:297
+# Source: ./ui/src/users/user_edit.rs:305
 # Parameters: $username
 user-edit-title = User data
 
@@ -257,5 +270,3 @@ welcome-stranger = Welcome stranger
 # Parameters: $username
 welcome-user = Welcome {$username}
 
-
-demo-warning = This instance is not created with a persistent storage. So all the links and useraccounts are lost on restart.
