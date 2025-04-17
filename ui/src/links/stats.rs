@@ -1,7 +1,6 @@
-use chrono::Datelike as _;
-use dioxus::{logger::tracing::info, prelude::*};
+use dioxus::prelude::*;
 use dioxus_i18n::t;
-use pslink_shared::datatypes::{Clicks, Count, Statistics, WeekCount};
+use pslink_shared::datatypes::{Clicks, Statistics, WeekCount};
 
 #[component]
 pub(crate) fn Stats(clicks: Clicks) -> Element {
