@@ -94,7 +94,7 @@ pub struct Count {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct WeekCount {
-    pub month: chrono::NaiveDateTime,
+    pub full_date: chrono::NaiveDateTime,
     pub total: Count,
     pub week: i32,
 }

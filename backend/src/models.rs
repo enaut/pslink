@@ -305,20 +305,21 @@ impl LinkDbOperations<Self> for Link {
     WHERE date_value < date('now')
   )
   SELECT 
-    date_value AS month,
+    date_value AS full_date,
+    cast(strftime('%Y.%W', date_value) AS String) AS year_week,
     cast(strftime('%W', date_value) AS String) AS week
   FROM weeks
 )
 SELECT 
-  aw.month,
+  aw.full_date,
   aw.week,
   COALESCE(COUNT(c.id), 0) AS total
 FROM all_weeks aw
-LEFT JOIN clicks c ON cast(strftime('%W', c.created_at) AS String) = aw.week 
+LEFT JOIN clicks c ON cast(strftime('%Y.%W', c.created_at) AS String) = aw.year_week
   AND c.link = ?  
   AND c.created_at > date('now', 'start of month', '-1 year')
-GROUP BY aw.week
-ORDER BY aw.month";
+GROUP BY aw.year_week
+ORDER BY aw.full_date";
         let code = link.code;
         // Execute and map the query to the desired type
         let values: Vec<WeekCount> = sqlx::query(qry)
@@ -327,7 +328,7 @@ ORDER BY aw.month";
             .await?
             .into_iter()
             .map(|c| WeekCount {
-                month: c.get("month"),
+                full_date: c.get("full_date"),
                 total: Count {
                     number: c.get("total"),
                 },
@@ -339,11 +340,12 @@ ORDER BY aw.month";
             "select count(*) as number from clicks join links on clicks.link = links.id where links.code = ?",
             code
         ).fetch_one(&db).await?;
-        Ok(Statistics {
+        let res = Statistics {
             link_id,
             total,
             values,
-        })
+        };
+        Ok(res)
     }
 
     /// Get a link by its code (the short url code)

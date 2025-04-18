@@ -45,8 +45,8 @@ pub(crate) fn Graph(stats: Statistics, maximum: WeekCount) -> Element {
     let mut points = Vec::new();
     points.push(format!("M 0 {}", &normalized[0]));
     #[allow(clippy::needless_range_loop)]
-    for i in 1..normalized.len() {
-        points.push(format!("L {} {}", i * 2, &normalized[i]));
+    for (i, value) in normalized.iter().enumerate() {
+        points.push(format!("L {} {}", i * 2, value));
     }
 
     rsx! {
