@@ -263,7 +263,7 @@ pub fn Users() -> Element {
                         if users().is_some() {
                             for code in user_codes().expect("users not loaded") {
                                 UserDisplay {
-                                    key: code.clone(),
+                                    key: "{code}",
                                     current_username: code.clone(),
                                     users,
                                     edit_dialog_signal: edit_dialog_signal.clone(),
@@ -272,11 +272,13 @@ pub fn Users() -> Element {
                         }
                     }
                 }
-                if user.as_ref().unwrap().role == Role::Admin {
-                    NewUserButton { edit_dialog_signal }
-                    a { class: "loadmore button",
-                        img { src: RELOAD_SVG, class: "reloadicon" }
-                        {t!("users-button-load-more")} // Button text to load more users
+                if let Some(current_user) = user.as_ref() {
+                    if current_user.role == Role::Admin {
+                        NewUserButton { edit_dialog_signal }
+                        a { class: "loadmore button",
+                            img { src: RELOAD_SVG, class: "reloadicon" }
+                            {t!("users-button-load-more")} // Button text to load more users
+                        }
                     }
                 }
             }

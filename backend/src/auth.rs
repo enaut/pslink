@@ -1,7 +1,6 @@
 #[cfg(feature = "server")]
 use crate::models::UserDbOperations;
-
-use axum::extract::Host;
+use axum_extra::extract::Host;
 use dioxus::prelude::{ServerFnError, extract};
 use pslink_shared::datatypes::User;
 
@@ -44,7 +43,7 @@ impl axum_session_auth::Authentication<AuthAccount, i64, sqlx::Pool<sqlx::Sqlite
 pub type Session = axum_session_auth::AuthSession<
     AuthAccount,
     i64,
-    axum_session_auth::SessionSqlitePool,
+    axum_session_sqlx::SessionSqlitePool,
     sqlx::SqlitePool,
 >;
 

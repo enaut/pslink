@@ -4,19 +4,25 @@ version = "0.5.2"
 edition = "2024"
 
 [dependencies]
-axum = { workspace = true, optional = true }
-axum_session = { workspace = true, optional = true }
-axum_session_auth = { workspace = true, optional = true, features = [
-    "sqlite-rustls",
-] }
 dioxus = { workspace = true, features = ["fullstack"] }
+server_fn = { version = "0.8", features = ["browser"] }
+axum = { workspace = true, optional = true }
+axum_session_sqlx = { version = "0.5.0", features = [
+    "sqlite",
+    "tls-rustls",
+], optional = true }
+axum_session = { workspace = true, optional = true }
+axum_session_auth = { workspace = true, optional = true }
+axum-extra = { version = "0.10", optional = true }
 dioxus-fullstack = { workspace = true }
 anyhow = { workspace = true }
-sqlx = { version = "0.7", features = [
+sqlx = { version = "0.8", features = [
     "macros",
     "migrate",
     "postgres",
     "sqlite",
+    "chrono",
+    "time",
     "_unstable-all-types",
     "tls-rustls",
     "runtime-tokio",
@@ -38,6 +44,11 @@ clap = { version = "4", optional = true, features = [
     "unicode",
 ] }
 rpassword = { version = "7.3", optional = true }
+time = { version = "0.3", features = [
+    "macros",
+    "serde",
+    "local-offset",
+], optional = true }
 
 
 [features]
@@ -45,8 +56,11 @@ server = [
     "dep:tokio",
     "dep:axum",
     "dioxus-fullstack/axum",
+    "pslink-shared/server",
     "dep:axum_session",
     "dep:axum_session_auth",
+    "dep:axum_session_sqlx",
+    "dep:axum-extra",
     "dep:sqlx",
     "dep:async-trait",
     "dep:argon2",

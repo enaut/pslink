@@ -23,7 +23,16 @@ strum_macros = "0.27"
 strum = "0.27"
 dioxus = { workspace = true, features = ["fullstack"] }
 rand = { version = "0.8", optional = true }
+time = { version = "0.3", features = ["serde", "macros", "std"] }
 
 
 [features]
 server = ["dep:rand"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+time = { version = "0.3", features = [
+    "serde",
+    "macros",
+    "std",
+    "wasm-bindgen",
+] }

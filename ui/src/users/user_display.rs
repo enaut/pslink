@@ -22,36 +22,39 @@ pub fn UserDisplay(
             .as_ref()
             .expect("Users loaded")
             .get(&current_username)
-            .unwrap()
-            .clone()
+            .cloned()
     });
     let PslinkContext { user, .. } = use_context::<PslinkContext>();
     rsx! {
-        tr {
-            onclick: move |_| {
-                info!("Edit user {:?}", user().unwrap().role);
-                edit_dialog_signal
-                    .set_edit_dialog(
-                        Some(uu().id),
-                        uu().username.clone(),
-                        uu().email.clone(),
-                        None,
-                        uu().role,
-                        EditMode::Edit,
-                    );
-            },
-
-            td { "{uu().id}" }
-            td { "{uu().username}" }
-            td { "{uu().email}" }
-            td {
-                match uu().role {
-                    pslink_shared::apirequests::users::Role::NotAuthenticated => {
-                        t!("users-role-anonymous")
+        if let Some(user_data) = uu() {
+            tr {
+                onclick: move |_| {
+                    if let Some(current_user) = user() {
+                        info!("Edit user {:?}", current_user.role);
+                        edit_dialog_signal
+                            .set_edit_dialog(
+                                Some(user_data.id),
+                                user_data.username.clone(),
+                                user_data.email.clone(),
+                                None,
+                                user_data.role,
+                                EditMode::Edit,
+                            );
                     }
-                    pslink_shared::apirequests::users::Role::Disabled => t!("users-role-disabled"),
-                    pslink_shared::apirequests::users::Role::Regular => t!("users-role-regular"),
-                    pslink_shared::apirequests::users::Role::Admin => t!("users-role-admin"),
+                },
+
+                td { "{user_data.id}" }
+                td { "{user_data.username}" }
+                td { "{user_data.email}" }
+                td {
+                    match user_data.role {
+                        pslink_shared::apirequests::users::Role::NotAuthenticated => {
+                            t!("users-role-anonymous")
+                        }
+                        pslink_shared::apirequests::users::Role::Disabled => t!("users-role-disabled"),
+                        pslink_shared::apirequests::users::Role::Regular => t!("users-role-regular"),
+                        pslink_shared::apirequests::users::Role::Admin => t!("users-role-admin"),
+                    }
                 }
             }
         }

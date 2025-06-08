@@ -5,12 +5,12 @@ edition = "2024"
 
 [dependencies]
 indexmap = "*"
-fast_qr = { version = "0.12.7", features = ["svg", "image"] }
+fast_qr = { version = "0.13", features = ["svg", "image"] }
 dioxus = { workspace = true }
 backend = { workspace = true }
 pslink-shared = { workspace = true }
 wasmtimer = "*"
-dioxus-i18n = "0.4.2"
+dioxus-i18n = { workspace = true }
 web-sys = { version = "0.3", features = [
     "IntersectionObserver",
     "IntersectionObserverEntry",

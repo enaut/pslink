@@ -327,7 +327,7 @@ pub fn Links() -> Element {
                         if !links().is_empty() {
                             for code in link_codes() {
                                 LinkDisplay {
-                                    key: format!("{}{}", &code, link_stats().get(&code).is_some()),
+                                    key: "{code}{link_stats().get(&code).is_some()}",
                                     current_code: code.clone(),
                                     links,
                                     link_stats,

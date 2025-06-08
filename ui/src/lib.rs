@@ -12,8 +12,17 @@ pub mod navbar;
 pub use navbar::Navbar;
 use pslink_shared::datatypes::User;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct PslinkContext {
     pub user: Signal<Option<User>>,
     pub hostname: Signal<String>,
+}
+
+impl Default for PslinkContext {
+    fn default() -> Self {
+        Self {
+            user: Signal::new(None),
+            hostname: Signal::new(String::new()),
+        }
+    }
 }

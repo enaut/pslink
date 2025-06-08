@@ -1,5 +1,6 @@
 //! The more generic data-types used in pslink
 use std::ops::Deref;
+use time::OffsetDateTime;
 
 use crate::apirequests::users::Role;
 use serde::{Deserialize, Serialize, Serializer};
@@ -83,7 +84,7 @@ pub struct Link {
     pub target: String,
     pub code: String,
     pub author: i64,
-    pub created_at: chrono::NaiveDateTime,
+    pub created_at: OffsetDateTime,
 }
 
 /// When statistics are counted
@@ -94,7 +95,7 @@ pub struct Count {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct WeekCount {
-    pub full_date: chrono::NaiveDateTime,
+    pub full_date: OffsetDateTime,
     pub total: Count,
     pub week: i32,
 }

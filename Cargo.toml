@@ -3,16 +3,17 @@ resolver = "3"
 members = ["ui", "web", "backend", "shared"]
 
 [workspace.dependencies]
-axum = { version = "0.7.0" }
-axum_session = { version = "0.12.1" }
-axum_session_auth = { version = "0.12.1" }
-anyhow = { version = "1.0.97" }
+axum = { version = "0.8" }
+axum_session = { version = "0.16" }
+axum_session_auth = { version = "0.16" }
+anyhow = { version = "1.0.98" }
 
-dioxus = { version = "0.6" }
-dioxus-fullstack = { version = "0.6" }
+dioxus = { version = "0.7.0-alpha.1" }
+dioxus-fullstack = { version = "0.7.0-alpha.1" }
 ui = { path = "ui" }
 backend = { path = "backend" }
 pslink-shared = { path = "shared" }
+dioxus-i18n = { path = "../../dioxus-i18n" }
 
 [profile]
 

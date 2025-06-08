@@ -97,10 +97,9 @@ async fn launch_server(
     use axum_session::SessionConfig;
     use axum_session::SessionStore;
     use axum_session_auth::AuthConfig;
-    use axum_session_auth::SessionSqlitePool;
     use dioxus::logger::tracing::info;
     use dioxus::prelude::DioxusRouterExt;
-    use dioxus_fullstack::ServeConfig;
+    use dioxus_fullstack::ServeConfigBuilder;
 
     let pool = get_db().await;
 
@@ -108,25 +107,32 @@ async fn launch_server(
     //To enable Private cookies for integrity, and authenticity please check the next Example.
     let session_config = SessionConfig::default().with_table_name("test_table");
     let auth_config = AuthConfig::<i64>::default().with_anonymous_user_id(Some(0));
-    let session_store =
-        SessionStore::<SessionSqlitePool>::new(Some(pool.clone().into()), session_config)
-            .await
-            .unwrap();
+    let session_store = SessionStore::<axum_session_sqlx::SessionSqlitePool>::new(
+        Some(pool.clone().into()),
+        session_config,
+    )
+    .await
+    .unwrap();
 
     //User::create_user_tables(&pool).await;
-    let admin = Router::new().serve_dioxus_application(ServeConfig::new().unwrap(), app);
+    let admin = Router::new().serve_dioxus_application(
+        ServeConfigBuilder::default()
+            .build()
+            .expect("Failed to build ServeConfig"),
+        app,
+    );
 
     // build our application with some routes
     let axum_route = Router::new()
         // Server side render the application, serve static assets, and register server functions
         .nest("/app/", admin)
-        .route("/:data", get(redirect_links::redirect))
+        .route("/{data}", get(redirect_links::redirect))
         .route("/", get(redirect_links::redirect_empty))
         .layer(
             axum_session_auth::AuthSessionLayer::<
                 auth::AuthAccount,
                 i64,
-                axum_session_auth::SessionSqlitePool,
+                axum_session_sqlx::SessionSqlitePool,
                 sqlx::SqlitePool,
             >::new(Some(pool.clone()))
             .with_config(auth_config),

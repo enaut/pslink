@@ -6,7 +6,7 @@
       {
         "name": "number",
         "ordinal": 0,
-        "type_info": "Int"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

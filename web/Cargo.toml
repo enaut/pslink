@@ -4,11 +4,12 @@ version = "0.5.2"
 edition = "2024"
 
 [dependencies]
-dioxus = { workspace = true, features = ["router"] }
+dioxus = { workspace = true, features = ["router", "fullstack"] }
 ui = { workspace = true }
 backend = { workspace = true }
 pslink-shared = { workspace = true }
-dioxus-i18n = "0.4.2"
+dioxus-i18n = { workspace = true }
+server_fn = "0.8"
 
 [features]
 default = []

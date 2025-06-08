@@ -43,17 +43,22 @@ pub fn generate_error_page(
     error_message: &str,
     status_code: StatusCode,
 ) -> axum::http::Response<Body> {
-    let bulma_path = pslink_shared::BULMA_CSS.bundled().bundled_path();
-    let brand_name = std::env::var("PSLINK_BRAND_NAME")
-        .unwrap_or_else(|_| "Pslink".to_string());
+    let bulma_path = pslink_shared::BULMA_CSS
+        .bundled()
+        .bundled_path()
+        .to_string();
+    let brand_name = std::env::var("PSLINK_BRAND_NAME").unwrap_or_else(|_| "Pslink".to_string());
     let content = rsx! {
         section { class: "section",
             div { class: "container",
                 div { class: "columns is-centered",
                     div { class: "column is-half",
                         div { class: "box has-text-centered",
-                            h4 { class: "title is-2 has-text-info", "Error on the webpage of"}
-                            h3 { class: "title is-2",img {src: "/favicon.ico", alt: "{brand_name}"}, " {brand_name}" }
+                            h4 { class: "title is-2 has-text-info", "Error on the webpage of" }
+                            h3 { class: "title is-2",
+                                img { src: "/favicon.ico", alt: "{brand_name}" }
+                                " {brand_name}"
+                            }
                             h4 { class: "subtitle is-4 mt-5 has-text-danger", "{status_code}" }
                             p { class: "subtitle is-4 mb-5", "{error_message}" }
                             a { href: "/", class: "button is-info", "Back to the main Page" }
