@@ -128,7 +128,7 @@ pub fn LoginScreen() -> Element {
                                     match backend::auth_api::login(username(), password()).await {
                                         Ok(u) => {
                                             user.set(Some(u));
-                                            nav.push(Route::Home {});
+                                            nav.push(Route::Links {});
                                         }
                                         Err(e) => {
                                             let fehlernachricht = t!("failed-login", error : e.to_string());
