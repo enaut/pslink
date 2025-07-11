@@ -2,6 +2,7 @@
 name = "backend"
 version = "0.5.2"
 edition = "2024"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 dioxus = { workspace = true, features = ["fullstack"] }
