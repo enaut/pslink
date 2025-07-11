@@ -72,7 +72,14 @@ pub fn launch_pslink(app: fn() -> Result<dioxus::prelude::VNode, dioxus::prelude
                         std::env::var("DIOXUS_DEVSERVER_PORT")
                             .unwrap_or_else(|_| "8080".to_string())
                     );
-                    server.await
+                    tokio::select! {
+                        _ = tokio::signal::ctrl_c() => {
+                            println!("Received Ctrl+C, shutting down server...");
+                        }
+                        _ = server => {
+                            println!("Server stopped");
+                        }
+                    }
                 }
                 Ok(None) => {
                     std::thread::sleep(std::time::Duration::from_millis(100));

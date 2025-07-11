@@ -8,12 +8,12 @@ axum_session = { version = "0.16" }
 axum_session_auth = { version = "0.16" }
 anyhow = { version = "1.0.98" }
 
-dioxus = { version = "0.7.0-alpha.1" }
-dioxus-fullstack = { version = "0.7.0-alpha.1" }
+dioxus = { version = "0.7.0-alpha.2" }
+dioxus-fullstack = { version = "0.7.0-alpha.2" }
 ui = { path = "ui" }
 backend = { path = "backend" }
 pslink-shared = { path = "shared" }
-dioxus-i18n = { path = "../../dioxus-i18n" }
+dioxus-i18n = { git = "https://github.com/enaut/dioxus-i18n.git", branch = "updatev0.7" }
 
 [profile]
 
