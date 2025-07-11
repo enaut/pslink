@@ -304,27 +304,15 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
         // if the variable DIOXUS_CLI_ENABLED is true run the server
         let dioxus_cli =
             std::env::var("DIOXUS_CLI_ENABLED").map_or(false, |s| s.parse().unwrap_or(false));
+        info!("Dioxus CLI enabled: {}", dioxus_cli);
         if dioxus_cli {
-            server_config.internal_ip = dioxus::cli_config::server_ip()
-                .expect("Cli should be enabled")
-                .to_string();
-            server_config.port = dioxus::cli_config::server_port().expect("Cli should be enabled");
-
-            // Check if database exists
-            if !server_config.db.exists() {
-                error!("Database not found at {}", server_config.db.display());
-                error!("Do you want to create a demo database? If so use the command:");
-                error!("target/dx/web/debug/web/server demo");
-                error!("Afterwards restart the dx command.");
-                return Err(ServerFnError::new("Database not found".to_string()));
-            } else {
-                init_db(&server_config.db.to_string_lossy()).await;
-                info!(
-                    "Starting the server with the following configuration: {} {}",
-                    server_config.internal_ip, server_config.port
-                );
-                return Ok(Some(server_config));
-            }
+            error!(
+                "The Dioxus CLI is enabled, but no command was provided. Please use `--args=\"runserver\"` to start the server."
+            );
+            println!("{}", generate_cli().render_usage());
+            return Err(ServerFnError::new(
+                "The command is missing try `runserver`".to_string(),
+            ));
         } else {
             println!("{}", generate_cli().render_usage());
             return Err(ServerFnError::new(
@@ -388,6 +376,32 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
     }
 
     if let Some(_runserver_config) = config.subcommand_matches("runserver") {
+        let dioxus_cli =
+            std::env::var("DIOXUS_CLI_ENABLED").map_or(false, |s| s.parse().unwrap_or(false));
+
+        if dioxus_cli {
+            info!("Dioxus CLI enabled: {}", dioxus_cli);
+            server_config.internal_ip = dioxus::cli_config::server_ip()
+                .expect("Cli should be enabled")
+                .to_string();
+            server_config.port = dioxus::cli_config::server_port().expect("Cli should be enabled");
+
+            // Check if database exists
+            if !server_config.db.exists() {
+                error!("Database not found at {}", server_config.db.display());
+                error!("Do you want to create a demo database? If so use the command:");
+                error!("target/dx/web/debug/web/server demo");
+                error!("Afterwards restart the dx command.");
+                return Err(ServerFnError::new("Database not found".to_string()));
+            } else {
+                init_db(&server_config.db.to_string_lossy()).await;
+                info!(
+                    "Starting the server with the following configuration: {} {}",
+                    server_config.internal_ip, server_config.port
+                );
+                return Ok(Some(server_config));
+            }
+        }
         let num_users = User::count_admins().await?;
 
         if num_users.number < 1 {
@@ -509,7 +523,7 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerFnError> {
 /// The command line parameters provided or if missing the default parameters can be converted and written to a .env file. That way the configuration is saved and automatically reused for subsequent launches.
 fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerFnError> {
     let env_path = std::path::Path::new(".env");
-    
+
     if env_path.exists() && env_path.metadata().map(|m| m.len() > 0).unwrap_or(false) {
         return Err(ServerFnError::new(
             "ERROR: There already is a non-empty .env file - ABORT!".to_string(),
@@ -537,7 +551,13 @@ fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerFnError> 
 async fn generate_demo_data(
     server_config: ServerConfig,
 ) -> Result<Option<ServerConfig>, ServerFnError> {
-    if server_config.db.exists() && server_config.db.metadata().map(|m| m.len() > 0).unwrap_or(false) {
+    if server_config.db.exists()
+        && server_config
+            .db
+            .metadata()
+            .map(|m| m.len() > 0)
+            .unwrap_or(false)
+    {
         return Err(ServerFnError::new("The database is not empty aborting because this could mean that creating a demo instance would lead in data loss.".to_string()));
     } else {
         info!("Creating a demo database.");
