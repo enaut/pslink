@@ -14,7 +14,7 @@ use std::{
 };
 
 use crate::models::{NewLink, NewUser, UserDbOperations as _};
-use crate::{get_db, init_db, init_secret};
+use crate::{get_db, init_db, init_secret, init_data_download_secret, init_db_path};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 
@@ -55,6 +55,7 @@ pub struct ServerConfig {
     pub port: u16,
     pub protocol: Protocol,
     pub secret: Secret,
+    pub data_download_secret: Secret,
 }
 
 /// The configuration can be serialized into an environment-file.
@@ -78,6 +79,18 @@ impl ServerConfig {
                     .secret
                     .as_ref()
                     .expect("A Secret was not specified!")
+            ),
+            concat!(
+                "# The DATA_DOWNLOAD_SECRET variable is used for database export authentication.\n",
+                "# Change this to a strong random value for security.\n"
+            )
+            .to_owned(),
+            format!(
+                "PSLINK_DATA_DOWNLOAD_SECRET=\"{}\"\n",
+                self.data_download_secret
+                    .secret
+                    .as_ref()
+                    .expect("A Data Download Secret was not specified!")
             ),
             format!("DEMO=\"{}\"\n", self.secret.is_random),
         ]
@@ -179,6 +192,21 @@ fn generate_cli() -> Command {
                 .default_value("")
                 .global(true),
         )
+        .arg(
+            Arg::new("data_download_secret")
+                .long("data-download-secret")
+                .help(concat!(
+                    "The secret that is used to authenticate database export requests.",
+                    " This should be a strong random value.",
+                    " As command line parameters are visible",
+                    " to all users",
+                    " it is not wise to use this as",
+                    " a command line parameter but rather as an environment variable.",
+                ))
+                .env("PSLINK_DATA_DOWNLOAD_SECRET")
+                .default_value("")
+                .global(true),
+        )
         .subcommand(
             Command::new("runserver")
                 .about("Run the server")
@@ -214,6 +242,10 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
         .get_one::<String>("secret")
         .expect("Failed to read the secret")
         .to_owned();
+    let data_download_secret = config
+        .get_one::<String>("data_download_secret")
+        .expect("Failed to read the data download secret")
+        .to_owned();
     let demo = config
         .get_one::<String>("demo")
         .unwrap_or(&"false".to_string())
@@ -232,6 +264,17 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
         let mut secret = Secret::new(secret);
         secret.is_random = demo;
         secret
+    };
+    let data_download_secret = if data_download_secret.len() < 5 {
+        if data_download_secret.is_empty() {
+            warn!("No data download secret was found! Use the environment variable PSLINK_DATA_DOWNLOAD_SECRET to set one.");
+            warn!("Using an auto generated one for this run.");
+        } else {
+            warn!("The provided data download secret was too short. Using an auto generated one.");
+        }
+        Secret::random()
+    } else {
+        Secret::new(data_download_secret)
     };
     let db = config
         .get_one::<String>("database")
@@ -272,6 +315,7 @@ async fn parse_args_to_config(config: ArgMatches) -> ServerConfig {
         port: port,
         protocol,
         secret,
+        data_download_secret,
     }
 }
 
@@ -300,6 +344,8 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
 
     let mut server_config: ServerConfig = parse_args_to_config(config.clone()).await;
     init_secret(server_config.secret.clone());
+    init_data_download_secret(server_config.data_download_secret.clone());
+    init_db_path(server_config.db.to_string_lossy().to_string());
     if config.subcommand().is_none() {
         // if the variable DIOXUS_CLI_ENABLED is true run the server
         let dioxus_cli =
@@ -325,6 +371,7 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
     trace!("Checking if the database exists at {}", db.display());
     if db.exists() {
         init_db(&db.to_string_lossy()).await;
+        init_db_path(db.to_string_lossy().to_string());
     } else {
         trace!("No database file found {}", db.display());
         if !(config.subcommand_matches("migrate-database").is_some()
@@ -395,6 +442,7 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
                 return Err(ServerFnError::new("Database not found".to_string()));
             } else {
                 init_db(&server_config.db.to_string_lossy()).await;
+                init_db_path(server_config.db.to_string_lossy().to_string());
                 info!(
                     "Starting the server with the following configuration: {} {}",
                     server_config.internal_ip, server_config.port
@@ -513,6 +561,7 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerFnError> {
     } else {
         File::create(&config.db)?;
         init_db(&config.db.to_string_lossy()).await;
+        init_db_path(config.db.to_string_lossy().to_string());
     }
     let pool = get_db().await;
     MIGRATOR.run(&pool).await?;
@@ -567,6 +616,7 @@ async fn generate_demo_data(
         apply_migrations(&server_config)
             .await
             .expect("Failed to apply migrations.");
+        init_db_path(server_config.db.to_string_lossy().to_string());
 
         let new_admin = NewUser::new(
             "demo".to_string(),

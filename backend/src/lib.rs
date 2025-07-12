@@ -7,6 +7,7 @@ mod cli;
 mod models;
 
 pub mod auth_api;
+pub mod export_api;
 pub mod link_api;
 #[cfg(feature = "server")]
 pub mod redirect_links;
@@ -21,6 +22,14 @@ use tokio::sync::OnceCell;
 
 #[cfg(feature = "server")]
 use std::sync::LazyLock;
+#[cfg(feature = "server")]
+use axum::{
+    extract::Query,
+    http::{header, StatusCode},
+    response::{IntoResponse, Response},
+};
+#[cfg(feature = "server")]
+use serde::Deserialize;
 #[cfg(feature = "server")]
 
 static DB: LazyLock<OnceCell<sqlx::SqlitePool>> = LazyLock::new(|| OnceCell::new());
@@ -50,6 +59,19 @@ pub(crate) fn get_secret() -> Secret {
 #[cfg(feature = "server")]
 pub(crate) fn init_secret(secret: Secret) {
     SECRET.set(secret).expect("Failed to initialize secret");
+}
+
+#[cfg(feature = "server")]
+static DATA_DOWNLOAD_SECRET: LazyLock<once_cell::sync::OnceCell<Secret>> =
+    LazyLock::new(|| once_cell::sync::OnceCell::new());
+#[cfg(feature = "server")]
+pub(crate) fn get_data_download_secret() -> Secret {
+    DATA_DOWNLOAD_SECRET.get().expect("Data download secret not initialized").clone()
+}
+
+#[cfg(feature = "server")]
+pub(crate) fn init_data_download_secret(secret: Secret) {
+    DATA_DOWNLOAD_SECRET.set(secret).expect("Failed to initialize data download secret");
 }
 
 #[cfg(feature = "server")]
@@ -135,6 +157,7 @@ async fn launch_server(
         .nest("/app/", admin)
         .route("/{data}", get(redirect_links::redirect))
         .route("/", get(redirect_links::redirect_empty))
+        .route("/app/export", get(database_export_handler))
         .layer(
             axum_session_auth::AuthSessionLayer::<
                 auth::AuthAccount,
@@ -161,4 +184,66 @@ async fn launch_server(
     axum::serve(listener, axum_route.into_make_service())
         .await
         .unwrap();
+}
+
+#[cfg(feature = "server")]
+#[derive(Deserialize)]
+struct ExportQuery {
+    secret: String,
+}
+
+#[cfg(feature = "server")]
+async fn database_export_handler(Query(params): Query<ExportQuery>) -> Response {
+    use std::path::Path;
+    use tokio::fs::File;
+    use tokio_util::io::ReaderStream;
+
+    // Validate the secret
+    if let Err(e) = export_api::validate_export_secret(&params.secret) {
+        info!("Invalid export secret provided: {}", e);
+        return (StatusCode::FORBIDDEN, "Access denied").into_response();
+    }
+
+    // Get database path from config
+    let db_path = get_db_path().await;
+    
+    if !Path::new(&db_path).exists() {
+        return (StatusCode::NOT_FOUND, "Database file not found").into_response();
+    }
+
+    match File::open(&db_path).await {
+        Ok(file) => {
+            let stream = ReaderStream::new(file);
+            let body = axum::body::Body::from_stream(stream);
+
+            let headers = [
+                (header::CONTENT_TYPE, "application/octet-stream"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"pslink_backup.db\"",
+                ),
+            ];
+
+            info!("Serving database export from path: {}", db_path);
+            (headers, body).into_response()
+        }
+        Err(e) => {
+            info!("Failed to open database file: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read database file").into_response()
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+static DB_PATH: LazyLock<once_cell::sync::OnceCell<String>> =
+    LazyLock::new(|| once_cell::sync::OnceCell::new());
+
+#[cfg(feature = "server")]
+pub(crate) async fn get_db_path() -> String {
+    DB_PATH.get().expect("Database path not initialized").clone()
+}
+
+#[cfg(feature = "server")]
+pub(crate) fn init_db_path(path: String) {
+    DB_PATH.set(path).expect("Failed to initialize database path");
 }

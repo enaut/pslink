@@ -50,6 +50,7 @@ time = { version = "0.3", features = [
     "serde",
     "local-offset",
 ], optional = true }
+tokio-util = { version = "0.7", features = ["io"], optional = true }
 
 
 [features]
@@ -70,4 +71,5 @@ server = [
     "dep:dotenv",
     "dep:clap",
     "dep:rpassword",
+    "dep:tokio-util",
 ]
