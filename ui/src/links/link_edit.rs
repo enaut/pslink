@@ -120,6 +120,7 @@ pub fn LinkEdit(
                                     a {
                                         href: edit_link().expect("dialog defined").png_qr_url,
                                         dangerous_inner_html: "{edit_link().expect(\"dialog defined\").qr}",
+                                        download: true,
                                     }
                                 }
                             }
@@ -187,7 +188,7 @@ fn Buttons(
                                         info!("Link delta: {:?}", link_delta);
                                         let _res = backend::link_api::create_link(link_delta).await;
                                         links.set(IndexMap::new());
-                                            edit_link.set(None);
+                                        edit_link.set(None);
                                     }
                                 }
                             }
@@ -241,7 +242,7 @@ fn Buttons(
                                                     link_delta.id.expect("Link ID must be set"),
                                                 )
                                                 .await;
-                                        links.set(IndexMap::new());
+                                            links.set(IndexMap::new());
                                             edit_link.set(None);
                                         }
                                     }
