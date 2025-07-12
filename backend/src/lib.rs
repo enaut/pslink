@@ -245,5 +245,5 @@ pub(crate) async fn get_db_path() -> String {
 
 #[cfg(feature = "server")]
 pub(crate) fn init_db_path(path: String) {
-    DB_PATH.set(path).expect("Failed to initialize database path");
+    DB_PATH.set(path).ok(); // Use ok() to ignore if already set
 }

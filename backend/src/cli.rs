@@ -561,7 +561,6 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerFnError> {
     } else {
         File::create(&config.db)?;
         init_db(&config.db.to_string_lossy()).await;
-        init_db_path(config.db.to_string_lossy().to_string());
     }
     let pool = get_db().await;
     MIGRATOR.run(&pool).await?;
@@ -616,7 +615,6 @@ async fn generate_demo_data(
         apply_migrations(&server_config)
             .await
             .expect("Failed to apply migrations.");
-        init_db_path(server_config.db.to_string_lossy().to_string());
 
         let new_admin = NewUser::new(
             "demo".to_string(),
