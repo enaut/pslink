@@ -115,14 +115,18 @@ pub fn LinkEdit(
                             div { class: "field-label is-normal",
                                 label { class: "label", {t!("link-edit-field-qrcode")} } // Label for QR code field
                             }
-                            div { class: "field-body",
-                                div { width: "133px",
-                                    a {
-                                        href: edit_link().expect("dialog defined").png_qr_url,
-                                        dangerous_inner_html: "{edit_link().expect(\"dialog defined\").qr}",
-                                        download: true,
+                            if let Some(png_qr_url) = edit_link().expect("dialog defined").png_qr_url {
+                                div { class: "field-body",
+                                    div { width: "133px",
+                                        a {
+                                            href: png_qr_url.0.clone(),
+                                            dangerous_inner_html: "{edit_link().expect(\"dialog defined\").qr}",
+                                            download: png_qr_url.1.clone(),
+                                        }
                                     }
                                 }
+                            } else {
+
                             }
                         }
                         ConfirmDialog { edit_link, links }
