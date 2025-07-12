@@ -219,12 +219,21 @@ pub async fn update_user(data: UserDelta) -> Result<Item<User>, ServerFnError> {
                     }
                     _ => unmodified_user.password,
                 };
+                let role = if user.role == Role::Admin {
+                    info!(
+                        "Admin user {}, setting role of user {} to: {:?}",
+                        user.id, uid, data.role
+                    );
+                    data.role
+                } else {
+                    unmodified_user.role
+                };
                 let new_user = User {
                     id: uid,
                     username: data.username.clone(),
                     email: data.email.clone(),
                     password,
-                    role: unmodified_user.role,
+                    role,
                     language: unmodified_user.language,
                 };
                 new_user.update_user().await?;
