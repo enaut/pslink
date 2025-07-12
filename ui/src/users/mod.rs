@@ -1,3 +1,4 @@
+mod database_export;
 mod new_user_button;
 mod user_display;
 mod user_edit;
@@ -5,6 +6,7 @@ mod user_edit;
 use dioxus::{logger::tracing::info, prelude::*};
 use dioxus_i18n::t;
 
+use database_export::DatabaseExportButton;
 use indexmap::IndexMap;
 use new_user_button::NewUserButton;
 use pslink_shared::{
@@ -279,6 +281,8 @@ pub fn Users() -> Element {
                             img { src: RELOAD_SVG, class: "reloadicon" }
                             {t!("users-button-load-more")} // Button text to load more users
                         }
+                        hr {}
+                        DatabaseExportButton {}
                     }
                 }
             }
