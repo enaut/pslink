@@ -125,8 +125,6 @@ pub fn LinkEdit(
                                         }
                                     }
                                 }
-                            } else {
-
                             }
                         }
                         ConfirmDialog { edit_link, links }
