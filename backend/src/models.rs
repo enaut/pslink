@@ -339,7 +339,7 @@ ORDER BY aw.full_date";
                 let date_str: String = c.get("full_date");
                 // Setze Offset auf UTC
                 let full_date = date_str.parse::<NaiveDate>().expect("failed to parse date");
-                // Hole week als String und parse zu i32
+                // Get week as string and parse to i32
                 let week_str: String = c.get("week");
                 let week: i32 = week_str.parse().unwrap_or(0); // oder Fehlerbehandlung nach Bedarf
 
