@@ -47,6 +47,7 @@ pub fn LoginScreen() -> Element {
                                     input {
                                         autofocus: true,
                                         onmounted: move |e| {
+                                            info!("Username field mounted");
                                             username_field.set(Some(e.data()));
                                         },
                                         r#type: "text",
@@ -54,22 +55,8 @@ pub fn LoginScreen() -> Element {
                                         placeholder: t!("username"),
                                         value: "{username}",
                                         oninput: move |e| {
+                                            info!("Username input changed: {}", e.value());
                                             username.set(e.value());
-                                        },
-                                        onkeydown: move |e: KeyboardEvent| {
-                                            async move {
-                                                if e.key() == Key::Enter {
-                                                    e.prevent_default();
-                                                    if let Some(field) = password_field().as_ref() {
-                                                        match field.set_focus(true).await {
-                                                            Ok(_) => info!("Password field focused"),
-                                                            Err(e) => info!("Failed to focus password field: {:?}", e),
-                                                        }
-                                                    } else {
-                                                        info!("Password field not available for focus");
-                                                    }
-                                                }
-                                            }
                                         },
                                     }
                                 }
@@ -89,28 +76,12 @@ pub fn LoginScreen() -> Element {
                                         placeholder: t!("password"),
                                         value: "{password}",
                                         oninput: move |e| {
+                                            info!("Password input changed: {}", e.value());
                                             password.set(e.value());
                                         },
                                         onmounted: move |e| {
+                                            info!("Password field mounted");
                                             password_field.set(Some(e.data()));
-                                        },
-                                        onkeydown: move |e: KeyboardEvent| {
-                                            async move {
-                                                if e.key() == Key::Enter {
-                                                    e.prevent_default();
-                                                    match backend::auth_api::login(username(), password()).await {
-                                                        Ok(u) => {
-                                                            user.set(Some(u));
-                                                            nav.push(Route::Home {});
-                                                        }
-                                                        Err(e) => {
-                                                            let fehlernachricht = t!("failed-login", error : e.to_string());
-                                                            nachricht.set(Some(fehlernachricht));
-                                                            info!("Failed to login: {:?}", e);
-                                                        }
-                                                    }
-                                                }
-                                            }
                                         },
                                     }
                                 }
@@ -131,6 +102,8 @@ pub fn LoginScreen() -> Element {
                         button {
                             class: "button is-primary",
                             onclick: move |_| {
+                                info!("Login button clicked with username: {}", username());
+                                info!("Password: {}", password());
                                 async move {
                                     match backend::auth_api::login(username(), password()).await {
                                         Ok(u) => {
