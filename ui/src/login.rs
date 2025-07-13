@@ -17,12 +17,13 @@ pub fn LoginScreen() -> Element {
     let mut nachricht: Signal<Option<String>> = use_signal(|| None);
 
     let _focus_grabber = use_resource(move || async move {
-        if username_field().is_some() {
-            username_field()
-                .expect("username field visible")
-                .set_focus(true)
-                .await
-                .expect("failed to set focus");
+        if let Some(field) = username_field().as_ref() {
+            match field.set_focus(true).await {
+                Ok(_) => info!("Username field focused"),
+                Err(e) => info!("Failed to focus username field: {:?}", e),
+            }
+        } else {
+            info!("Username field not available for focus");
         }
     });
 
@@ -59,11 +60,14 @@ pub fn LoginScreen() -> Element {
                                             async move {
                                                 if e.key() == Key::Enter {
                                                     e.prevent_default();
-                                                    password_field()
-                                                        .expect("password field visible")
-                                                        .set_focus(true)
-                                                        .await
-                                                        .expect("failed to set focus");
+                                                    if let Some(field) = password_field().as_ref() {
+                                                        match field.set_focus(true).await {
+                                                            Ok(_) => info!("Password field focused"),
+                                                            Err(e) => info!("Failed to focus password field: {:?}", e),
+                                                        }
+                                                    } else {
+                                                        info!("Password field not available for focus");
+                                                    }
                                                 }
                                             }
                                         },
@@ -113,10 +117,13 @@ pub fn LoginScreen() -> Element {
                             }
                         }
                     }
-                    if nachricht().is_some() {
-                        div { class: "notification is-danger",
-                            {nachricht().expect("nachricht is set")}
+                    match nachricht().as_ref() {
+                        Some(nachricht) => {
+                            rsx! {
+                                div { class: "notification is-danger", {nachricht.clone()} }
+                            }
                         }
+                        None => rsx! {},
                     }
                 }
                 footer { class: "modal-card-foot is-justify-content-flex-end",
