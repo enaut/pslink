@@ -17,6 +17,16 @@ fn is_enter_key_safe(e: &KeyboardEvent) -> bool {
     }
 }
 
+fn get_value_safe(e: Event<FormData>) -> String {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.value())) {
+        Ok(value) => value,
+        Err(_) => {
+            info!("Failed to get value - Chrome undefined value issue detected");
+            String::new()
+        }
+    }
+}
+
 #[component]
 pub fn LoginScreen() -> Element {
     let mut username = use_signal(|| "".to_string());
@@ -67,7 +77,7 @@ pub fn LoginScreen() -> Element {
                                         value: "{username}",
                                         oninput: move |e| {
                                             info!("Username input changed: {}", e.value());
-                                            username.set(e.value());
+                                            username.set(get_value_safe(e));
                                         },
                                         onkeydown: move |e: KeyboardEvent| {
                                             info!("Username keydown event received");
@@ -106,7 +116,7 @@ pub fn LoginScreen() -> Element {
                                         value: "{password}",
                                         oninput: move |e| {
                                             info!("Password input changed: {}", e.value());
-                                            password.set(e.value());
+                                            password.set(get_value_safe(e));
                                         },
                                         onmounted: move |e| {
                                             info!("Password field mounted");
