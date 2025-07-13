@@ -171,7 +171,7 @@ pub fn LoginScreen() -> Element {
                             class: "button is-primary",
                             onclick: move |_| {
                                 info!("Login button clicked with username: {}", username());
-                                info!("Password: {}", password());
+                                // Password logging removed for security reasons
                                 async move {
                                     match backend::auth_api::login(username(), password()).await {
                                         Ok(u) => {
