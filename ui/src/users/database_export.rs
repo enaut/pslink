@@ -1,6 +1,7 @@
 //! Database export component for admin users
 
 use dioxus::prelude::*;
+use dioxus_i18n::t;
 
 #[component]
 pub fn DatabaseExportButton() -> Element {
@@ -24,7 +25,7 @@ pub fn DatabaseExportButton() -> Element {
         
         let secret = secret_input();
         if secret.trim().is_empty() {
-            error_message.set(Some("Please enter the export secret".to_string()));
+            error_message.set(Some(t!("database-export-error-empty-secret")));
             is_loading.set(false);
             return;
         }
@@ -32,11 +33,11 @@ pub fn DatabaseExportButton() -> Element {
         match backend::export_api::export_database(secret).await {
             Ok(data) => {
                 download_data.set(Some(data));
-                success_message.set(Some("Database exported successfully! Click the download link below.".to_string()));
+                success_message.set(Some(t!("database-export-success-message")));
                 secret_input.set(String::new()); // Clear the secret input
             }
             Err(e) => {
-                error_message.set(Some(format!("Export failed: {}", e)));
+                error_message.set(Some(format!("{}: {}", t!("database-export-error-failed"), e)));
             }
         }
         
@@ -45,8 +46,8 @@ pub fn DatabaseExportButton() -> Element {
 
     rsx! {
         div { class: "database-export-section",
-            h3 { class: "title is-5", "Database Export" }
-            p { class: "subtitle is-6", "Export the SQLite database for backup purposes" }
+            h3 { class: "title is-5", {t!("database-export-title")} }
+            p { class: "subtitle is-6", {t!("database-export-subtitle")} }
             
             if let Some(error) = error_message() {
                 div { class: "notification is-danger", "{error}" }
@@ -58,14 +59,14 @@ pub fn DatabaseExportButton() -> Element {
             
             if let Some(data) = download_data() {
                 div { class: "notification is-success",
-                    p { "Database export ready! " }
-                    p { class: "is-size-7", "Size: {data.len()} bytes" }
+                    p { {t!("database-export-ready")} }
+                    p { class: "is-size-7", {t!("database-export-size", size: data.len())} }
                     div { class: "buttons",
                         a { 
                             class: "button is-primary",
                             href: create_download_url(&data),
                             download: "pslink_database.sqlite",
-                            "📥 Download Database"
+                            {t!("database-export-button-download")}
                         }
                         button { 
                             class: "button is-light is-small",
@@ -73,37 +74,37 @@ pub fn DatabaseExportButton() -> Element {
                                 download_data.set(None);
                                 success_message.set(None);
                             },
-                            "Clear"
+                            {t!("database-export-button-clear")}
                         }
                     }
                 }
             }
             
             div { class: "field",
-                label { class: "label", "Export Secret" }
+                label { class: "label", {t!("database-export-label-secret")} }
                 div { class: "control",
                     input { 
                         class: "input",
                         r#type: "password",
-                        placeholder: "Enter the export secret",
+                        placeholder: "{t!(\"database-export-placeholder-secret\")}",
                         value: "{secret_input}",
                         oninput: move |e| secret_input.set(e.value()),
                         disabled: is_loading()
                     }
                 }
-                p { class: "help", "Enter the secret configured in PSLINK_DATA_DOWNLOAD_SECRET environment variable" }
+                p { class: "help", {t!("database-export-help-secret")} }
             }
             
             div { class: "field",
                 div { class: "control",
                     if is_loading() {
-                        button { class: "button is-primary is-loading", disabled: true, "Exporting..." }
+                        button { class: "button is-primary is-loading", disabled: true, {t!("database-export-button-exporting")} }
                     } else {
                         button { 
                             class: "button is-primary",
                             onclick: export_database,
                             disabled: secret_input().trim().is_empty(),
-                            "Export Database"
+                            {t!("database-export-button-export")}
                         }
                     }
                 }

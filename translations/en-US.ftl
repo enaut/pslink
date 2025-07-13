@@ -270,3 +270,60 @@ welcome-stranger = Welcome stranger
 # Parameters: $username
 welcome-user = Welcome {$username}
 
+# Title for database export section
+# Source: ./ui/src/users/database_export.rs:48
+database-export-title = Database Export
+
+# Subtitle for database export section
+# Source: ./ui/src/users/database_export.rs:49
+database-export-subtitle = Export the SQLite database for backup purposes
+
+# Error message when secret field is empty
+# Source: ./ui/src/users/database_export.rs:27
+database-export-error-empty-secret = Please enter the export secret
+
+# Success message after database export
+# Source: ./ui/src/users/database_export.rs:35
+database-export-success-message = Database exported successfully! Click the download link below.
+
+# Error message prefix when export fails
+# Source: ./ui/src/users/database_export.rs:39
+database-export-error-failed = Export failed
+
+# Message when database export is ready
+# Source: ./ui/src/users/database_export.rs:61
+database-export-ready = Database export ready!
+
+# Size display for exported database
+# Source: ./ui/src/users/database_export.rs:62
+# Parameters: $size
+database-export-size = Size: {$size} bytes
+
+# Download button text
+# Source: ./ui/src/users/database_export.rs:68
+database-export-button-download = 📥 Download Database
+
+# Clear button text
+# Source: ./ui/src/users/database_export.rs:76
+database-export-button-clear = Clear
+
+# Label for export secret field
+# Source: ./ui/src/users/database_export.rs:83
+database-export-label-secret = Export Secret
+
+# Placeholder for export secret input
+# Source: ./ui/src/users/database_export.rs:88
+database-export-placeholder-secret = Enter the export secret
+
+# Help text for export secret field
+# Source: ./ui/src/users/database_export.rs:94
+database-export-help-secret = Enter the secret configured in PSLINK_DATA_DOWNLOAD_SECRET environment variable
+
+# Exporting button text (loading state)
+# Source: ./ui/src/users/database_export.rs:100
+database-export-button-exporting = Exporting...
+
+# Export button text
+# Source: ./ui/src/users/database_export.rs:106
+database-export-button-export = Export Database
+
