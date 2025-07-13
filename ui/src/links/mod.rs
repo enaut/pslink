@@ -59,7 +59,7 @@ fn toggle_column(
 struct EditDialog {
     link_delta: LinkDelta,
     qr: String,
-    png_qr_url: Option<String>,
+    png_qr_url: Option<(String, String)>,
 }
 
 trait OptionEditDialog {
@@ -91,6 +91,12 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
         host: &str,
     ) {
         let url = generate_url_for_code(&code, host);
+        let mut filename = url
+            .replace("https://", "")
+            .replace("/", "_")
+            .replace(":", "_");
+        filename.push_str(".png");
+        info!("the filename is: {}", filename);
         let qr_string = generate_svg_qr_from_url(&url);
         if let Some(mut dialog) = self() {
             dialog.link_delta = LinkDelta {
@@ -114,7 +120,10 @@ impl OptionEditDialog for Signal<Option<EditDialog>> {
                     code,
                 },
                 qr: qr_string,
-                png_qr_url: Some(generate_blob_url_from_png(generate_png_qr_from_url(&url))),
+                png_qr_url: Some((
+                    generate_blob_url_from_png(generate_png_qr_from_url(&url)),
+                    filename,
+                )),
             }))
         }
     }

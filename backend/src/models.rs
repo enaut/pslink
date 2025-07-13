@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use chrono::NaiveDate;
 use dioxus::{
     logger::tracing::{error, info},
     prelude::ServerFnError,
@@ -298,27 +299,33 @@ impl LinkDbOperations<Self> for Link {
         // Use proper parameter binding for SQLx static analysis
         let qry = "WITH all_weeks AS (
   WITH RECURSIVE weeks(date_value) AS (
-    SELECT datetime('now', 'start of month', '-1 year')
+    SELECT date('now', 'start of month', '-1 year')
     UNION ALL
-    SELECT datetime(date_value, '+7 days')
+    SELECT date(date_value, '+7 days')
     FROM weeks
     WHERE date_value < date('now')
   )
   SELECT 
     date_value AS full_date,
-    cast(strftime('%Y.%W', date_value) AS String) AS year_week,
-    cast(strftime('%W', date_value) AS String) AS week
+    strftime('%Y.%W', date_value) AS year_week,
+    strftime('%W', date_value) AS week
   FROM weeks
+),
+clicks_per_week AS (
+  SELECT
+    strftime('%Y.%W', created_at) AS year_week,
+    COUNT(*) AS total
+  FROM clicks
+  WHERE link = ?
+    AND created_at > date('now', 'start of month', '-1 year')
+  GROUP BY year_week
 )
-SELECT 
+SELECT
   aw.full_date,
   aw.week,
-  COALESCE(COUNT(c.id), 0) AS total
+  COALESCE(cpw.total, 0) AS total
 FROM all_weeks aw
-LEFT JOIN clicks c ON cast(strftime('%Y.%W', c.created_at) AS String) = aw.year_week
-  AND c.link = ?  
-  AND c.created_at > date('now', 'start of month', '-1 year')
-GROUP BY aw.year_week
+LEFT JOIN clicks_per_week cpw ON cpw.year_week = aw.year_week
 ORDER BY aw.full_date";
         let code = link.code;
         // Execute and map the query to the desired type
@@ -327,12 +334,22 @@ ORDER BY aw.full_date";
             .fetch_all(&db)
             .await?
             .into_iter()
-            .map(|c| WeekCount {
-                full_date: c.get("full_date"),
-                total: Count {
-                    number: c.get("total"),
-                },
-                week: c.get("week"),
+            .map(|c| {
+                // Get the date as a string
+                let date_str: String = c.get("full_date");
+                // Setze Offset auf UTC
+                let full_date = date_str.parse::<NaiveDate>().expect("failed to parse date");
+                // Get week as string and parse to i32
+                let week_str: String = c.get("week");
+                let week: i32 = week_str.parse().unwrap_or(0); // or error handling as needed
+
+                WeekCount {
+                    full_date,
+                    total: Count {
+                        number: c.get("total"),
+                    },
+                    week,
+                }
             })
             .collect();
         let total = sqlx::query_as!(

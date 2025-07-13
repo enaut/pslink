@@ -1,4 +1,5 @@
 //! The more generic data-types used in pslink
+use chrono::NaiveDate;
 use std::ops::Deref;
 use time::OffsetDateTime;
 
@@ -95,7 +96,7 @@ pub struct Count {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct WeekCount {
-    pub full_date: OffsetDateTime,
+    pub full_date: NaiveDate,
     pub total: Count,
     pub week: i32,
 }

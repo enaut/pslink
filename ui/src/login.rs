@@ -1,4 +1,7 @@
-use dioxus::{logger::tracing::info, prelude::*};
+use dioxus::{
+    logger::tracing::{info, trace},
+    prelude::*,
+};
 use dioxus_i18n::t;
 use std::rc::Rc;
 
@@ -17,16 +20,17 @@ pub fn LoginScreen() -> Element {
     let mut nachricht: Signal<Option<String>> = use_signal(|| None);
 
     let _focus_grabber = use_resource(move || async move {
-        if username_field().is_some() {
-            username_field()
-                .expect("username field visible")
-                .set_focus(true)
-                .await
-                .expect("failed to set focus");
+        if let Some(field) = username_field().as_ref() {
+            match field.set_focus(true).await {
+                Ok(_) => trace!("Username field focused"),
+                Err(e) => info!("Failed to focus username field: {:?}", e),
+            }
+        } else {
+            info!("Username field not available for focus");
         }
     });
 
-    info!("Rendering login screen with username: {}", username);
+    trace!("Rendering login screen with username: {}", username);
     rsx! {
         document::Stylesheet { href: LOGIN_CSS }
         div { class: "modal is-active",
@@ -55,18 +59,6 @@ pub fn LoginScreen() -> Element {
                                         oninput: move |e| {
                                             username.set(e.value());
                                         },
-                                        onkeydown: move |e: KeyboardEvent| {
-                                            async move {
-                                                if e.key() == Key::Enter {
-                                                    e.prevent_default();
-                                                    password_field()
-                                                        .expect("password field visible")
-                                                        .set_focus(true)
-                                                        .await
-                                                        .expect("failed to set focus");
-                                                }
-                                            }
-                                        },
                                     }
                                 }
                             }
@@ -90,33 +82,18 @@ pub fn LoginScreen() -> Element {
                                         onmounted: move |e| {
                                             password_field.set(Some(e.data()));
                                         },
-                                        onkeydown: move |e: KeyboardEvent| {
-                                            async move {
-                                                if e.key() == Key::Enter {
-                                                    e.prevent_default();
-                                                    match backend::auth_api::login(username(), password()).await {
-                                                        Ok(u) => {
-                                                            user.set(Some(u));
-                                                            nav.push(Route::Home {});
-                                                        }
-                                                        Err(e) => {
-                                                            let fehlernachricht = t!("failed-login", error : e.to_string());
-                                                            nachricht.set(Some(fehlernachricht));
-                                                            info!("Failed to login: {:?}", e);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        },
                                     }
                                 }
                             }
                         }
                     }
-                    if nachricht().is_some() {
-                        div { class: "notification is-danger",
-                            {nachricht().expect("nachricht is set")}
+                    match nachricht().as_ref() {
+                        Some(nachricht) => {
+                            rsx! {
+                                div { class: "notification is-danger", {nachricht.clone()} }
+                            }
                         }
+                        None => rsx! {},
                     }
                 }
                 footer { class: "modal-card-foot is-justify-content-flex-end",
@@ -124,11 +101,12 @@ pub fn LoginScreen() -> Element {
                         button {
                             class: "button is-primary",
                             onclick: move |_| {
+                                info!("Login button clicked with username: {}", username());
                                 async move {
                                     match backend::auth_api::login(username(), password()).await {
                                         Ok(u) => {
                                             user.set(Some(u));
-                                            nav.push(Route::Home {});
+                                            nav.push(Route::Links {});
                                         }
                                         Err(e) => {
                                             let fehlernachricht = t!("failed-login", error : e.to_string());
