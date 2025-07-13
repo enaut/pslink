@@ -6,6 +6,17 @@ use crate::{PslinkContext, navbar::Route};
 
 const LOGIN_CSS: Asset = asset!("/assets/styling/login.css");
 
+// Sichere Funktion zum Überprüfen der Enter-Taste
+fn is_enter_key_safe(e: &KeyboardEvent) -> bool {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.key() == Key::Enter)) {
+        Ok(result) => result,
+        Err(_) => {
+            info!("Failed to check key - Chrome undefined key issue detected");
+            false
+        }
+    }
+}
+
 #[component]
 pub fn LoginScreen() -> Element {
     let mut username = use_signal(|| "".to_string());
@@ -58,6 +69,24 @@ pub fn LoginScreen() -> Element {
                                             info!("Username input changed: {}", e.value());
                                             username.set(e.value());
                                         },
+                                        onkeydown: move |e: KeyboardEvent| {
+                                            info!("Username keydown event received");
+                                            if is_enter_key_safe(&e) {
+                                                info!("Enter key detected in username field");
+                                                e.prevent_default();
+                                                let password_field = password_field.clone();
+                                                spawn(async move {
+                                                    if let Some(field) = password_field().as_ref() {
+                                                        match field.set_focus(true).await {
+                                                            Ok(_) => info!("Password field focused"),
+                                                            Err(e) => info!("Failed to focus password field: {:?}", e),
+                                                        }
+                                                    } else {
+                                                        info!("Password field not available for focus");
+                                                    }
+                                                });
+                                            }
+                                        },
                                     }
                                 }
                             }
@@ -82,6 +111,35 @@ pub fn LoginScreen() -> Element {
                                         onmounted: move |e| {
                                             info!("Password field mounted");
                                             password_field.set(Some(e.data()));
+                                        },
+                                        onkeydown: move |e: KeyboardEvent| {
+                                            info!("Password keydown event received");
+                                            if is_enter_key_safe(&e) {
+                                                info!("Enter key detected in password field - submitting login");
+                                                e.prevent_default();
+                                                spawn({
+                                                    let username = username.clone();
+                                                    let password = password.clone();
+                                                    let mut user = user.clone();
+                                                    let nav = nav.clone();
+                                                    let mut nachricht = nachricht.clone();
+                                                    async move {
+                                                        match backend::auth_api::login(username(), password()).await {
+                                                            Ok(u) => {
+                                                                user.set(Some(u));
+                                                                nav.push(Route::Links {});
+                                                            }
+                                                            Err(e) => {
+                                                                let fehlernachricht = t!(
+                                                                    "failed-login", error : e.to_string()
+                                                                );
+                                                                nachricht.set(Some(fehlernachricht));
+                                                                info!("Failed to login: {:?}", e);
+                                                            }
+                                                        }
+                                                    }
+                                                });
+                                            }
                                         },
                                     }
                                 }
