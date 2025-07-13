@@ -345,7 +345,7 @@ pub async fn setup() -> Result<Option<ServerConfig>, ServerFnError> {
     let mut server_config: ServerConfig = parse_args_to_config(config.clone()).await;
     init_secret(server_config.secret.clone());
     init_data_download_secret(server_config.data_download_secret.clone());
-    init_db_path(server_config.db.to_string_lossy().to_string());
+    init_db_path(server_config.db.to_string_lossy().into_owned());
     if config.subcommand().is_none() {
         // if the variable DIOXUS_CLI_ENABLED is true run the server
         let dioxus_cli =
