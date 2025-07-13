@@ -341,7 +341,7 @@ ORDER BY aw.full_date";
                 let full_date = date_str.parse::<NaiveDate>().expect("failed to parse date");
                 // Get week as string and parse to i32
                 let week_str: String = c.get("week");
-                let week: i32 = week_str.parse().unwrap_or(0); // oder Fehlerbehandlung nach Bedarf
+                let week: i32 = week_str.parse().unwrap_or(0); // or error handling as needed
 
                 WeekCount {
                     full_date,
