@@ -6,7 +6,7 @@ use crate::{PslinkContext, navbar::Route};
 
 const LOGIN_CSS: Asset = asset!("/assets/styling/login.css");
 
-// Sichere Funktion zum Überprüfen der Enter-Taste
+// Safe function to check for Enter key
 fn is_enter_key_safe(e: &KeyboardEvent) -> bool {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.key() == Key::Enter)) {
         Ok(result) => result,
