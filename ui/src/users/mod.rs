@@ -1,3 +1,4 @@
+mod database_export;
 mod new_user_button;
 mod user_display;
 mod user_edit;
@@ -5,6 +6,7 @@ mod user_edit;
 use dioxus::{logger::tracing::info, prelude::*};
 use dioxus_i18n::t;
 
+use database_export::DatabaseExport;
 use indexmap::IndexMap;
 use new_user_button::NewUserButton;
 use pslink_shared::{
@@ -183,6 +185,13 @@ pub fn Users() -> Element {
         if let Some(_user) = user.as_ref() {
             UserEdit { edit_dialog_signal, users }
             div {
+                input {
+                    name: "prevent_autofill",
+                    r#type: "text",
+                    style: "display:none;",
+                    value: "",
+                    id: "prevent_autofill",
+                }
                 table { class: "table is-bordered is-striped is-hoverable is-fullwidth",
                     tbody {
                         tr {
@@ -211,12 +220,20 @@ pub fn Users() -> Element {
                         }
                         tr {
                             td {
+                                input {
+                                    r#type: "username",
+                                    value: "",
+                                    style: "display:none;",
+                                    name: "username_fake",
+                                    id: "username_fake",
+                                }
                                 div { class: "control has-icons-left has-icons-right is-small",
                                     input {
                                         r#type: "search",
                                         placeholder: t!("users-table-filter-placeholder"), // Placeholder text for filter input field
                                         value: "{id_filter}",
                                         class: "input is-small",
+                                        autocomplete: "off",
                                         oninput: move |e| {
                                             id_filter.set(e.value());
                                         },
@@ -227,12 +244,20 @@ pub fn Users() -> Element {
                                 }
                             }
                             td {
+                                input {
+                                    r#type: "password",
+                                    value: "",
+                                    style: "display:none;",
+                                    name: "password_fake",
+                                    id: "password_fake",
+                                }
                                 div { class: "control has-icons-left has-icons-right is-small",
                                     input {
                                         value: "{username_filter}",
                                         r#type: "search",
                                         placeholder: t!("users-table-filter-placeholder"), // Placeholder text for filter input field
                                         class: "input is-small",
+                                        autocomplete: "off",
                                         oninput: move |e| {
                                             username_filter.set(e.value());
                                         },
@@ -243,12 +268,20 @@ pub fn Users() -> Element {
                                 }
                             }
                             td {
+                                input {
+                                    r#type: "email",
+                                    value: "",
+                                    style: "display:none;",
+                                    name: "email_fake",
+                                    id: "email_fake",
+                                }
                                 div { class: "control has-icons-left has-icons-right is-small",
                                     input {
                                         r#type: "search",
                                         value: "{email_filter}",
                                         placeholder: t!("users-table-filter-placeholder"), // Placeholder text for filter input field
                                         class: "input is-small",
+                                        autocomplete: "off",
                                         oninput: move |e| {
                                             email_filter.set(e.value());
                                         },
@@ -279,6 +312,8 @@ pub fn Users() -> Element {
                             img { src: RELOAD_SVG, class: "reloadicon" }
                             {t!("users-button-load-more")} // Button text to load more users
                         }
+                        hr {}
+                        DatabaseExport {}
                     }
                 }
             }

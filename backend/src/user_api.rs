@@ -8,7 +8,7 @@ use crate::{
 };
 #[cfg(feature = "server")]
 use dioxus::logger::tracing::info;
-use dioxus::prelude::*;
+use dioxus::{logger::tracing::trace, prelude::*};
 #[cfg(feature = "server")]
 use enum_map::EnumMap;
 use pslink_shared::apirequests::users::{UserDelta, UserRequestForm};
@@ -32,7 +32,7 @@ use sqlx::Row;
 #[server(ListAllUsersFiltered, endpoint = "list_all_users")]
 pub async fn list_users(parameters: UserRequestForm) -> Result<ListWithOwner<User>, ServerFnError> {
     let auth = crate::auth::get_session().await?;
-    info!("Auth: {:?}", auth);
+    trace!("Auth: {:?}", auth);
     let user = auth
         .current_user
         .expect("not authenticated")
@@ -66,7 +66,7 @@ pub async fn list_users(parameters: UserRequestForm) -> Result<ListWithOwner<Use
                 .collect();
 
             info!("Found {} users", users.len());
-            info!("Found {:?} users", users);
+            trace!("Found {:?} users", users);
 
             Ok(ListWithOwner { user, list: users })
         }
