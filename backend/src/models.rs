@@ -335,7 +335,7 @@ ORDER BY aw.full_date";
             .await?
             .into_iter()
             .map(|c| {
-                // Hole das Datum als String
+                // Get the date as a string
                 let date_str: String = c.get("full_date");
                 // Setze Offset auf UTC
                 let full_date = date_str.parse::<NaiveDate>().expect("failed to parse date");
