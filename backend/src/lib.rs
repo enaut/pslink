@@ -58,17 +58,22 @@ static DATA_DOWNLOAD_SECRET: LazyLock<once_cell::sync::OnceCell<Secret>> =
     LazyLock::new(|| once_cell::sync::OnceCell::new());
 #[cfg(feature = "server")]
 pub(crate) fn get_data_download_secret() -> Secret {
-    DATA_DOWNLOAD_SECRET.get().expect("Data download secret not initialized").clone()
+    DATA_DOWNLOAD_SECRET
+        .get()
+        .expect("Data download secret not initialized")
+        .clone()
 }
 
 #[cfg(feature = "server")]
 pub(crate) fn init_data_download_secret(secret: Secret) {
-    DATA_DOWNLOAD_SECRET.set(secret).expect("Failed to initialize data download secret");
+    DATA_DOWNLOAD_SECRET
+        .set(secret)
+        .expect("Failed to initialize data download secret");
 }
 
 #[cfg(feature = "server")]
 pub fn launch_pslink(app: fn() -> Result<dioxus::prelude::VNode, dioxus::prelude::RenderError>) {
-    dioxus::logger::init(dioxus::logger::tracing::Level::TRACE).unwrap();
+    dioxus::logger::init(dioxus::logger::tracing::Level::INFO).unwrap();
 
     tokio::runtime::Runtime::new()
         .unwrap()
@@ -177,14 +182,16 @@ async fn launch_server(
         .unwrap();
 }
 
-
 #[cfg(feature = "server")]
 static DB_PATH: LazyLock<once_cell::sync::OnceCell<String>> =
     LazyLock::new(|| once_cell::sync::OnceCell::new());
 
 #[cfg(feature = "server")]
 pub(crate) async fn get_db_path() -> String {
-    DB_PATH.get().expect("Database path not initialized").clone()
+    DB_PATH
+        .get()
+        .expect("Database path not initialized")
+        .clone()
 }
 
 #[cfg(feature = "server")]
