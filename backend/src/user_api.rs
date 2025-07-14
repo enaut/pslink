@@ -7,8 +7,8 @@ use crate::{
     models::{NewUser, UserDbOperations as _},
 };
 #[cfg(feature = "server")]
-use dioxus::logger::tracing::info;
-use dioxus::{logger::tracing::trace, prelude::*};
+use dioxus::logger::tracing::{info, trace};
+use dioxus::prelude::*;
 #[cfg(feature = "server")]
 use enum_map::EnumMap;
 use pslink_shared::apirequests::users::{UserDelta, UserRequestForm};
