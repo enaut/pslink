@@ -1,4 +1,4 @@
-name: Build and Publish Docker Images
+name: Build and Push x86_64 Docker Image
 
 on:
   push:
@@ -10,14 +10,24 @@ on:
         description: 'Version tag to use (e.g., v1.0.0)'
         required: true
         type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version tag to use (e.g., v1.0.0)'
+        required: false
+        type: string
 
 jobs:
-  build-and-push:
-    name: Build and push Docker images
+  build-x86_64:
+    name: Build and push x86_64 Docker image
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      repo-owner: ${{ steps.lowercase_repo.outputs.repo-owner }}
     
     steps:
       - name: Checkout repository
@@ -28,8 +38,13 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_call" ] && [ -n "${{ inputs.version }}" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_ENV
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
           else
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Rust
@@ -39,32 +54,23 @@ jobs:
           target: x86_64-unknown-linux-musl
           override: true
 
+      - name: Install musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main
-
-      - name: Install cross
-        run: cargo binstall cross -y
 
       - name: Install Dioxus CLI
         run: cargo binstall dioxus-cli -y
 
       - name: Lowercase repository owner
         id: lowercase_repo
-        run: echo "REPO_OWNER=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_ENV
+        run: |
+          echo "REPO_OWNER=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_ENV
+          echo "repo-owner=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_OUTPUT
 
       - name: Build for x86_64
-        run: cross build --package web --features=server,dioxus/server --target x86_64-unknown-linux-musl --release
-
-      - name: Cleaning up target directory
-        run: |
-          mkdir -p /tmp/pslink-save
-          cp target/x86_64-unknown-linux-musl/release/web /tmp/pslink-save/
-          cargo clean
-          mkdir -p target/x86_64-unknown-linux-musl/release
-          cp /tmp/pslink-save/web target/x86_64-unknown-linux-musl/release/
-
-      - name: Build for aarch64
-        run: cross build --package web --features=server,dioxus/server --target aarch64-unknown-linux-musl --release
+        run: cargo build --package web --features=server,dioxus/server --target x86_64-unknown-linux-musl --release
 
       - name: Create bundle
         run: dx bundle --package web
@@ -88,25 +94,4 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ env.REPO_OWNER }}/pslink:x86_64-latest
-            ghcr.io/${{ env.REPO_OWNER }}/pslink:x86_64-${{ env.VERSION }}
-
-      - name: Build and push aarch64 image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./aarch64.Dockerfile
-          platforms: linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ env.REPO_OWNER }}/pslink:aarch64-latest
-            ghcr.io/${{ env.REPO_OWNER }}/pslink:aarch64-${{ env.VERSION }}
-
-      - name: Create and push multi-arch manifest
-        run: |
-          docker buildx imagetools create -t ghcr.io/${{ env.REPO_OWNER }}/pslink:latest \
-            ghcr.io/${{ env.REPO_OWNER }}/pslink:aarch64-latest \
-            ghcr.io/${{ env.REPO_OWNER }}/pslink:x86_64-latest
-          
-          docker buildx imagetools create -t ghcr.io/${{ env.REPO_OWNER }}/pslink:${{ env.VERSION }} \
-            ghcr.io/${{ env.REPO_OWNER }}/pslink:aarch64-${{ env.VERSION }} \
             ghcr.io/${{ env.REPO_OWNER }}/pslink:x86_64-${{ env.VERSION }}
