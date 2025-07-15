@@ -1,5 +1,5 @@
 # Stage 1: Builder with Rust environment
-FROM --platform=linux/aarch64 alpine:latest AS builder
+FROM --platform=linux/aarch64 ubuntu:latest AS builder
 
 # Prepare the working directory
 WORKDIR /app
@@ -11,7 +11,7 @@ COPY  target/dx/web/release/web/web /app/pslink
 RUN cd /app && ./pslink demo
 
 # Stage 2: Minimal image for execution
-FROM --platform=linux/aarch64 scratch
+FROM --platform=linux/aarch64 ubuntu:latest
 
 # Copy files from builder
 COPY --from=builder /app/ /app/
