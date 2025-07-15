@@ -1,9 +1,6 @@
 name: Build and Push x86_64 Docker Image
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       version:
@@ -61,7 +58,7 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install Dioxus CLI
-        run: cargo binstall dioxus-cli -y
+        run: cargo binstall dioxus-cli@0.7.0-alpha.2 -y
 
       - name: Lowercase repository owner
         id: lowercase_repo
@@ -69,11 +66,9 @@ jobs:
           echo "REPO_OWNER=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_ENV
           echo "repo-owner=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_OUTPUT
 
-      - name: Build for x86_64
-        run: cargo build --package web --features=server,dioxus/server --target x86_64-unknown-linux-musl --release
 
       - name: Create bundle
-        run: dx bundle --package web
+        run: dx bundle --package web --release --platform web
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

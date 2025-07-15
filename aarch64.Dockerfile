@@ -5,7 +5,7 @@ FROM --platform=linux/aarch64 alpine:latest AS builder
 WORKDIR /app
 
 # Copy the binary
-COPY target/aarch64-unknown-linux-musl/release/web /app/pslink
+COPY  target/dx/web/release/web/web /app/pslink
 
 # Generate initial files
 RUN cd /app && ./pslink demo
