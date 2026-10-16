@@ -14,7 +14,7 @@ use std::{
 };
 
 use crate::models::{NewLink, NewUser, UserDbOperations as _};
-use crate::{get_db, init_db, init_secret, init_data_download_secret, init_db_path};
+use crate::{get_db, init_db, init_secret, init_data_download_secret, init_db_path, ServerResultExt};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 
@@ -559,11 +559,11 @@ async fn apply_migrations(config: &ServerConfig) -> Result<(), ServerFnError> {
     if config.db.exists() && config.db.metadata().map(|m| m.len() > 0).unwrap_or(false) {
         return Err(ServerFnError::new("The database is not empty aborting because this could mean that creating a demo instance would lead in data loss.".to_string()));
     } else {
-        File::create(&config.db)?;
+        File::create(&config.db).sfe()?;
         init_db(&config.db.to_string_lossy()).await;
     }
     let pool = get_db().await;
-    MIGRATOR.run(&pool).await?;
+    MIGRATOR.run(&pool).await.sfe()?;
     info!("Migrations applied successfully.");
     Ok(())
 }
@@ -584,7 +584,7 @@ fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerFnError> 
             If it is changed all existing passwords are invalid."#
     );
 
-    let mut file = std::fs::File::create(".env")?;
+    let mut file = std::fs::File::create(".env").sfe()?;
     let conf_file_content = server_config.to_env_strings();
 
     for line in &conf_file_content {

@@ -14,6 +14,18 @@ pub mod redirect_links;
 pub mod user_api;
 
 #[cfg(feature = "server")]
+pub(crate) trait ServerResultExt<T> {
+    fn sfe(self) -> Result<T, dioxus::prelude::ServerFnError>;
+}
+
+#[cfg(feature = "server")]
+impl<T, E: std::fmt::Display> ServerResultExt<T> for Result<T, E> {
+    fn sfe(self) -> Result<T, dioxus::prelude::ServerFnError> {
+        self.map_err(dioxus::prelude::ServerFnError::new)
+    }
+}
+
+#[cfg(feature = "server")]
 use dioxus::logger::tracing::info;
 #[cfg(feature = "server")]
 use pslink_shared::datatypes::Secret;
@@ -158,9 +170,7 @@ async fn launch_server(
             >::new(Some(pool.clone()))
             .with_config(auth_config),
         )
-        .layer(axum_session::SessionLayer::new(session_store))
-        .with_state(pool)
-        .with_state(get_secret());
+        .layer(axum_session::SessionLayer::new(session_store));
     info!("Server configured");
 
     // run it

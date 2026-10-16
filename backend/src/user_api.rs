@@ -5,6 +5,7 @@ use std::str::FromStr as _;
 use crate::{
     get_secret,
     models::{NewUser, UserDbOperations as _},
+    ServerResultExt,
 };
 #[cfg(feature = "server")]
 use dioxus::logger::tracing::{info, trace};
@@ -49,11 +50,11 @@ pub async fn list_users(parameters: UserRequestForm) -> Result<ListWithOwner<Use
             }
             querystring.push_str(&format!("\n LIMIT {}", parameters.amount));
 
-            let query_result = sqlx::query(&querystring).fetch_all(&db).await;
+            let query_result = sqlx::query(sqlx::AssertSqlSafe(querystring.as_str())).fetch_all(&db).await;
             if let Err(e) = &query_result {
                 info!("Query: {:?}", e);
             }
-            let users: Vec<User> = query_result?
+            let users: Vec<User> = query_result.sfe()?
                 .into_iter()
                 .map(|v| User {
                     id: v.get("id"),

@@ -18,9 +18,9 @@ version = "0.5.4"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
-enum-map = { version = "2.7", features = ["serde"] }
-strum_macros = "0.27"
-strum = "0.27"
+enum-map = { version = "3.1", features = ["serde"] }
+strum_macros = "0.28"
+strum = "0.28"
 dioxus = { workspace = true, features = ["fullstack"] }
 rand = { version = "0.8", optional = true }
 time = { version = "0.3", features = ["serde", "macros", "std"] }

@@ -4,6 +4,8 @@ use std::str::FromStr;
 #[cfg(feature = "server")]
 use crate::models::{LinkDbOperations as _, NewLink};
 #[cfg(feature = "server")]
+use crate::ServerResultExt;
+#[cfg(feature = "server")]
 use dioxus::logger::tracing::info;
 use dioxus::prelude::{ServerFnError, server};
 
@@ -71,9 +73,9 @@ pub async fn list_all_allowed(
     querystring.push_str(&format!("\n OFFSET {}", parameters.offset));
 
     use sqlx::Row;
-    let links = sqlx::query(&querystring)
+    let links = sqlx::query(sqlx::AssertSqlSafe(querystring.as_str()))
         .fetch_all(&db)
-        .await?
+        .await.sfe()?
         .into_iter()
         .map(|v| FullLink {
             link: Link {

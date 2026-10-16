@@ -13,6 +13,7 @@ use pslink_shared::{
     datatypes::{Count, Lang, Link, Secret, Statistics, User, WeekCount},
 };
 use sqlx::Row;
+use crate::ServerResultExt;
 
 /// The operations a User should support.
 
@@ -47,7 +48,7 @@ impl UserDbOperations<Self> for User {
                 role: Role::convert(row.role),
                 language: Lang::from_str(&row.language).expect("Should parse"),
             });
-        user.map_err(|e| e.into())
+        user.sfe()
     }
 
     /// get a user by its username
@@ -68,7 +69,7 @@ impl UserDbOperations<Self> for User {
                 role: Role::convert(row.role),
                 language: Lang::from_str(&row.language).expect("Should parse"),
             });
-        user.map_err(|e| e.into())
+        user.sfe()
     }
 
     /// get all users
@@ -94,7 +95,7 @@ impl UserDbOperations<Self> for User {
                     })
                     .collect()
             });
-        user.map_err(|e| e.into())
+        user.sfe()
     }
 
     /// change a user
@@ -118,7 +119,7 @@ impl UserDbOperations<Self> for User {
             self.id
         )
         .execute(&db)
-        .await?;
+        .await.sfe()?;
         Ok(())
     }
 
@@ -137,7 +138,7 @@ impl UserDbOperations<Self> for User {
         let role_i64 = new_role.to_i64();
         sqlx::query!("UPDATE users SET role = ? where id = ?", role_i64, self.id)
             .execute(&db)
-            .await?;
+            .await.sfe()?;
         Ok(())
     }
 
@@ -155,7 +156,7 @@ impl UserDbOperations<Self> for User {
             self.id
         )
         .execute(&db)
-        .await?;
+        .await.sfe()?;
         Ok(())
     }
 
@@ -170,7 +171,7 @@ impl UserDbOperations<Self> for User {
         let db = crate::get_db().await;
         let num = sqlx::query_as!(Count, "select count(*) as number from users where role = 2")
             .fetch_one(&db)
-            .await?;
+            .await.sfe()?;
         Ok(num)
     }
 
@@ -189,10 +190,10 @@ impl UserDbOperations<Self> for User {
             id
         )
         .execute(&db)
-        .await?;
+        .await.sfe()?;
         sqlx::query!("DELETE from users where id = ? ", id)
             .execute(&db)
-            .await?;
+            .await.sfe()?;
         Ok(())
     }
 }
@@ -269,7 +270,7 @@ impl NewUser {
             self.password,
         )
         .execute(&db)
-        .await?;
+        .await.sfe()?;
         Ok(())
     }
 }
@@ -295,7 +296,7 @@ impl LinkDbOperations<Self> for Link {
         // Verify that the code exists to avoid injections in the next query
         let link = sqlx::query!("select id,code from links where id=?", link_id)
             .fetch_one(&db)
-            .await?;
+            .await.sfe()?;
         // Use proper parameter binding for SQLx static analysis
         let qry = "WITH all_weeks AS (
   WITH RECURSIVE weeks(date_value) AS (
@@ -332,7 +333,7 @@ ORDER BY aw.full_date";
         let values: Vec<WeekCount> = sqlx::query(qry)
             .bind(link.id)
             .fetch_all(&db)
-            .await?
+            .await.sfe()?
             .into_iter()
             .map(|c| {
                 // Get the date as a string
@@ -356,7 +357,7 @@ ORDER BY aw.full_date";
             Count,
             "select count(*) as number from clicks join links on clicks.link = links.id where links.code = ?",
             code
-        ).fetch_one(&db).await?;
+        ).fetch_one(&db).await.sfe()?;
         let res = Statistics {
             link_id,
             total,
@@ -380,7 +381,7 @@ ORDER BY aw.full_date";
         .fetch_one(&db)
         .await;
         info!("Found link: {:?}", &link);
-        link.map_err(|e| e.into())
+        link.sfe()
     }
 
     /// Get a link by its id
@@ -394,7 +395,7 @@ ORDER BY aw.full_date";
             .fetch_one(&db)
             .await;
         info!("Found link: {:?}", &link);
-        link.map_err(|e| e.into())
+        link.sfe()
     }
 
     /// Delete a link by its code
@@ -406,7 +407,7 @@ ORDER BY aw.full_date";
         let db = crate::get_db().await;
         sqlx::query!("DELETE from links where code = ? ", code)
             .execute(&db)
-            .await?;
+            .await.sfe()?;
         Ok(())
     }
 
@@ -438,7 +439,7 @@ ORDER BY aw.full_date";
             Err(e) => {
                 //error!("{}", qry);
                 error!("{}", e);
-                Err(e.into())
+                Err(ServerFnError::new(e))
             }
         }
     }
@@ -486,7 +487,7 @@ impl NewLink {
             self.created_at,
         )
         .execute(&db)
-        .await?;
+        .await.sfe()?;
         Ok(())
     }
 }
@@ -518,7 +519,7 @@ impl NewClick {
             self.created_at,
         )
         .execute(&db)
-        .await?;
+        .await.sfe()?;
         Ok(())
     }
 }

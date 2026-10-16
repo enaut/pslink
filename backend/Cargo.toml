@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 dioxus = { workspace = true, features = ["fullstack", "server"] }
 server_fn = { version = "0.8", features = ["browser"] }
 axum = { workspace = true, optional = true }
-axum_session_sqlx = { version = "0.6.0", features = [
+axum_session_sqlx = { version = "0.11", features = [
     "sqlite",
     "tls-rustls",
 ], optional = true }
@@ -16,8 +16,9 @@ axum_session = { workspace = true, optional = true }
 axum_session_auth = { workspace = true, optional = true }
 axum-extra = { version = "0.12", optional = true }
 dioxus-fullstack = { workspace = true }
+dioxus-server = { workspace = true, optional = true }
 anyhow = { workspace = true }
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.9", features = [
     "macros",
     "migrate",
     "postgres",
@@ -28,12 +29,12 @@ sqlx = { version = "0.8", features = [
     "tls-rustls",
     "runtime-tokio",
 ], optional = true }
-tokio = { version = "1.43", optional = true }
+tokio = { version = "1.53", optional = true }
 pslink-shared = { workspace = true }
-async-trait = { version = "0.1.86", optional = true }
+async-trait = { version = "0.1.92", optional = true }
 argon2 = { version = "0.5.3", optional = true }
-once_cell = { version = "1.20.2", optional = true }
-enum-map = { version = "2.7", features = ["serde"] }
+once_cell = { version = "1.21.4", optional = true }
+enum-map = { version = "3.1", features = ["serde"] }
 serde = "1.0"
 chrono = "0.4"
 rand = { version = "0.8", optional = true }
@@ -44,7 +45,7 @@ clap = { version = "4", optional = true, features = [
     "string",
     "unicode",
 ] }
-rpassword = { version = "7.3", optional = true }
+rpassword = { version = "7.5", optional = true }
 time = { version = "0.3", features = [
     "macros",
     "serde",
@@ -60,6 +61,7 @@ server = [
     "dep:axum",
     "dioxus/server",
     "dioxus-fullstack/server",
+    "dep:dioxus-server",
     "pslink-shared/server",
     "dep:axum_session",
     "dep:axum_session_auth",
