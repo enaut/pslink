@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-dioxus = { workspace = true, features = ["fullstack", "server"] }
+dioxus = { workspace = true, features = ["fullstack"] }
 server_fn = { version = "0.8", features = ["browser"] }
 axum = { workspace = true, optional = true }
 axum_session_sqlx = { version = "0.11", features = [
