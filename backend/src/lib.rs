@@ -125,7 +125,7 @@ async fn launch_server(
     use axum_session_auth::AuthConfig;
     use dioxus::logger::tracing::info;
     use dioxus::prelude::DioxusRouterExt;
-    use dioxus_fullstack::ServeConfigBuilder;
+    use dioxus::server::ServeConfig;
 
     let pool = get_db().await;
 
@@ -141,12 +141,7 @@ async fn launch_server(
     .unwrap();
 
     //User::create_user_tables(&pool).await;
-    let admin = Router::new().serve_dioxus_application(
-        ServeConfigBuilder::default()
-            .build()
-            .expect("Failed to build ServeConfig"),
-        app,
-    );
+    let admin = Router::new().serve_dioxus_application(ServeConfig::default(), app);
 
     // build our application with some routes
     let axum_route = Router::new()

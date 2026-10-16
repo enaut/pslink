@@ -1,7 +1,8 @@
 #[cfg(feature = "server")]
 use crate::models::UserDbOperations;
 use axum_extra::extract::Host;
-use dioxus::prelude::{ServerFnError, extract};
+use dioxus::prelude::ServerFnError;
+use dioxus_fullstack::FullstackContext;
 use pslink_shared::datatypes::User;
 
 #[derive(Debug, Clone)]
@@ -48,13 +49,13 @@ pub type Session = axum_session_auth::AuthSession<
 >;
 
 pub async fn get_session() -> Result<Session, ServerFnError> {
-    extract::<_, _>()
+    FullstackContext::extract::<_, _>()
         .await
         .map_err(|_| ServerFnError::new("AuthSessionLayer was not found"))
 }
 
 pub async fn get_hostname() -> Result<Host, ServerFnError> {
-    extract::<_, _>()
+    FullstackContext::extract::<_, _>()
         .await
         .map_err(|_| ServerFnError::new("Hostname was not found"))
 }

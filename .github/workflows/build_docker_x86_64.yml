@@ -55,14 +55,13 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install Dioxus CLI
-        run: cargo binstall dioxus-cli@0.7.0-alpha.2 -y
+        run: cargo binstall dioxus-cli@0.7.0 -y
 
       - name: Lowercase repository owner
         id: lowercase_repo
         run: |
           echo "REPO_OWNER=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_ENV
           echo "repo-owner=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_OUTPUT
-
 
       - name: Create bundle
         run: dx bundle --package web --release --platform web

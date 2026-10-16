@@ -5,7 +5,8 @@ use std::str::FromStr;
 use crate::models::{LinkDbOperations as _, NewLink};
 #[cfg(feature = "server")]
 use dioxus::logger::tracing::info;
-use dioxus::prelude::{ServerFnError, server, server_fn};
+use dioxus::prelude::{ServerFnError, server};
+
 #[cfg(feature = "server")]
 use enum_map::EnumMap;
 use pslink_shared::{

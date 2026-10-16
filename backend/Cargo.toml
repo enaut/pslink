@@ -5,16 +5,16 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-dioxus = { workspace = true, features = ["fullstack"] }
+dioxus = { workspace = true, features = ["fullstack", "server"] }
 server_fn = { version = "0.8", features = ["browser"] }
 axum = { workspace = true, optional = true }
-axum_session_sqlx = { version = "0.5.0", features = [
+axum_session_sqlx = { version = "0.6.0", features = [
     "sqlite",
     "tls-rustls",
 ], optional = true }
 axum_session = { workspace = true, optional = true }
 axum_session_auth = { workspace = true, optional = true }
-axum-extra = { version = "0.10", optional = true }
+axum-extra = { version = "0.12", optional = true }
 dioxus-fullstack = { workspace = true }
 anyhow = { workspace = true }
 sqlx = { version = "0.8", features = [
@@ -58,7 +58,8 @@ openssl = { version = "0.10", features = ["vendored"], optional = true }
 server = [
     "dep:tokio",
     "dep:axum",
-    "dioxus-fullstack/axum",
+    "dioxus/server",
+    "dioxus-fullstack/server",
     "pslink-shared/server",
     "dep:axum_session",
     "dep:axum_session_auth",
