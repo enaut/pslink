@@ -16,3 +16,7 @@ server_fn = "0.8"
 default = []
 web = ["dioxus/web"]
 server = ["dioxus/server", "backend/server", "pslink-shared/server"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+
