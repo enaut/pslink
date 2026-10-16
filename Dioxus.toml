@@ -1,12 +1,12 @@
 [application]
-
+name = "pslink"
 
 [web.app]
 
 title = "Pslink Kurzlinks"
 base_path = "app"
 
-[Web.wasm_opt]
+[web.wasm_opt]
 level = "s"
 
 [bundle]

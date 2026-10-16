@@ -15,7 +15,7 @@ use pslink_shared::apirequests::users::Role;
 /// - User is not authenticated as admin
 /// - Invalid secret provided
 /// - Database file cannot be read
-#[server(ExportDatabase, endpoint = "export_database")]
+#[server(endpoint = "export_database")]
 pub async fn export_database(secret: String) -> Result<Vec<u8>, ServerFnError> {
     use std::path::Path;
     use tokio::fs;

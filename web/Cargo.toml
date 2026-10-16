@@ -10,7 +10,6 @@ ui = { workspace = true }
 backend = { workspace = true }
 pslink-shared = { workspace = true }
 dioxus-i18n = { workspace = true }
-server_fn = "0.8"
 
 [features]
 default = []

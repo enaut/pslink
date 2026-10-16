@@ -30,7 +30,7 @@ use sqlx::Row;
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails.
-#[server(ListAllUsersFiltered, endpoint = "list_all_users")]
+#[server(endpoint = "list_all_users")]
 pub async fn list_users(parameters: UserRequestForm) -> Result<ListWithOwner<User>, ServerFnError> {
     let auth = crate::auth::get_session().await?;
     trace!("Auth: {:?}", auth);
@@ -149,7 +149,7 @@ fn generate_order_users_sql(order: &Operation<UserOverviewColumns, Ordering>) ->
 ///
 /// # Errors
 /// Fails with [`ServerError`] if access to the database fails, this user does not have permissions or the user already exists.
-#[server(CreateUser, endpoint = "create_user")]
+#[server(endpoint = "create_user")]
 pub async fn create_user(data: UserDelta) -> Result<Item<User>, ServerFnError> {
     info!("Creating a User: {:?}", &data);
     if data.edit != EditMode::Create {
@@ -200,7 +200,7 @@ pub async fn create_user(data: UserDelta) -> Result<Item<User>, ServerFnError> {
 ///
 /// # Errors
 /// Fails with [`ServerFnError`] if access to the database fails, this user does not have permissions, or the given data is malformed.
-#[server(UpdateUser, endpoint = "update_user")]
+#[server(endpoint = "update_user")]
 pub async fn update_user(data: UserDelta) -> Result<Item<User>, ServerFnError> {
     let auth = crate::auth::get_session().await?;
     info!("Auth: {:?}", auth);
@@ -262,7 +262,7 @@ fn admin_or_self(user: &User, uid: i64) -> bool {
 /// Delete a user from the database.
 /// Only admins can delete users.
 /// The user can not delete itself.
-#[server(DeleteUser, endpoint = "delete_user")]
+#[server(endpoint = "delete_user")]
 pub async fn delete_user(user_id: i64) -> Result<(), ServerFnError> {
     let auth = crate::auth::get_session().await?;
     info!("Auth: {:?}", auth);
@@ -284,7 +284,7 @@ pub async fn delete_user(user_id: i64) -> Result<(), ServerFnError> {
 }
 
 /// Set a users language
-#[server(SetUserLanguage, endpoint = "set_user_language")]
+#[server(endpoint = "set_user_language")]
 pub async fn set_user_language(language: Lang) -> Result<(), ServerFnError> {
     let auth = crate::auth::get_session().await?;
     let user = auth

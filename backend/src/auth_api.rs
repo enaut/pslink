@@ -7,7 +7,7 @@ use dioxus::logger::tracing::info;
 use dioxus::prelude::{ServerFnError, server};
 use pslink_shared::{apirequests::users::SessionInfo, datatypes::User};
 
-#[server(Login, endpoint = "login")]
+#[server(endpoint = "login")]
 pub async fn login(username: String, password: String) -> Result<User, ServerFnError> {
     use argon2::{Params, PasswordVerifier as _};
     let auth = crate::auth::get_session().await?;
@@ -57,14 +57,14 @@ pub async fn login(username: String, password: String) -> Result<User, ServerFnE
     }
 }
 
-#[server(Logout, endpoint = "logout")]
+#[server(endpoint = "logout")]
 pub async fn logout() -> Result<(), ServerFnError> {
     let auth = crate::auth::get_session().await?;
     auth.logout_user();
     Ok(())
 }
 
-#[server(GetSessionInfo, endpoint = "session")]
+#[server(endpoint = "session")]
 pub async fn get_session_info() -> Result<SessionInfo, ServerFnError> {
     let auth = crate::auth::get_session().await;
     let hostname = crate::auth::get_hostname().await;
@@ -94,7 +94,7 @@ pub async fn get_session_info() -> Result<SessionInfo, ServerFnError> {
     })
 }
 
-#[server(Demo, endpoint = "demo")]
+#[server(endpoint = "demo")]
 pub async fn demo() -> Result<bool, ServerFnError> {
     Ok(get_secret().is_random)
 }
