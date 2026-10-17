@@ -50,7 +50,6 @@ pub async fn list_users(parameters: UserRequestForm) -> Result<Vec<User>, Server
 pub async fn create_user(data: UserDelta) -> Result<User, ServerFnError> {
     use crate::{
         domain::{
-            models::Role,
             requests::EditMode,
             validation::{validate_password, validate_username},
         },
@@ -85,13 +84,8 @@ pub async fn create_user(data: UserDelta) -> Result<User, ServerFnError> {
         &state.config.secret,
     )?;
 
-    new_user.insert_user(&state.db).await?;
-    let mut created = db::get_user_by_name(&state.db, &username).await?;
-
-    if data.role != Role::Regular {
-        created.role = data.role;
-        db::update_user(&state.db, &created, &new_user.password).await?;
-    }
+    new_user.insert_user(&state.db, data.role).await?;
+    let created = db::get_user_by_name(&state.db, &username).await?;
 
     Ok(created)
 }

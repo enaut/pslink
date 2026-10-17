@@ -59,7 +59,7 @@ pub fn validate_link_code(code: &str, allow_empty: bool) -> Result<(), String> {
 /// Validate a user password.
 ///
 /// # Errors
-/// Returns an error if the password is shorter than 5 characters or longer than 256 characters.
+/// Returns an error if the password is shorter than 4 characters or longer than 256 characters.
 pub fn validate_password(password: &str) -> Result<(), String> {
     let char_count = password.chars().count();
     if char_count < 4 {

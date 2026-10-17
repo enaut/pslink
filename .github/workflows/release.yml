@@ -32,19 +32,22 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install Dioxus CLI
-        run: cargo binstall dioxus-cli
+        run: cargo binstall dioxus-cli@0.8.0-alpha.2 -y
 
       - name: Build Dioxus frontend
-        run: dx bundle --release --package web
+        run: dx bundle --release --platform web
 
-      - name: rename binary
-        run: mv target/dx/web/release/web/server target/dx/web/release/web/pslink
+      - name: Ensure binary is named pslink
+        run: |
+          if [ -f target/dx/pslink/release/web/server ]; then
+            mv target/dx/pslink/release/web/server target/dx/pslink/release/web/pslink
+          fi
 
       - name: rename path
-        run: mv target/dx/web/release/web target/dx/web/release/pslink
+        run: mv target/dx/pslink/release/web target/dx/pslink/release/pslink
 
       - name: Create archive of build artifacts
-        run: tar -czvf pslink-linux-x86_64-bundle.tgz -C target/dx/web/release pslink
+        run: tar -czvf pslink-linux-x86_64-bundle.tgz -C target/dx/pslink/release pslink
 
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
@@ -60,4 +63,4 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
           name: web-build
-          path: target/dx/web/release/pslink
+          path: target/dx/pslink/release/pslink

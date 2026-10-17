@@ -193,12 +193,12 @@ pub fn LinkEdit(
 
 #[component]
 pub fn ConfirmDialog(edit_link: Signal<Option<EditDialog>>) -> Element {
-    if let Some(dialog) = edit_link() {
-        if dialog.link_delta.edit == EditMode::Delete(true) {
-            return rsx! {
-                div { class: "notification is-danger", {t!("link-edit-delete-warning")} }
-            };
-        }
+    if let Some(dialog) = edit_link()
+        && dialog.link_delta.edit == EditMode::Delete(true)
+    {
+        return rsx! {
+            div { class: "notification is-danger", {t!("link-edit-delete-warning")} }
+        };
     }
     rsx! {}
 }
@@ -285,17 +285,17 @@ fn Buttons(
                     button {
                         class: "button is-danger",
                         onclick: move |_e: Event<MouseData>| async move {
-                            if let Some(dialog) = edit_link() {
-                                if let Some(link_id) = dialog.link_delta.id {
-                                    match crate::api::link_api::delete_link(link_id).await {
-                                        Ok(_) => {
-                                            reload_trigger.set(reload_trigger().wrapping_add(1));
-                                            edit_link.set(None);
-                                        }
-                                        Err(e) => {
-                                            if let Some(d) = edit_link.write().as_mut() {
-                                                d.error = Some(e.to_string());
-                                            }
+                            if let Some(dialog) = edit_link()
+                                && let Some(link_id) = dialog.link_delta.id
+                            {
+                                match crate::api::link_api::delete_link(link_id).await {
+                                    Ok(_) => {
+                                        reload_trigger.set(reload_trigger().wrapping_add(1));
+                                        edit_link.set(None);
+                                    }
+                                    Err(e) => {
+                                        if let Some(d) = edit_link.write().as_mut() {
+                                            d.error = Some(e.to_string());
                                         }
                                     }
                                 }

@@ -194,24 +194,6 @@ pub async fn update_user(
     Ok(())
 }
 
-/// Toggle a user between [`Role::Regular`] and [`Role::Admin`].
-///
-/// # Errors
-/// Fails with [`ServerFnError`] if the database cannot be accessed.
-pub async fn toggle_admin(pool: &SqlitePool, user: &User) -> Result<(), ServerFnError> {
-    let new_role = match user.role {
-        r @ (Role::NotAuthenticated | Role::Disabled) => r,
-        Role::Regular => Role::Admin,
-        Role::Admin => Role::Regular,
-    };
-    let role_i64 = new_role.to_i64();
-    sqlx::query!("UPDATE users SET role = ? where id = ?", role_i64, user.id)
-        .execute(pool)
-        .await
-        .sfe()?;
-    Ok(())
-}
-
 /// Set the preferred language of a user.
 ///
 /// # Errors
@@ -344,20 +326,22 @@ impl NewUser {
         .map_err(|_| ServerFnError::new("Unauthorized"))
     }
 
-    /// Insert this user into the database as a regular user (`role = 1`).
+    /// Insert this user into the database with the given [`Role`].
     ///
     /// # Errors
     /// Fails with [`ServerFnError`] if the database cannot be accessed or constraints fail.
-    pub async fn insert_user(&self, pool: &SqlitePool) -> Result<(), ServerFnError> {
+    pub async fn insert_user(&self, pool: &SqlitePool, role: Role) -> Result<(), ServerFnError> {
+        let role_i64 = role.to_i64();
         sqlx::query!(
             "Insert into users (
             username,
             email,
             password,
-            role) VALUES (?,?,?,1)",
+            role) VALUES (?,?,?,?)",
             self.username,
             self.email,
             self.password,
+            role_i64,
         )
         .execute(pool)
         .await
@@ -366,14 +350,12 @@ impl NewUser {
     }
 }
 
-/// Create an admin user atomically.
+/// Create an admin user in a single query.
 ///
 /// # Errors
-/// Fails with [`ServerFnError`] if inserting or promoting the user fails.
+/// Fails with [`ServerFnError`] if inserting the user fails.
 pub async fn create_admin(pool: &SqlitePool, new_user: &NewUser) -> Result<(), ServerFnError> {
-    new_user.insert_user(pool).await?;
-    let created_user = get_user_by_name(pool, &new_user.username).await?;
-    toggle_admin(pool, &created_user).await?;
+    new_user.insert_user(pool, Role::Admin).await?;
     info!("Admin user created: {}", &new_user.username);
     Ok(())
 }
@@ -801,7 +783,7 @@ mod tests {
             &secret,
         )
         .unwrap();
-        regular.insert_user(&pool).await.unwrap();
+        regular.insert_user(&pool, Role::Regular).await.unwrap();
         let alice = get_user_by_name(&pool, "alice").await.unwrap();
 
         NewLink {

@@ -28,13 +28,14 @@ pub async fn export_database(secret: String) -> Result<Vec<u8>, ServerFnError> {
         return Err(ServerFnError::new("Invalid secret"));
     }
 
-    export_database_snapshot(&state.db, &state.config.db).await.map(|data| {
-        info!(
-            "Database export successful for admin user: {}",
-            user.username
-        );
-        data
-    })
+    export_database_snapshot(&state.db, &state.config.db)
+        .await
+        .inspect(|_| {
+            info!(
+                "Database export successful for admin user: {}",
+                user.username
+            );
+        })
 }
 
 #[cfg(feature = "server")]
@@ -85,7 +86,7 @@ pub fn validate_export_secret(
         .as_ref()
         .ok_or_else(|| ServerFnError::new("Data download secret not set"))?;
 
-    if provided_secret.as_bytes().len() != expected_secret_str.as_bytes().len()
+    if provided_secret.len() != expected_secret_str.len()
         || provided_secret
             .as_bytes()
             .iter()

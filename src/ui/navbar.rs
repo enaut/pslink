@@ -52,7 +52,7 @@ pub fn Navbar(children: Element) -> Element {
     };
     let nav = navigator();
 
-    let _ = use_resource(move || async move {
+    let _session_loader = use_resource(move || async move {
         if let Ok(session) = get_session_info().await {
             if let Some(user) = session.user {
                 user_signal.set(Some(user));

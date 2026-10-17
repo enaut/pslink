@@ -43,17 +43,17 @@ pub fn toggle_column<C: PartialEq>(
     ordering: Option<Operation<C, Ordering>>,
     new_column: C,
 ) -> Option<Operation<C, Ordering>> {
-    if let Some(Operation { column, value }) = ordering {
-        if column == new_column {
-            let new_value = match value {
-                Ordering::Ascending => Ordering::Descending,
-                Ordering::Descending => Ordering::Ascending,
-            };
-            return Some(Operation {
-                column,
-                value: new_value,
-            });
-        }
+    if let Some(Operation { column, value }) = ordering
+        && column == new_column
+    {
+        let new_value = match value {
+            Ordering::Ascending => Ordering::Descending,
+            Ordering::Descending => Ordering::Ascending,
+        };
+        return Some(Operation {
+            column,
+            value: new_value,
+        });
     }
 
     Some(Operation {

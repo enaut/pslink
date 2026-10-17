@@ -88,9 +88,3 @@ pub async fn get_session_info() -> Result<SessionInfo, ServerFnError> {
         is_demo: state.config.secret.is_random,
     })
 }
-
-#[server(endpoint = "demo")]
-pub async fn demo() -> Result<bool, ServerFnError> {
-    let state = crate::server::state::get_state().await?;
-    Ok(state.config.secret.is_random)
-}

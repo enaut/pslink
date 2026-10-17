@@ -55,7 +55,7 @@ pub fn LinkDisplay(
             link_stats()
                 .get(&link_data.link.code)
                 .cloned()
-                .unwrap_or_else(|| link_data.clicks)
+                .unwrap_or(link_data.clicks)
         } else {
             Clicks::Count(Count { number: 0 })
         }
@@ -123,12 +123,13 @@ pub fn LinkDisplay(
                         let link_data_clone = link_data.clone();
                         move |e: Event<MouseData>| {
                             e.stop_propagation();
-                            if let Some(user_data) = user() {
-                                if user_data.role != Role::Admin && user_data.id != link_data_clone.link.author {
-                                    nachricht.set(Some(t!("links-error-not-author")));
-                                    timer.restart();
-                                    return;
-                                }
+                            if let Some(user_data) = user()
+                                && user_data.role != Role::Admin
+                                && user_data.id != link_data_clone.link.author
+                            {
+                                nachricht.set(Some(t!("links-error-not-author")));
+                                timer.restart();
+                                return;
                             }
                             info!("Delete link");
                             link_signal.set(Some(EditDialog::new(

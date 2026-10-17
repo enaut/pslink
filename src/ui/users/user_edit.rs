@@ -129,11 +129,11 @@ pub fn UserEdit(
                                     select {
                                         disabled: !is_admin,
                                         oninput: move |e| {
-                                            if let Ok(role_num) = e.value().parse::<i64>() {
-                                                if let Some(d) = edit_dialog_signal.write().as_mut() {
-                                                    d.user_delta.role = Role::convert(role_num);
-                                                    d.error = None;
-                                                }
+                                            if let Ok(role_num) = e.value().parse::<i64>()
+                                                && let Some(d) = edit_dialog_signal.write().as_mut()
+                                            {
+                                                d.user_delta.role = Role::convert(role_num);
+                                                d.error = None;
                                             }
                                         },
                                         option {
@@ -168,12 +168,12 @@ pub fn UserEdit(
 
 #[component]
 pub fn ConfirmDialog(edit_dialog_signal: Signal<Option<EditDialog>>) -> Element {
-    if let Some(dialog) = edit_dialog_signal() {
-        if dialog.user_delta.edit == EditMode::Delete(true) {
-            return rsx! {
-                div { class: "notification is-danger", {t!("user-edit-delete-warning")} }
-            };
-        }
+    if let Some(dialog) = edit_dialog_signal()
+        && dialog.user_delta.edit == EditMode::Delete(true)
+    {
+        return rsx! {
+            div { class: "notification is-danger", {t!("user-edit-delete-warning")} }
+        };
     }
     rsx! {}
 }
@@ -244,10 +244,10 @@ fn Buttons(
                     if let Some(dialog) = edit_dialog_signal() {
                         match crate::api::user_api::update_user(dialog.user_delta).await {
                             Ok(updated) => {
-                                if let Some(curr) = user() {
-                                    if curr.id == updated.id {
-                                        user.set(Some(updated));
-                                    }
+                                if let Some(curr) = user()
+                                    && curr.id == updated.id
+                                {
+                                    user.set(Some(updated));
                                 }
                                 reload_trigger.set(reload_trigger().wrapping_add(1));
                                 edit_dialog_signal.set(None);
@@ -269,17 +269,17 @@ fn Buttons(
                     button {
                         class: "button is-danger",
                         onclick: move |_e: Event<MouseData>| async move {
-                            if let Some(dialog) = edit_dialog_signal() {
-                                if let Some(uid) = dialog.user_delta.id {
-                                    match crate::api::user_api::delete_user(uid).await {
-                                        Ok(_) => {
-                                            reload_trigger.set(reload_trigger().wrapping_add(1));
-                                            edit_dialog_signal.set(None);
-                                        }
-                                        Err(e) => {
-                                            if let Some(d) = edit_dialog_signal.write().as_mut() {
-                                                d.error = Some(e.to_string());
-                                            }
+                            if let Some(dialog) = edit_dialog_signal()
+                                && let Some(uid) = dialog.user_delta.id
+                            {
+                                match crate::api::user_api::delete_user(uid).await {
+                                    Ok(_) => {
+                                        reload_trigger.set(reload_trigger().wrapping_add(1));
+                                        edit_dialog_signal.set(None);
+                                    }
+                                    Err(e) => {
+                                        if let Some(d) = edit_dialog_signal.write().as_mut() {
+                                            d.error = Some(e.to_string());
                                         }
                                     }
                                 }

@@ -509,10 +509,10 @@ pub async fn apply_migrations(config: &ServerConfig) -> Result<SqlitePool, Serve
         &config.db.display()
     );
     if !config.db.exists() {
-        if let Some(parent) = config.db.parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent).sfe()?;
-            }
+        if let Some(parent) = config.db.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent).sfe()?;
         }
         File::create(&config.db).sfe()?;
     }
