@@ -12,8 +12,8 @@ const PLUS_ICON: Asset = asset!("/assets/plus.svg");
 pub fn NewLinkButton(edit_link: Signal<Option<EditDialog>>) -> Element {
     let PslinkContext { hostname, .. } = use_context::<PslinkContext>();
     rsx! {
-        document::Stylesheet { href: FLOATING_BUTTON_STYLES }
         div { class: "fixed-button",
+            document::Stylesheet { href: FLOATING_BUTTON_STYLES }
             button {
                 class: "button is-primary is-huge is-floating",
                 onclick: move |_| {

@@ -20,7 +20,7 @@ pub fn UserEdit(
 ) -> Element {
     let PslinkContext { user, .. } = use_context::<PslinkContext>();
     let on_esc_event = move |evt: KeyboardEvent| {
-        if evt.key() == Key::Escape {
+        if evt.key() == Key::Named(NamedKey::Escape) {
             edit_dialog_signal.set(None);
         }
     };

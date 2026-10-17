@@ -32,8 +32,8 @@ pub fn LoginScreen() -> Element {
 
     trace!("Rendering login screen with username: {}", username);
     rsx! {
-        document::Stylesheet { href: LOGIN_CSS }
         div { class: "modal is-active",
+            document::Stylesheet { href: LOGIN_CSS }
             div { class: "modal-background" }
             div { class: "modal-card",
                 header { class: "modal-card-head",

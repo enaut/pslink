@@ -13,7 +13,6 @@ use crate::links::generate_svg_qr_from_url;
 use crate::links::generate_url_for_code;
 use crate::links::stats::Stats;
 const TRASH_SVG: Asset = asset!("/assets/trash.svg");
-const VANISHING_MESSAGE: Asset = asset!("/assets/styling/vanishing_message.css");
 
 #[component]
 pub fn LinkDisplay(
@@ -54,8 +53,6 @@ pub fn LinkDisplay(
     });
 
     rsx! {
-        document::Stylesheet { href: VANISHING_MESSAGE }
-
         if let Some(link_data) = ll() {
             tr {
                 onclick: {

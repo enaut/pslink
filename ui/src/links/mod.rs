@@ -28,6 +28,7 @@ use crate::links::new_link_button::NewLinkButton;
 use crate::{PslinkContext, navbar::Route};
 
 const LINKS_CSS: Asset = asset!("/assets/styling/lists.css");
+const VANISHING_MESSAGE: Asset = asset!("/assets/styling/vanishing_message.css");
 
 const SEARCH_SVG: Asset = asset!("/assets/search.svg");
 const RELOAD_SVG: Asset = asset!("/assets/reload.svg");
@@ -218,10 +219,12 @@ pub fn Links() -> Element {
     });
 
     rsx! {
-        document::Stylesheet { href: LINKS_CSS }
-        LinkEdit { edit_link, links }
-        if let Some(_user) = user.as_ref() {
-            div {
+        div { class: "links-view",
+            document::Stylesheet { href: LINKS_CSS }
+            document::Stylesheet { href: VANISHING_MESSAGE }
+            LinkEdit { edit_link, links }
+            if let Some(_user) = user.as_ref() {
+                div {
                 table { class: "table is-bordered is-striped is-hoverable is-fullwidth",
                     tbody {
                         tr {
@@ -392,6 +395,7 @@ pub fn Links() -> Element {
                     Link { to: Route::LoginScreen {}, {t!("links-login")} } // Text for login link
                 }
             }
+        }
         }
     }
 }

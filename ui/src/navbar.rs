@@ -60,9 +60,9 @@ pub fn Navbar(children: Element) -> Element {
     });
 
     rsx!(
-        document::Stylesheet { href: NAVBAR_CSS }
-        document::Stylesheet { href: BULMA_CSS }
         nav {
+            document::Stylesheet { href: NAVBAR_CSS }
+            document::Stylesheet { href: BULMA_CSS }
             if let Some(_user) = user_signal.cloned() {
                 ol {
                     li {
@@ -120,9 +120,11 @@ pub fn Navbar(children: Element) -> Element {
 #[component]
 pub fn WebNavbar() -> Element {
     rsx! {
-        Navbar {}
-        DemoWarning {}
-        Outlet::<Route> {}
+        div { class: "app-container",
+            Navbar {}
+            DemoWarning {}
+            Outlet::<Route> {}
+        }
     }
 }
 

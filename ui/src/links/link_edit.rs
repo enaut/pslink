@@ -17,7 +17,7 @@ pub fn LinkEdit(
 ) -> Element {
     let PslinkContext { hostname, .. } = use_context::<PslinkContext>();
     let on_esc_event = move |evt: KeyboardEvent| {
-        if evt.key() == Key::Escape {
+        if evt.key() == Key::Named(NamedKey::Escape) {
             edit_link.set(None);
         }
     };

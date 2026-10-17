@@ -181,10 +181,11 @@ pub fn Users() -> Element {
     });
 
     rsx! {
-        document::Stylesheet { href: LISTS_CSS }
-        if let Some(_user) = user.as_ref() {
-            UserEdit { edit_dialog_signal, users }
-            div {
+        div { class: "users-view",
+            document::Stylesheet { href: LISTS_CSS }
+            if let Some(_user) = user.as_ref() {
+                UserEdit { edit_dialog_signal, users }
+                div {
                 input {
                     name: "prevent_autofill",
                     r#type: "text",
@@ -324,6 +325,7 @@ pub fn Users() -> Element {
                     Link { to: Route::LoginScreen {}, {t!("users-login")} } // Text for login link
                 }
             }
+        }
         }
     }
 }
