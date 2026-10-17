@@ -36,8 +36,7 @@ pub fn launch_pslink(app: fn() -> Result<dioxus::prelude::VNode, dioxus::prelude
                     println!(
                         "Pslink server started:\n\tLog in at: http://{}:{}/app/",
                         std::env::var("DIOXUS_DEVSERVER_IP").unwrap_or(ip),
-                        std::env::var("DIOXUS_DEVSERVER_PORT")
-                            .unwrap_or_else(|_| port.to_string())
+                        std::env::var("DIOXUS_DEVSERVER_PORT").unwrap_or_else(|_| port.to_string())
                     );
                     tokio::select! {
                         _ = tokio::signal::ctrl_c() => {
@@ -74,10 +73,7 @@ async fn launch_server(
 
     let pool = app_state.db.clone();
     checker::spawn_periodic_checker(app_state.clone());
-    let bind_addr = format!(
-        "{}:{}",
-        app_state.config.internal_ip, app_state.config.port
-    );
+    let bind_addr = format!("{}:{}", app_state.config.internal_ip, app_state.config.port);
 
     // Derive a 64-byte cookie key from the configured server secret
     let secret_bytes = app_state

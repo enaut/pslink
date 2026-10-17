@@ -80,12 +80,7 @@ pub async fn create_user(data: UserDelta) -> Result<User, ServerFnError> {
         .ok_or_else(|| ServerFnError::new("A new user requires a password"))?;
     validate_password(password).map_err(ServerFnError::new)?;
 
-    let new_user = NewUser::new(
-        username.clone(),
-        email,
-        password,
-        &state.config.secret,
-    )?;
+    let new_user = NewUser::new(username.clone(), email, password, &state.config.secret)?;
 
     new_user.insert_user(&state.db, data.role).await?;
     let created = db::get_user_by_name(&state.db, &username).await?;

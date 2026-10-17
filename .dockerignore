@@ -1,0 +1,14 @@
+# Ignore everything by default to keep the Docker build context small
+*
+
+# Allow only the bundled Dioxus web output required by the Dockerfile
+!target
+target/*
+!target/dx
+target/dx/*
+!target/dx/pslink
+target/dx/pslink/*
+!target/dx/pslink/release
+target/dx/pslink/release/*
+!target/dx/pslink/release/web
+!target/dx/pslink/release/web/**

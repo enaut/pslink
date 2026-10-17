@@ -68,8 +68,7 @@ pub fn LinkEdit(
 
     let qr_preview = use_memo(move || {
         edit_link().map(|dialog| {
-            let url =
-                generate_url_for_code(&dialog.link_delta.code, &base_url(), &hostname());
+            let url = generate_url_for_code(&dialog.link_delta.code, &base_url(), &hostname());
             let svg = generate_svg_qr_from_url(&url);
             let png = generate_png_download_from_url(&url);
             (svg, png)
@@ -152,8 +151,7 @@ pub fn LinkEdit(
     let (qr_svg, png_qr_url) = qr_preview().unwrap_or_else(|| (String::new(), None));
 
     let is_edit = dialog.link_delta.edit == EditMode::Edit;
-    let target_unchanged =
-        dialog.link_delta.target.trim() == dialog.original_target.trim();
+    let target_unchanged = dialog.link_delta.target.trim() == dialog.original_target.trim();
     // What is shown in the status row: the result for the typed target or the latest stored check.
     let mut checking = false;
     let mut shown_check: Option<LinkCheck> = None;
@@ -396,10 +394,7 @@ pub fn ConfirmDialog(edit_link: Signal<Option<EditDialog>>) -> Element {
 }
 
 #[component]
-fn EditFooter(
-    edit_link: Signal<Option<EditDialog>>,
-    reload_trigger: Signal<u32>,
-) -> Element {
+fn EditFooter(edit_link: Signal<Option<EditDialog>>, reload_trigger: Signal<u32>) -> Element {
     rsx! {
         footer { class: "modal-card-foot is-justify-content-flex-end",
             div { class: "buttons",
@@ -410,10 +405,7 @@ fn EditFooter(
 }
 
 #[component]
-fn Buttons(
-    mut edit_link: Signal<Option<EditDialog>>,
-    mut reload_trigger: Signal<u32>,
-) -> Element {
+fn Buttons(mut edit_link: Signal<Option<EditDialog>>, mut reload_trigger: Signal<u32>) -> Element {
     let Some(EditDialog { link_delta, .. }) = edit_link() else {
         return rsx! {};
     };

@@ -4,10 +4,7 @@
 use dioxus::logger::tracing::info;
 use dioxus::prelude::{ServerFnError, server};
 
-use crate::domain::{
-    models::User,
-    requests::SessionInfo,
-};
+use crate::domain::{models::User, requests::SessionInfo};
 
 #[server(endpoint = "login")]
 pub async fn login(username: String, password: String) -> Result<User, ServerFnError> {

@@ -386,19 +386,45 @@ mod tests {
                     let method = parts.next().unwrap_or("");
                     let path = parts.next().unwrap_or("");
                     let response = match (method, path) {
-                        (_, "/ok") => "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        (_, "/missing") => "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        (_, "/error") => "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        (_, "/blocked") => "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        ("HEAD", "/nohead") => "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        ("GET", "/nohead") => "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        (_, "/loop") => "HTTP/1.1 302 Found\r\nLocation: /loop\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        (_, "/redirect") => "HTTP/1.1 301 Moved Permanently\r\nLocation: /ok\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        (_, "/redirect-private") => "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:1/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        (_, "/framed") => "HTTP/1.1 200 OK\r\nX-Frame-Options: DENY\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        (_, "/csp") => "HTTP/1.1 200 OK\r\nContent-Security-Policy: default-src 'self'; frame-ancestors 'self'\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        (_, "/csp-any") => "HTTP/1.1 200 OK\r\nContent-Security-Policy: frame-ancestors *\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        _ => "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        (_, "/ok") => {
+                            "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        (_, "/missing") => {
+                            "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        (_, "/error") => {
+                            "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        (_, "/blocked") => {
+                            "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        ("HEAD", "/nohead") => {
+                            "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        ("GET", "/nohead") => {
+                            "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        (_, "/loop") => {
+                            "HTTP/1.1 302 Found\r\nLocation: /loop\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        (_, "/redirect") => {
+                            "HTTP/1.1 301 Moved Permanently\r\nLocation: /ok\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        (_, "/redirect-private") => {
+                            "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:1/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        (_, "/framed") => {
+                            "HTTP/1.1 200 OK\r\nX-Frame-Options: DENY\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        (_, "/csp") => {
+                            "HTTP/1.1 200 OK\r\nContent-Security-Policy: default-src 'self'; frame-ancestors 'self'\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        (_, "/csp-any") => {
+                            "HTTP/1.1 200 OK\r\nContent-Security-Policy: frame-ancestors *\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
+                        _ => {
+                            "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        }
                     };
                     let _ = socket.write_all(response.as_bytes()).await;
                     let _ = socket.shutdown().await;
@@ -533,7 +559,9 @@ mod tests {
         let client = build_client();
 
         assert_eq!(
-            check_url(&client, &format!("{base}/framed")).await.embeddable,
+            check_url(&client, &format!("{base}/framed"))
+                .await
+                .embeddable,
             Some(false)
         );
         assert_eq!(
@@ -541,7 +569,9 @@ mod tests {
             Some(false)
         );
         assert_eq!(
-            check_url(&client, &format!("{base}/csp-any")).await.embeddable,
+            check_url(&client, &format!("{base}/csp-any"))
+                .await
+                .embeddable,
             Some(true)
         );
     }

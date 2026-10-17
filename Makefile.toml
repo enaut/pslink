@@ -3,34 +3,55 @@ CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 
 [tasks.build-x86_64]
 workspace = false
-description = "Build for x86_64 target"
-command = "cross"
+description = "Bundle web app and server binary for x86_64 target"
+command = "dx"
 args = [
-    "build",
-    "--features=server,dioxus/server",
-    "--target",
-    "x86_64-unknown-linux-musl",
+    "bundle",
     "--release",
+    "--platform",
+    "web",
+    "@server",
+    "--platform",
+    "server",
+    "--target",
+    "x86_64-unknown-linux-gnu",
 ]
+
+[tasks.setup-aarch64-sysroot]
+private = true
+workspace = false
+script = '''
+mkdir -p target/aarch64-sysroot
+ln -sfn /usr/aarch64-redhat-linux/sys-root/fc41/usr target/aarch64-sysroot/usr
+ln -sfn /usr/aarch64-redhat-linux/sys-root/fc41/usr/lib target/aarch64-sysroot/lib
+ln -sfn /usr/aarch64-redhat-linux/sys-root/fc41/usr/lib64 target/aarch64-sysroot/lib64
+echo "INPUT(-lgcc)" > target/aarch64-sysroot/libgcc_s.so
+cp -f /usr/aarch64-redhat-linux/sys-root/fc41/usr/lib64/libc.so /usr/aarch64-redhat-linux/sys-root/fc41/usr/lib64/libm.so target/aarch64-sysroot/
+'''
 
 [tasks.build-aarch64]
 workspace = false
-description = "Build for aarch64 target"
-command = "cross"
+description = "Bundle web app and server binary for aarch64 target"
+dependencies = ["setup-aarch64-sysroot"]
+env = { "CFLAGS_aarch64_unknown_linux_gnu" = "--sysroot=${CARGO_MAKE_WORKING_DIRECTORY}/target/aarch64-sysroot -idirafter /usr/include", "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER" = "aarch64-linux-gnu-gcc", "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS" = "-C link-arg=--sysroot=${CARGO_MAKE_WORKING_DIRECTORY}/target/aarch64-sysroot -L ${CARGO_MAKE_WORKING_DIRECTORY}/target/aarch64-sysroot" }
+command = "dx"
 args = [
-    "build",
-    "--features=server,dioxus/server",
-    "--target",
-    "aarch64-unknown-linux-musl",
+    "bundle",
     "--release",
+    "--platform",
+    "web",
+    "@server",
+    "--platform",
+    "server",
+    "--target",
+    "aarch64-unknown-linux-gnu",
 ]
 
 [tasks.create-bundle]
 workspace = false
-description = "Create a bundle to generate the public directory"
+description = "Create a bundle for the host platform to generate the public directory and server binary"
 command = "dx"
-args = ["bundle", "--release"]
-
+args = ["bundle", "--release", "--platform", "web"]
 
 [tasks.docker-build-x86_64]
 workspace = false
@@ -41,11 +62,12 @@ args = [
     "-t",
     "pslink:x86_64-latest",
     "-f",
-    "x86_64.Dockerfile",
+    "Dockerfile",
     "--platform",
     "linux/amd64",
+    ".",
 ]
-dependencies = ["build-x86_64", "create-bundle"]
+dependencies = ["build-x86_64"]
 
 [tasks.docker-build-aarch64]
 workspace = false
@@ -56,11 +78,12 @@ args = [
     "-t",
     "pslink:aarch64-latest",
     "-f",
-    "aarch64.Dockerfile",
+    "Dockerfile",
     "--platform",
     "linux/arm64",
+    ".",
 ]
-dependencies = ["build-aarch64", "create-bundle"]
+dependencies = ["build-aarch64"]
 
 [tasks.docker-push-x86_64]
 workspace = false
@@ -90,17 +113,16 @@ description = "Clean up Docker manifest"
 command = "podman"
 args = ["manifest", "rm", "-i", "enaut/pslink:latest"]
 
-
 [tasks.docker-manifest-create]
 workspace = false
-description = "Create and push a Docker manifest"
+description = "Create a multi-arch Docker manifest"
 command = "podman"
 args = [
     "manifest",
     "create",
     "enaut/pslink:latest",
-    "enaut/pslink:aarch64-latest",
-    "enaut/pslink:x86_64-latest",
+    "docker://docker.io/enaut/pslink:aarch64-latest",
+    "docker://docker.io/enaut/pslink:x86_64-latest",
 ]
 dependencies = [
     "docker-push-x86_64",
@@ -115,7 +137,8 @@ command = "podman"
 args = [
     "manifest",
     "push",
+    "--all",
     "enaut/pslink:latest",
-    "docker.io/enaut/pslink:latest",
+    "docker://docker.io/enaut/pslink:latest",
 ]
 dependencies = ["docker-manifest-create"]

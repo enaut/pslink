@@ -17,70 +17,72 @@ on:
 jobs:
   build-x86_64:
     name: Build and push x86_64 Docker image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
-    
+
     outputs:
       version: ${{ steps.get_version.outputs.version }}
       repo-owner: ${{ steps.lowercase_repo.outputs.repo-owner }}
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set version variable
         id: get_version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "workflow_call" ] && [ -n "${{ inputs.version }}" ]; then
-            echo "VERSION=${{ inputs.version }}" >> $GITHUB_ENV
-            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
           else
-            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            VERSION="${GITHUB_REF_NAME}"
           fi
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: x86_64-unknown-linux-gnu
-          override: true
+          targets: x86_64-unknown-linux-gnu,wasm32-unknown-unknown
 
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install Dioxus CLI
-        run: cargo binstall dioxus-cli@0.8.0-alpha.2 -y
+        run: cargo binstall dioxus-cli@0.8.0-alpha.3 -y
 
       - name: Lowercase repository owner
         id: lowercase_repo
         run: |
-          echo "REPO_OWNER=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_ENV
-          echo "repo-owner=$(echo ${{ github.repository_owner }} | tr 'A-Z' 'a-z')" >> $GITHUB_OUTPUT
+          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr 'A-Z' 'a-z')
+          echo "REPO_OWNER=${REPO_OWNER}" >> "$GITHUB_ENV"
+          echo "repo-owner=${REPO_OWNER}" >> "$GITHUB_OUTPUT"
 
       - name: Create bundle
         run: dx bundle --release --platform web
 
+      - name: Ensure binary is named pslink
+        run: |
+          if [ -f target/dx/pslink/release/web/server ]; then
+            mv target/dx/pslink/release/web/server target/dx/pslink/release/web/pslink
+          fi
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push x86_64 image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./x86_64.Dockerfile
+          file: ./Dockerfile
           platforms: linux/amd64
           push: true
           tags: |

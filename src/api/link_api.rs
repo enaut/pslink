@@ -14,9 +14,7 @@ use crate::domain::{
 /// # Errors
 /// Fails with [`ServerFnError`] if the user is not authenticated or database access fails.
 #[server(endpoint = "list_all_links")]
-pub async fn list_all_allowed(
-    parameters: LinkRequestForm,
-) -> Result<Vec<FullLink>, ServerFnError> {
+pub async fn list_all_allowed(parameters: LinkRequestForm) -> Result<Vec<FullLink>, ServerFnError> {
     let _user = crate::server::auth::require_user().await?;
     let state = crate::server::state::get_state().await?;
     crate::server::db::list_links_filtered(&state.db, &parameters).await

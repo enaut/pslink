@@ -871,13 +871,16 @@ mod tests {
         .unwrap();
         create_admin(&pool, &admin_new).await.unwrap();
 
-        let (admin_user, stored_hash) =
-            get_user_with_password_by_name(&pool, "admin").await.unwrap();
+        let (admin_user, stored_hash) = get_user_with_password_by_name(&pool, "admin")
+            .await
+            .unwrap();
         assert_eq!(admin_user.role, Role::Admin);
         assert!(NewUser::verify_password("correct-horse-battery", &stored_hash, &secret).is_ok());
         assert!(NewUser::verify_password("wrong-password", &stored_hash, &secret).is_err());
 
-        set_language(&pool, admin_user.id, Lang::DeDE).await.unwrap();
+        set_language(&pool, admin_user.id, Lang::DeDE)
+            .await
+            .unwrap();
         let updated = get_user(&pool, admin_user.id).await.unwrap();
         assert_eq!(updated.language, Lang::DeDE);
 

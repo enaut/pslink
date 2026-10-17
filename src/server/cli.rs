@@ -14,11 +14,7 @@ use dioxus::{
     prelude::ServerFnError,
 };
 use dotenv::dotenv;
-use sqlx::{
-    SqlitePool,
-    migrate::Migrator,
-    sqlite::SqliteConnectOptions,
-};
+use sqlx::{SqlitePool, migrate::Migrator, sqlite::SqliteConnectOptions};
 
 use crate::{
     domain::models::Secret,
@@ -201,7 +197,12 @@ struct CliArgs {
     protocol: Protocol,
 
     /// The secret that is used to encrypt the password database. Keep this as inaccessible as possible.
-    #[arg(long = "secret", env = "PSLINK_SECRET", default_value = "", global = true)]
+    #[arg(
+        long = "secret",
+        env = "PSLINK_SECRET",
+        default_value = "",
+        global = true
+    )]
     secret: String,
 
     /// The secret that is used to authenticate database export requests.
@@ -263,7 +264,9 @@ impl CliArgs {
         info!("Parsing the arguments");
         let secret = if self.secret.len() < 5 {
             if self.secret.is_empty() {
-                warn!("No secret was found! Use the environment variable PSLINK_SECRET to set one.");
+                warn!(
+                    "No secret was found! Use the environment variable PSLINK_SECRET to set one."
+                );
                 warn!("If you change the secret all passwords will be invalid");
                 warn!("Using an auto generated one for this run.");
             } else {
@@ -318,7 +321,10 @@ impl CliArgs {
     }
 }
 
-async fn connect_db(db_path: &std::path::Path, create_if_missing: bool) -> Result<SqlitePool, ServerFnError> {
+async fn connect_db(
+    db_path: &std::path::Path,
+    create_if_missing: bool,
+) -> Result<SqlitePool, ServerFnError> {
     let options = SqliteConnectOptions::new()
         .filename(db_path)
         .create_if_missing(create_if_missing);
@@ -510,22 +516,14 @@ async fn request_admin_credentials(
         &new_username, &new_email
     );
 
-    let new_admin = NewUser::new(
-        new_username,
-        new_email,
-        &password,
-        &config.secret,
-    )?;
+    let new_admin = NewUser::new(new_username, new_email, &password, &config.secret)?;
 
     db::create_admin(pool, &new_admin).await
 }
 
 /// Apply any pending migrations to the database (creating the SQLite file if it does not yet exist).
 pub async fn apply_migrations(config: &ServerConfig) -> Result<SqlitePool, ServerFnError> {
-    info!(
-        "Applying database migrations to {}:",
-        &config.db.display()
-    );
+    info!("Applying database migrations to {}:", &config.db.display());
     if !config.db.exists() {
         if let Some(parent) = config.db.parent()
             && !parent.as_os_str().is_empty()

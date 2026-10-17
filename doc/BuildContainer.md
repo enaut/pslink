@@ -41,11 +41,10 @@ Replace `./links.db` and `./.env` with absolute paths if necessary. If SElinux i
 
 ### Configuration Options
 
-When starting the container, you can specify command line arguments :
+When starting the container, you can specify command line arguments:
 
 ```bash
-podman exec -it
-  ghcr.io/enaut/pslink:latest /app/pslink --help
+podman exec -it pslink_container /app/pslink --help
 ```
 
 ```
@@ -54,23 +53,38 @@ Usage: pslink [OPTIONS] [COMMAND]
 
 Commands:
   runserver         Run the server
-  create-admin      Create an admin user.
-  generate-env      Generate an .env file template using default settings and exit
   migrate-database  Apply any pending migrations and exit
+  generate-env      Generate an .env file template using default settings and exit
+  create-admin      Create an admin user.
   help              Print this message or the help of the given subcommand(s)
 
 Options:
-      --db <database>                  The path of the sqlite database [env: PSLINK_DATABASE=/app/links.db] [default: ./links.db]
-  -p, --port <port>                    The port the pslink service will run on [env: PSLINK_PORT=8080]
-  -u, --public-url <public_url>        The host url or the page that will be part of the short urls. [env: PSLINK_PUBLIC_URL=localhost:8080] [default: 127.0.0.1:8080]
-  -e, --empty-url <empty_forward_url>  The the url that / will redirect to. Usually your homepage. [env: PSLINK_EMPTY_FORWARD_URL=https://github.com/enaut/pslink] [default: https://github.com/enaut/pslink]
-  -b, --brand-name <brand_name>        The Brandname that will apper in various places. [env: PSLINK_BRAND_NAME=Pslink] [default: Pslink]
-  -i, --hostip <internal_ip>           The host (ip) that will run the pslink service [env: PSLINK_IP=localhost]
-      --demo <demo>                    The host (ip) that will run the pslink service [env: DEMO=]
-  -t, --protocol <protocol>            The protocol that is used in the qr-codes (http results in slightly smaller codes in some cases) [env: PSLINK_PROTOCOL=http] [default: http] [possible values: http, https]
-      --secret <secret>                The secret that is used to encrypt the password database keep this as inaccessible as possible. As command line parameters are visible to all users it is not wise to use this as a command line parameter but rather as an environment variable. [env: PSLINK_SECRET=Slsgohetö<fgHSGHTRZAERTCNVbfoadhfgrziopüümbn,.] [default: ]
-  -h, --help                           Print help
-  -V, --version                        Print version
+      --db <database>
+          The path of the sqlite database [env: PSLINK_DATABASE=/app/links.db] [default: ./links.db]
+  -p, --port <port>
+          The port the pslink service will run on [env: PSLINK_PORT=8080]
+  -u, --public-url <public_url>
+          The host url or the page that will be part of the short urls [env: PSLINK_PUBLIC_URL=localhost:8080] [default: 127.0.0.1:8080]
+  -e, --empty-url <empty_forward_url>
+          The url that / will redirect to when not overridden in the database [env: PSLINK_EMPTY_FORWARD_URL=https://github.com/enaut/pslink] [default: https://github.com/enaut/pslink]
+  -b, --brand-name <brand_name>
+          The Brandname that will appear in various places [env: PSLINK_BRAND_NAME=Pslink] [default: Pslink]
+  -i, --hostip <internal_ip>
+          The host (ip) that will run the pslink service [env: PSLINK_IP=localhost]
+      --demo
+          Whether this instance is running in ephemeral demo mode [env: DEMO=true]
+  -t, --protocol <protocol>
+          The protocol that is used in the qr-codes (http results in slightly smaller codes in some cases) [env: PSLINK_PROTOCOL=http] [default: http] [possible values: http, https]
+      --secret <secret>
+          The secret that is used to encrypt the password database. Keep this as inaccessible as possible. [env: PSLINK_SECRET=...] [default: ]
+      --data-download-secret <data_download_secret>
+          The secret that is used to authenticate database export requests. [env: PSLINK_DATA_DOWNLOAD_SECRET=...] [default: ]
+      --check-interval-hours <check_interval_hours>
+          Hours between two checks of all link targets (0 disables the periodic check) [env: PSLINK_CHECK_INTERVAL_HOURS=6] [default: 6]
+  -h, --help
+          Print help
+  -V, --version
+          Print version
 ```
 
 ## Container Management
@@ -137,9 +151,12 @@ To start with a fresh config and database intended for production use:
 
 ## Building the Container Image
 
-Navigate to the project root directory and build the image (podman and docker are interchangable use what you have installed):
+Navigate to the project root directory, create the release bundle using Dioxus CLI, and build the container image (Podman and Docker are interchangeable — use whichever you have installed):
 
 ```bash
-# Using Podman
+# 1. Create the release web bundle
+dx bundle --release --platform web
+
+# 2. Build the container image using Podman (or Docker)
 podman build -t pslink:latest .
 ```

@@ -13,7 +13,7 @@ use dioxus_i18n::{
 use crate::{domain::models::Lang, ui::PslinkContext};
 
 fn main() {
-    #[cfg(feature = "web")]
+    #[cfg(all(feature = "web", target_arch = "wasm32"))]
     {
         console_error_panic_hook::set_once();
 

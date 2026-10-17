@@ -5,13 +5,13 @@
 Die Docker Build-Workflows wurden in drei separate Dateien aufgeteilt, um die Build-Performance zu verbessern:
 
 ### 1. `build_docker_x86_64.yml`
-- Baut das Docker-Image für x86_64/AMD64 Architektur
-- Läuft auf standard Ubuntu Runnern (schnell)
+- Baut das Docker-Image für x86_64/AMD64 Architektur über das gemeinsame `Dockerfile`
+- Läuft auf `ubuntu-24.04` Runnern
 - Erstellt Tags: `x86_64-latest` und `x86_64-<version>`
 
 ### 2. `build_docker_arm64.yml`
-- Baut das Docker-Image für ARM64/AArch64 Architektur
-- Läuft auf emulierten ARM64 Runnern (langsamer, aber parallel)
+- Baut das Docker-Image für ARM64/AArch64 Architektur über das gemeinsame `Dockerfile`
+- Läuft auf nativen ARM64 Runnern (`ubuntu-24.04-arm`)
 - Erstellt Tags: `aarch64-latest` und `aarch64-<version>`
 
 ### 3. `create_multiarch_image.yml`
