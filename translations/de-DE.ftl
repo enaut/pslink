@@ -317,3 +317,16 @@ welcome-stranger = welcome-stranger
 # Parameters: $username
 welcome-user = Herzlich Wilkommen {$username}
 
+
+# Link target health checks
+link-check-label = Status
+link-check-ok = Erreichbar
+link-check-warning = Erreichbar, aber die Seite verweigert automatische Prüfungen
+link-check-failed = Nicht erreichbar
+link-check-never = Noch nicht geprüft
+link-check-checking = Wird geprüft…
+link-check-history = Letzte Prüfungen
+link-preview-label = Vorschau
+link-preview-show = Vorschau anzeigen
+link-preview-hide = Vorschau ausblenden
+link-preview-blocked = Diese Seite erlaubt es nicht, in andere Seiten eingebettet zu werden.

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE links SET\n        title = ?,\n        target = ?,\n        code = ?,\n        author = ?,\n        created_at = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "64f7277cdb38697364ac47edcad14e11624127afdf2da63843bcfb80fa2d814a"
+}

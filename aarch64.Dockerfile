@@ -5,7 +5,7 @@ FROM --platform=linux/aarch64 ubuntu:latest AS builder
 WORKDIR /app
 
 # Copy the binary
-COPY  target/dx/web/release/web/web /app/pslink
+COPY target/dx/pslink/release/web/pslink /app/pslink
 
 # Generate initial files
 RUN cd /app && ./pslink demo
@@ -13,9 +13,12 @@ RUN cd /app && ./pslink demo
 # Stage 2: Minimal image for execution
 FROM --platform=linux/aarch64 ubuntu:latest
 
+# CA certificates are required to check https link targets
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+
 # Copy files from builder
 COPY --from=builder /app/ /app/
-COPY target/dx/web/release/web/public /app/public
+COPY target/dx/pslink/release/web/public /app/public
 
 # Set working directory
 WORKDIR /app
