@@ -1,22 +1,108 @@
-[workspace]
-resolver = "3"
-members = ["ui", "web", "backend", "shared"]
+[package]
+name = "pslink"
+version = "0.6.0"
+edition = "2024"
+authors = ["Dietrich <dietrich@teilgedanken.de>"]
+categories = [
+    "web-programming",
+    "network-programming",
+    "web-programming::http-server",
+    "command-line-utilities",
+]
+description = "A simple webservice that allows registered users to create short links including qr-codes.\nAnyone can visit the shortened links. This is an ideal setup for small business or for publishing papers."
+keywords = ["url", "link", "webpage", "axum", "dioxus", "web"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/enaut/pslink/"
 
-[workspace.dependencies]
-axum = { version = "0.8" }
-axum_session = { version = "0.21" }
-axum_session_auth = { version = "0.21" }
-anyhow = { version = "1.0" }
-
-dioxus = { version = "0.8.0-alpha.2" }
+[dependencies]
+dioxus = { version = "0.8.0-alpha.2", features = ["router", "fullstack"] }
 dioxus-fullstack = { version = "0.8.0-alpha.2" }
-dioxus-server = { version = "0.8.0-alpha.2" }
-ui = { path = "ui" }
-backend = { path = "backend" }
-pslink-shared = { path = "shared" }
 dioxus-i18n = { version = "0.7.0-alpha.1" }
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+enum-map = { version = "3.1", features = ["serde"] }
+strum = "0.28"
+strum_macros = "0.28"
+indexmap = "2"
+fast_qr = { version = "0.14", features = ["svg", "image"] }
+base64 = "0.23"
+wasmtimer = "0.4"
+js-sys = "0.3"
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = [
+    "IntersectionObserver",
+    "IntersectionObserverEntry",
+    "IntersectionObserverInit",
+    "BlobPropertyBag",
+    "Blob",
+    "Url",
+    "Document",
+    "Window",
+    "HtmlAnchorElement",
+    "Element",
+    "HtmlElement",
+    "CssStyleDeclaration",
+] }
 
-[profile]
+# Server-only dependencies
+anyhow = { version = "1.0", optional = true }
+axum = { version = "0.8", optional = true }
+axum_session = { version = "0.21", optional = true }
+axum_session_auth = { version = "0.21", optional = true }
+axum_session_sqlx = { version = "0.11", features = [
+    "sqlite",
+    "tls-rustls",
+], optional = true }
+dioxus-server = { version = "0.8.0-alpha.2", optional = true }
+sqlx = { version = "0.9", features = [
+    "macros",
+    "migrate",
+    "sqlite",
+    "chrono",
+    "tls-rustls",
+    "runtime-tokio",
+], optional = true }
+tokio = { version = "1.53", optional = true }
+tokio-util = { version = "0.7", features = ["io"], optional = true }
+async-trait = { version = "0.1.92", optional = true }
+argon2 = { version = "0.5.3", optional = true }
+rand = { version = "0.8", optional = true }
+dotenv = { version = "0.15", optional = true }
+clap = { version = "4", optional = true, features = [
+    "cargo",
+    "derive",
+    "env",
+    "string",
+    "unicode",
+] }
+rpassword = { version = "7.5", optional = true }
+
+[features]
+default = []
+web = ["dioxus/web"]
+server = [
+    "dioxus/server",
+    "dioxus-fullstack/server",
+    "dep:dioxus-server",
+    "dep:anyhow",
+    "dep:axum",
+    "dep:axum_session",
+    "dep:axum_session_auth",
+    "dep:axum_session_sqlx",
+    "dep:sqlx",
+    "dep:tokio",
+    "dep:tokio-util",
+    "dep:async-trait",
+    "dep:argon2",
+    "dep:rand",
+    "dep:dotenv",
+    "dep:clap",
+    "dep:rpassword",
+]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
 
 [profile.wasm-dev]
 inherits = "dev"

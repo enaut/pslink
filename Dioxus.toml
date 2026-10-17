@@ -2,7 +2,6 @@
 name = "pslink"
 
 [web.app]
-
 title = "Pslink Kurzlinks"
 base_path = "app"
 
@@ -13,8 +12,8 @@ level = "s"
 identifier = "de.teilgedanken.pslink"
 publisher = "Franz Dietrich"
 icon = [
-    "ui/assets/favicon.svg",
-    "ui/assets/favicon.png",
-    "ui/assets/favicon.icns",
-    "ui/assets/favicon.ico",
+    "assets/favicon.svg",
+    "assets/favicon.png",
+    "assets/favicon.icns",
+    "assets/favicon.ico",
 ]

@@ -92,12 +92,12 @@ Checkout the git repository and within its directory issue the following command
 
 ```bash
 $ cargo install dioxus-cli
-$ dx bundle --release --package web
+$ dx bundle --release
 ```
 
-If that succeeds you should now be able to call Pslink. The binary is located at `target/dx/web/release/web/server`. The directory `target/dx/web/release/web/` can be moved wherever you want it to be.
+If that succeeds you should now be able to call Pslink. The binary is located at `target/dx/pslink/release/web/pslink` (or `server`). The directory `target/dx/pslink/release/web/` can be moved wherever you want it to be.
 
-**In the binary releases and in this README the `server` binary is renamed to `pslink`.**
+**In the binary releases and in this README the server binary is named `pslink`.**
 
 ### Configuration and setup
 

@@ -5,7 +5,7 @@ FROM --platform=linux/x86_64 ubuntu:latest AS builder
 WORKDIR /app
 
 # Copy the binary
-COPY target/dx/web/release/web/web /app/pslink
+COPY target/dx/pslink/release/web/pslink /app/pslink
 
 # Generate initial files
 RUN cd /app && ./pslink demo
@@ -15,7 +15,7 @@ FROM --platform=linux/x86_64 ubuntu:latest
 
 # Copy files from builder
 COPY --from=builder /app/ /app/
-COPY target/dx/web/release/web/public /app/public
+COPY target/dx/pslink/release/web/public /app/public
 
 # Set working directory
 WORKDIR /app

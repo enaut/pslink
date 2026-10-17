@@ -7,8 +7,6 @@ description = "Build for x86_64 target"
 command = "cross"
 args = [
     "build",
-    "--package",
-    "web",
     "--features=server,dioxus/server",
     "--target",
     "x86_64-unknown-linux-musl",
@@ -21,8 +19,6 @@ description = "Build for aarch64 target"
 command = "cross"
 args = [
     "build",
-    "--package",
-    "web",
     "--features=server,dioxus/server",
     "--target",
     "aarch64-unknown-linux-musl",
@@ -33,7 +29,7 @@ args = [
 workspace = false
 description = "Create a bundle to generate the public directory"
 command = "dx"
-args = ["bundle", "--package", "web"]
+args = ["bundle", "--release"]
 
 
 [tasks.docker-build-x86_64]
