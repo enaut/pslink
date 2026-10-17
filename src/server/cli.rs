@@ -95,7 +95,7 @@ impl ServerConfig {
 
     /// Serialize the configuration into `.env` file lines.
     #[must_use]
-    pub fn to_env_strings(&self) -> Vec<String> {
+    pub fn to_env_strings(&self, demo: bool) -> Vec<String> {
         vec![
             format!("PSLINK_DATABASE=\"{}\"\n", self.db.display()),
             format!("PSLINK_PORT={}\n", self.port),
@@ -128,7 +128,7 @@ impl ServerConfig {
                     .as_ref()
                     .expect("A Data Download Secret was not specified!")
             ),
-            format!("DEMO=\"{}\"\n", self.secret.is_random),
+            format!("DEMO=\"{}\"\n", demo),
             "# Hours between two checks of all link targets (0 disables the periodic check).\n"
                 .to_owned(),
             format!("PSLINK_CHECK_INTERVAL_HOURS={}\n", self.check_interval_hours),
@@ -357,7 +357,7 @@ pub async fn setup() -> Result<Option<AppState>, ServerFnError> {
 
     match command {
         Commands::GenerateEnv => {
-            generate_env_file(&server_config)?;
+            generate_env_file(&server_config, false)?;
             Ok(None)
         }
         Commands::MigrateDatabase => {
@@ -541,7 +541,7 @@ pub async fn apply_migrations(config: &ServerConfig) -> Result<SqlitePool, Serve
 }
 
 /// Write a `.env` file with the current configuration if no non-empty `.env` file exists.
-pub fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerFnError> {
+pub fn generate_env_file(server_config: &ServerConfig, demo: bool) -> Result<(), ServerFnError> {
     let env_path = std::path::Path::new(".env");
 
     if env_path.exists() && env_path.metadata().map(|m| m.len() > 0).unwrap_or(false) {
@@ -557,7 +557,7 @@ pub fn generate_env_file(server_config: &ServerConfig) -> Result<(), ServerFnErr
     );
 
     let mut file = File::create(".env").sfe()?;
-    let conf_file_content = server_config.to_env_strings();
+    let conf_file_content = server_config.to_env_strings(demo);
 
     for line in &conf_file_content {
         file.write_all(line.as_bytes()).sfe()?;
@@ -582,7 +582,7 @@ async fn generate_demo_data(server_config: &ServerConfig) -> Result<(), ServerFn
     }
 
     info!("Creating a demo database.");
-    generate_env_file(server_config)?;
+    generate_env_file(server_config, true)?;
     dotenv().ok();
 
     let pool = apply_migrations(server_config).await?;
@@ -596,4 +596,33 @@ async fn generate_demo_data(server_config: &ServerConfig) -> Result<(), ServerFn
     add_example_links(&pool).await?;
     pool.close().await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_env_strings_demo_flag_independent_of_random_secret() {
+        let config = ServerConfig {
+            db: "links.db".into(),
+            public_url: "127.0.0.1:8080".into(),
+            empty_forward_url: "https://example.com".into(),
+            brand_name: "Pslink".into(),
+            internal_ip: "127.0.0.1".into(),
+            port: 8080,
+            protocol: Protocol::Http,
+            secret: Secret::random(),
+            data_download_secret: Secret::random(),
+            check_interval_hours: 6,
+            check_history: 20,
+        };
+        assert!(config.secret.is_random);
+
+        let non_demo = config.to_env_strings(false);
+        assert!(non_demo.iter().any(|line| line == "DEMO=\"false\"\n"));
+
+        let demo = config.to_env_strings(true);
+        assert!(demo.iter().any(|line| line == "DEMO=\"true\"\n"));
+    }
 }

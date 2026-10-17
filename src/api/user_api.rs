@@ -60,7 +60,6 @@ pub async fn create_user(data: UserDelta) -> Result<User, ServerFnError> {
         },
     };
 
-    info!("Creating a User: {:?}", &data);
     if data.edit != EditMode::Create {
         return Err(ServerFnError::new("Wrong Request".to_string()));
     }
@@ -70,6 +69,10 @@ pub async fn create_user(data: UserDelta) -> Result<User, ServerFnError> {
     let username = data.username.trim().to_string();
     let email = data.email.trim().to_string();
     validate_username(&username).map_err(ServerFnError::new)?;
+    info!(
+        "Creating user '{}' ({}) with role {:?}",
+        &username, &email, data.role
+    );
 
     let password = data
         .password

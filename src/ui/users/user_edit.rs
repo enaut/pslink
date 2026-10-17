@@ -109,7 +109,7 @@ pub fn UserEdit(
                                                 if val.is_empty() {
                                                     d.user_delta.password = None;
                                                 } else {
-                                                    d.user_delta.password = Some(val.trim().to_owned());
+                                                    d.user_delta.password = Some(val);
                                                 }
                                                 d.error = None;
                                             }
