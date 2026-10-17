@@ -71,6 +71,10 @@ pub struct ServerConfig {
     pub protocol: Protocol,
     pub secret: Secret,
     pub data_download_secret: Secret,
+    /// Hours between two sweeps that check all link targets. `0` disables the periodic check.
+    pub check_interval_hours: u64,
+    /// How many checks are kept per link.
+    pub check_history: u32,
 }
 
 impl ServerConfig {
@@ -125,6 +129,9 @@ impl ServerConfig {
                     .expect("A Data Download Secret was not specified!")
             ),
             format!("DEMO=\"{}\"\n", self.secret.is_random),
+            "# Hours between two checks of all link targets (0 disables the periodic check).\n"
+                .to_owned(),
+            format!("PSLINK_CHECK_INTERVAL_HOURS={}\n", self.check_interval_hours),
         ]
     }
 }
@@ -205,6 +212,15 @@ struct CliArgs {
         global = true
     )]
     data_download_secret: String,
+
+    /// Hours between two checks of all link targets (0 disables the periodic check)
+    #[arg(
+        long = "check-interval-hours",
+        env = "PSLINK_CHECK_INTERVAL_HOURS",
+        default_value_t = 6,
+        global = true
+    )]
+    check_interval_hours: u64,
 
     #[command(subcommand)]
     command: Option<Commands>,
@@ -296,6 +312,8 @@ impl CliArgs {
             protocol: self.protocol,
             secret,
             data_download_secret,
+            check_interval_hours: self.check_interval_hours,
+            check_history: 20,
         }
     }
 }

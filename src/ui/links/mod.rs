@@ -1,3 +1,4 @@
+mod link_check;
 mod link_display;
 mod link_edit;
 mod new_link_button;
@@ -40,6 +41,8 @@ const RELOAD_SVG: Asset = asset!("/assets/reload.svg");
 pub struct EditDialog {
     pub link_delta: LinkDelta,
     pub error: Option<String>,
+    /// The target as it was when the dialog was opened (to detect changes).
+    pub original_target: String,
 }
 
 impl EditDialog {
@@ -53,6 +56,7 @@ impl EditDialog {
         edit: EditMode,
     ) -> Self {
         Self {
+            original_target: target.clone(),
             link_delta: LinkDelta {
                 edit,
                 id,
@@ -110,7 +114,7 @@ pub fn Links() -> Element {
         div { class: "links-view",
             document::Stylesheet { href: LINKS_CSS }
             document::Stylesheet { href: VANISHING_MESSAGE }
-            LinkEdit { edit_link, reload_trigger }
+            LinkEdit { edit_link, reload_trigger, links }
             if user().is_some() {
                 div {
                     table { class: "table is-bordered is-striped is-hoverable is-fullwidth",

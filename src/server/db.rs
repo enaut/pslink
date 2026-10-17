@@ -13,7 +13,10 @@ use sqlx::{QueryBuilder, Row, Sqlite, SqlitePool};
 
 use crate::{
     domain::{
-        models::{Clicks, Count, FullLink, Lang, Link, Role, Secret, Statistics, User, WeekCount},
+        models::{
+            CheckStatus, Clicks, Count, FullLink, Lang, Link, LinkCheck, Role, Secret, Statistics,
+            User, WeekCount,
+        },
         requests::{
             LinkDelta, LinkOverviewColumns, LinkRequestForm, Ordering, UserOverviewColumns,
             UserRequestForm,
@@ -294,9 +297,8 @@ impl NewUser {
             argon2::Params::default(),
         )
         .map_err(|e| ServerFnError::new(format!("Password hasher error: {}", e)))?;
-        let salt = argon2::password_hash::SaltString::generate(&mut rand::rngs::OsRng);
         let hash = argon2
-            .hash_password(password.as_bytes(), &salt)
+            .hash_password(password.as_bytes())
             .map_err(|e| ServerFnError::new(format!("Password error: {}", e)))?;
 
         Ok(hash.to_string())
@@ -381,10 +383,23 @@ pub async fn list_links_filtered(
             users.email as uemail,
             users.role as urole,
             users.language as ulang,
-            COUNT(clicks.id) as counter
+            COUNT(clicks.id) as counter,
+            lc.checked_at as lc_at,
+            lc.status as lc_status,
+            lc.http_status as lc_http,
+            lc.error as lc_err,
+            lc.final_url as lc_url,
+            lc.duration_ms as lc_dur,
+            lc.embeddable as lc_emb
         FROM links
         JOIN users ON links.author = users.id
-        LEFT JOIN clicks ON links.id = clicks.link",
+        LEFT JOIN clicks ON links.id = clicks.link
+        LEFT JOIN link_checks lc ON lc.id = (
+            SELECT id FROM link_checks
+            WHERE link = links.id
+            ORDER BY checked_at DESC, id DESC
+            LIMIT 1
+        )",
     );
 
     let where_filters: Vec<(LinkOverviewColumns, &str)> = params
@@ -468,10 +483,118 @@ pub async fn list_links_filtered(
             clicks: Clicks::Count(Count {
                 number: v.get("counter"),
             }),
+            last_check: check_from_row(&v),
         })
         .collect();
 
     Ok(links)
+}
+
+/// Read a [`LinkCheck`] from a row that contains the `lc_*` columns (`None` if there is no check).
+fn check_from_row(row: &sqlx::sqlite::SqliteRow) -> Option<LinkCheck> {
+    let checked_at: Option<NaiveDateTime> = row.get("lc_at");
+    let status: Option<String> = row.get("lc_status");
+    let http_status: Option<i64> = row.get("lc_http");
+    let embeddable: Option<bool> = row.get("lc_emb");
+    Some(LinkCheck {
+        checked_at: checked_at?,
+        status: CheckStatus::from_db(&status?),
+        http_status: http_status.and_then(|s| u16::try_from(s).ok()),
+        error: row.get("lc_err"),
+        final_url: row.get("lc_url"),
+        duration_ms: row.get("lc_dur"),
+        embeddable,
+    })
+}
+
+/// Store a link check and prune the history of the link to the `keep` most recent checks.
+///
+/// # Errors
+/// Fails with [`ServerFnError`] if the database cannot be accessed or the link does not exist.
+pub async fn insert_link_check(
+    pool: &SqlitePool,
+    link_id: i64,
+    check: &LinkCheck,
+    keep: u32,
+) -> Result<(), ServerFnError> {
+    sqlx::query(
+        "INSERT INTO link_checks
+            (link, checked_at, status, http_status, error, final_url, duration_ms, embeddable)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(link_id)
+    .bind(check.checked_at)
+    .bind(check.status.as_str())
+    .bind(check.http_status.map(i64::from))
+    .bind(&check.error)
+    .bind(&check.final_url)
+    .bind(check.duration_ms)
+    .bind(check.embeddable)
+    .execute(pool)
+    .await
+    .sfe()?;
+
+    sqlx::query(
+        "DELETE FROM link_checks WHERE link = ? AND id NOT IN (
+            SELECT id FROM link_checks WHERE link = ?
+            ORDER BY checked_at DESC, id DESC LIMIT ?
+        )",
+    )
+    .bind(link_id)
+    .bind(link_id)
+    .bind(i64::from(keep))
+    .execute(pool)
+    .await
+    .sfe()?;
+    Ok(())
+}
+
+/// List the stored checks of a link, the most recent first.
+///
+/// # Errors
+/// Fails with [`ServerFnError`] if the database cannot be accessed.
+pub async fn list_link_checks(
+    pool: &SqlitePool,
+    link_id: i64,
+) -> Result<Vec<LinkCheck>, ServerFnError> {
+    let rows = sqlx::query(
+        "SELECT checked_at as lc_at, status as lc_status, http_status as lc_http,
+            error as lc_err, final_url as lc_url, duration_ms as lc_dur, embeddable as lc_emb
+        FROM link_checks WHERE link = ? ORDER BY checked_at DESC, id DESC",
+    )
+    .bind(link_id)
+    .fetch_all(pool)
+    .await
+    .sfe()?;
+    Ok(rows.iter().filter_map(check_from_row).collect())
+}
+
+/// Remove the whole check history of a link (e.g. because the target changed).
+///
+/// # Errors
+/// Fails with [`ServerFnError`] if the database cannot be accessed.
+pub async fn clear_link_checks(pool: &SqlitePool, link_id: i64) -> Result<(), ServerFnError> {
+    sqlx::query("DELETE FROM link_checks WHERE link = ?")
+        .bind(link_id)
+        .execute(pool)
+        .await
+        .sfe()?;
+    Ok(())
+}
+
+/// List `(id, target)` of all links.
+///
+/// # Errors
+/// Fails with [`ServerFnError`] if the database cannot be accessed.
+pub async fn list_link_targets(pool: &SqlitePool) -> Result<Vec<(i64, String)>, ServerFnError> {
+    let rows = sqlx::query("SELECT id, target FROM links ORDER BY id")
+        .fetch_all(pool)
+        .await
+        .sfe()?;
+    Ok(rows
+        .into_iter()
+        .map(|r| (r.get("id"), r.get("target")))
+        .collect())
 }
 
 /// Get 52-week click statistics for a link by its ID.
@@ -835,5 +958,92 @@ mod tests {
         delete_user(&pool, alice.id, 1).await.unwrap();
         let reassigned_link = get_link_by_id(&pool, link.id).await.unwrap();
         assert_eq!(reassigned_link.author, 1);
+    }
+
+    fn sample_check(seconds: i64, status: CheckStatus) -> LinkCheck {
+        LinkCheck {
+            checked_at: chrono::DateTime::from_timestamp(1_700_000_000 + seconds, 0)
+                .unwrap()
+                .naive_utc(),
+            status,
+            http_status: if status == CheckStatus::Failed {
+                Some(404)
+            } else {
+                Some(200)
+            },
+            error: None,
+            final_url: Some("https://example.com/".to_string()),
+            duration_ms: 42,
+            embeddable: Some(true),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_link_check_history() {
+        let pool = setup_test_db().await;
+        let secret = Secret::new("test-secret-key".to_string());
+        let admin = NewUser::new(
+            "admin".to_string(),
+            "admin@test.org".to_string(),
+            "adminpass",
+            &secret,
+        )
+        .unwrap();
+        create_admin(&pool, &admin).await.unwrap();
+
+        NewLink {
+            title: "Example".to_string(),
+            target: "https://example.com/".to_string(),
+            code: "ex".to_string(),
+            author: 1,
+            created_at: chrono::Local::now().naive_utc(),
+        }
+        .insert(&pool)
+        .await
+        .unwrap();
+        let link = get_link_by_code(&pool, "ex").await.unwrap();
+
+        // Nothing checked yet
+        let listed = list_links_filtered(&pool, &LinkRequestForm::default())
+            .await
+            .unwrap();
+        assert_eq!(listed[0].last_check, None);
+
+        // Insert 25 checks, only the last 20 are kept; the newest one is a failure
+        for i in 0..24 {
+            insert_link_check(&pool, link.id, &sample_check(i, CheckStatus::Ok), 20)
+                .await
+                .unwrap();
+        }
+        let newest = sample_check(100, CheckStatus::Failed);
+        insert_link_check(&pool, link.id, &newest, 20)
+            .await
+            .unwrap();
+
+        let history = list_link_checks(&pool, link.id).await.unwrap();
+        assert_eq!(history.len(), 20);
+        assert_eq!(history[0], newest);
+        assert_eq!(history[1].status, CheckStatus::Ok);
+
+        // The list contains the latest check and clicks are not multiplied by the join
+        NewClick::new(link.id).insert_click(&pool).await.unwrap();
+        let listed = list_links_filtered(&pool, &LinkRequestForm::default())
+            .await
+            .unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].last_check, Some(newest));
+        assert_eq!(listed[0].clicks, Clicks::Count(Count { number: 1 }));
+
+        let targets = list_link_targets(&pool).await.unwrap();
+        assert_eq!(targets, vec![(link.id, "https://example.com/".to_string())]);
+
+        // Clearing and cascading delete
+        clear_link_checks(&pool, link.id).await.unwrap();
+        assert!(list_link_checks(&pool, link.id).await.unwrap().is_empty());
+        insert_link_check(&pool, link.id, &sample_check(1, CheckStatus::Warning), 20)
+            .await
+            .unwrap();
+        delete_link_by_code(&pool, "ex").await.unwrap();
+        assert!(list_link_checks(&pool, link.id).await.unwrap().is_empty());
     }
 }

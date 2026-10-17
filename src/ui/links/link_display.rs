@@ -4,13 +4,14 @@ use indexmap::IndexMap;
 
 use crate::{
     domain::{
-        models::{Clicks, Count, FullLink, Role},
+        models::{CheckStatus, Clicks, Count, FullLink, Role},
         requests::EditMode,
     },
     ui::{
         PslinkContext,
         links::{
-            EditDialog, generate_svg_qr_from_url, generate_url_for_code, stats::Stats,
+            EditDialog, generate_svg_qr_from_url, generate_url_for_code, link_check::CheckDot,
+            stats::Stats,
         },
     },
 };
@@ -64,6 +65,7 @@ pub fn LinkDisplay(
     rsx! {
         if let Some(link_data) = ll() {
             tr {
+                class: if link_data.last_check.as_ref().is_some_and(|c| c.status == CheckStatus::Failed) { "link-failed" } else { "" },
                 onclick: {
                     let link_data_clone = link_data.clone();
                     move |_| {
@@ -93,6 +95,7 @@ pub fn LinkDisplay(
                     if let Some(msg) = nachricht() {
                         div { class: "is-danger notification vanishing-message", "{msg}" }
                     }
+                    CheckDot { check: link_data.last_check.clone() }
                     "{link_data.link.target}"
                 }
                 td { "{link_data.user.username}" }

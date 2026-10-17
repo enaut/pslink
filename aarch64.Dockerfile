@@ -13,6 +13,9 @@ RUN cd /app && ./pslink demo
 # Stage 2: Minimal image for execution
 FROM --platform=linux/aarch64 ubuntu:latest
 
+# CA certificates are required to check https link targets
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+
 # Copy files from builder
 COPY --from=builder /app/ /app/
 COPY target/dx/pslink/release/web/public /app/public

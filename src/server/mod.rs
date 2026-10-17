@@ -1,6 +1,7 @@
 //! Server runtime initialization and Axum router setup.
 
 pub mod auth;
+pub mod checker;
 pub mod cli;
 pub mod db;
 pub mod redirect;
@@ -72,6 +73,7 @@ async fn launch_server(
     use dioxus::server::ServeConfig;
 
     let pool = app_state.db.clone();
+    checker::spawn_periodic_checker(app_state.clone());
     let bind_addr = format!(
         "{}:{}",
         app_state.config.internal_ip, app_state.config.port

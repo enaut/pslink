@@ -1,18 +1,37 @@
-use std::rc::Rc;
+use std::{rc::Rc, time::Duration};
 
 use dioxus::{logger::tracing::info, prelude::*};
 use dioxus_i18n::t;
+use indexmap::IndexMap;
 
 use crate::{
-    domain::requests::EditMode,
+    domain::{
+        models::{FullLink, LinkCheck},
+        requests::EditMode,
+        validation::validate_target_url,
+    },
     ui::{
         PslinkContext,
         links::{
             EditDialog, generate_png_download_from_url, generate_svg_qr_from_url,
             generate_url_for_code,
+            link_check::{CheckDot, CheckLine},
         },
     },
 };
+
+/// How long to wait after the last keystroke before the typed target is checked.
+const TARGET_CHECK_DEBOUNCE: Duration = Duration::from_millis(600);
+
+/// The state of the live check of the target that is currently typed into the dialog.
+#[derive(Clone, PartialEq)]
+enum TargetCheck {
+    /// Nothing was changed (or the input is not a valid url yet).
+    Idle,
+    Checking,
+    Done(LinkCheck),
+    Failed(String),
+}
 
 fn generate_random_client_code() -> String {
     const CHARSET: &[u8] = b"abcdefghjkmnpqrstuvwxyz23456789";
@@ -28,6 +47,7 @@ fn generate_random_client_code() -> String {
 pub fn LinkEdit(
     mut edit_link: Signal<Option<EditDialog>>,
     reload_trigger: Signal<u32>,
+    mut links: Signal<IndexMap<String, FullLink>>,
 ) -> Element {
     let PslinkContext {
         hostname, base_url, ..
@@ -56,11 +76,116 @@ pub fn LinkEdit(
         })
     });
 
+    // The check history of the link that is edited (`None` while it is loading).
+    let mut history: Signal<Option<Vec<LinkCheck>>> = use_signal(|| None);
+    let mut target_check = use_signal(|| TargetCheck::Idle);
+    let mut show_preview = use_signal(|| false);
+
+    // The id of the stored link that is edited. It only changes when a dialog is opened or closed.
+    let open_id = use_memo(move || {
+        edit_link().and_then(|d| {
+            if d.link_delta.edit == EditMode::Edit {
+                d.link_delta.id
+            } else {
+                None
+            }
+        })
+    });
+
+    // Test the stored target again whenever the dialog of an existing link is opened.
+    let _check_on_open = use_resource(move || async move {
+        history.set(None);
+        let Some(link_id) = open_id() else {
+            return;
+        };
+        match crate::api::link_api::check_link_now(link_id).await {
+            Ok(checks) => {
+                if let Some(latest) = checks.first() {
+                    // Keep the list in the background up to date.
+                    for link in links.write().values_mut() {
+                        if link.link.id == link_id {
+                            link.last_check = Some(latest.clone());
+                        }
+                    }
+                }
+                history.set(Some(checks));
+            }
+            Err(e) => {
+                info!("Failed to check link {}: {}", link_id, e);
+                history.set(Some(Vec::new()));
+            }
+        }
+    });
+
+    // Test the typed target (debounced) whenever it differs from the stored one.
+    let typed_target = use_memo(move || {
+        edit_link().map(|d| {
+            (
+                d.link_delta.target.trim().to_string(),
+                d.original_target.trim().to_string(),
+            )
+        })
+    });
+    let _check_typed_target = use_resource(move || async move {
+        let Some((target, original)) = typed_target() else {
+            target_check.set(TargetCheck::Idle);
+            show_preview.set(false);
+            return;
+        };
+        if target == original || validate_target_url(&target).is_err() {
+            target_check.set(TargetCheck::Idle);
+            return;
+        }
+        target_check.set(TargetCheck::Checking);
+        // If the user keeps typing this future is dropped while sleeping.
+        wasmtimer::tokio::sleep(TARGET_CHECK_DEBOUNCE).await;
+        match crate::api::link_api::check_target(target).await {
+            Ok(check) => target_check.set(TargetCheck::Done(check)),
+            Err(e) => target_check.set(TargetCheck::Failed(e.to_string())),
+        }
+    });
+
     let Some(dialog) = edit_link() else {
         return rsx! {};
     };
 
     let (qr_svg, png_qr_url) = qr_preview().unwrap_or_else(|| (String::new(), None));
+
+    let is_edit = dialog.link_delta.edit == EditMode::Edit;
+    let target_unchanged =
+        dialog.link_delta.target.trim() == dialog.original_target.trim();
+    // What is shown in the status row: the result for the typed target or the latest stored check.
+    let mut checking = false;
+    let mut shown_check: Option<LinkCheck> = None;
+    let mut check_error: Option<String> = None;
+    match target_check() {
+        TargetCheck::Checking => checking = true,
+        TargetCheck::Done(check) => shown_check = Some(check),
+        TargetCheck::Failed(e) => check_error = Some(e),
+        TargetCheck::Idle => {
+            if is_edit && target_unchanged {
+                match history() {
+                    None => checking = true,
+                    Some(checks) => shown_check = checks.first().cloned(),
+                }
+            }
+        }
+    }
+    let history_strip = if is_edit && target_unchanged {
+        history().filter(|checks| !checks.is_empty())
+    } else {
+        None
+    };
+    let show_status_row =
+        checking || shown_check.is_some() || check_error.is_some() || history_strip.is_some();
+
+    let preview_url = {
+        let target = dialog.link_delta.target.trim();
+        (validate_target_url(target).is_ok()
+            && !matches!(dialog.link_delta.edit, EditMode::Delete(_)))
+        .then(|| target.to_string())
+    };
+    let embeddable = shown_check.as_ref().and_then(|check| check.embeddable);
 
     rsx! {
         div { class: "modal is-active", onkeydown: on_esc_event,
@@ -130,6 +255,37 @@ pub fn LinkEdit(
                             }
                         }
                     }
+                    if show_status_row {
+                        div { class: "field is-horizontal is-wider",
+                            div { class: "field-label is-normal",
+                                label { class: "label", {t!("link-check-label")} }
+                            }
+                            div { class: "field-body",
+                                div { class: "field",
+                                    if checking {
+                                        p { class: "check-line",
+                                            span { class: "check-dot check-never" }
+                                            {t!("link-check-checking")}
+                                        }
+                                    }
+                                    if let Some(check) = shown_check.clone() {
+                                        CheckLine { check }
+                                    }
+                                    if let Some(error) = check_error.clone() {
+                                        p { class: "check-line check-failed", "{error}" }
+                                    }
+                                    if let Some(checks) = history_strip.clone() {
+                                        div { class: "check-history",
+                                            span { class: "check-history-label", {t!("link-check-history")} }
+                                            for (index , check) in checks.into_iter().rev().enumerate() {
+                                                CheckDot { key: "{index}", check: Some(check) }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     div { class: "field is-horizontal is-wider",
                         div { class: "field-label is-normal",
                             label { class: "label", {t!("link-edit-field-code")} }
@@ -178,6 +334,42 @@ pub fn LinkEdit(
                                         href: png_url,
                                         dangerous_inner_html: "{qr_svg}",
                                         download: filename,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if let Some(url) = preview_url {
+                        div { class: "field is-horizontal is-wider",
+                            div { class: "field-label is-normal",
+                                label { class: "label", {t!("link-preview-label")} }
+                            }
+                            div { class: "field-body",
+                                div { class: "field",
+                                    button {
+                                        class: "button is-light is-small",
+                                        r#type: "button",
+                                        onclick: move |_| show_preview.set(!show_preview()),
+                                        if show_preview() {
+                                            {t!("link-preview-hide")}
+                                        } else {
+                                            {t!("link-preview-show")}
+                                        }
+                                    }
+                                    if show_preview() {
+                                        if embeddable == Some(false) {
+                                            div { class: "notification is-warning is-light mt-2",
+                                                {t!("link-preview-blocked")}
+                                            }
+                                        } else {
+                                            // Sandboxed without any permission: no scripts, forms or cookies.
+                                            iframe {
+                                                class: "link-preview mt-2",
+                                                src: "{url}",
+                                                "sandbox": "",
+                                                referrerpolicy: "no-referrer",
+                                            }
+                                        }
                                     }
                                 }
                             }

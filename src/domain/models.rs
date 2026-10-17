@@ -94,6 +94,69 @@ pub struct FullLink {
     pub link: Link,
     pub user: User,
     pub clicks: Clicks,
+    /// The most recent health check of the link target (if any).
+    pub last_check: Option<LinkCheck>,
+}
+
+/// The outcome classification of a link target health check.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CheckStatus {
+    /// The target responded successfully.
+    Ok,
+    /// The target is reachable but refuses automated requests (401/403/429).
+    Warning,
+    /// The target is not reachable or responded with an error.
+    Failed,
+}
+
+impl CheckStatus {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Ok => "ok",
+            Self::Warning => "warning",
+            Self::Failed => "failed",
+        }
+    }
+
+    #[must_use]
+    pub fn from_db(s: &str) -> Self {
+        match s {
+            "ok" => Self::Ok,
+            "warning" => Self::Warning,
+            _ => Self::Failed,
+        }
+    }
+}
+
+/// The result of one health check of a link target.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct LinkCheck {
+    pub checked_at: NaiveDateTime,
+    pub status: CheckStatus,
+    pub http_status: Option<u16>,
+    pub error: Option<String>,
+    pub final_url: Option<String>,
+    pub duration_ms: i64,
+    /// `Some(false)` if the target forbids being embedded in a frame.
+    pub embeddable: Option<bool>,
+}
+
+impl LinkCheck {
+    /// A short human readable description, used for tooltips.
+    #[must_use]
+    pub fn describe(&self) -> String {
+        let result = match (&self.http_status, &self.error) {
+            (Some(code), _) => format!("HTTP {code}"),
+            (None, Some(err)) => err.clone(),
+            (None, None) => "unknown".to_string(),
+        };
+        format!(
+            "{result} · {} UTC · {} ms",
+            self.checked_at.format("%Y-%m-%d %H:%M"),
+            self.duration_ms
+        )
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]

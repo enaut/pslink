@@ -63,10 +63,21 @@ sqlx = { version = "0.9", features = [
     "tls-rustls",
     "runtime-tokio",
 ], optional = true }
-tokio = { version = "1.53", optional = true }
+tokio = { version = "1.53", features = ["time", "sync", "rt", "net", "macros", "io-util"], optional = true }
 tokio-util = { version = "0.7", features = ["io"], optional = true }
 async-trait = { version = "0.1.92", optional = true }
-argon2 = { version = "0.5.3", optional = true }
+reqwest = { version = "0.13", default-features = false, features = [
+    "rustls-no-provider",
+    "charset",
+    "http2",
+    "system-proxy",
+], optional = true }
+rustls = { version = "0.23", default-features = false, features = [
+    "ring",
+    "std",
+    "tls12",
+], optional = true }
+argon2 = { version = "0.6", optional = true }
 rand = { version = "0.8", optional = true }
 dotenv = { version = "0.15", optional = true }
 clap = { version = "4", optional = true, features = [
@@ -94,6 +105,8 @@ server = [
     "dep:tokio",
     "dep:tokio-util",
     "dep:async-trait",
+    "dep:reqwest",
+    "dep:rustls",
     "dep:argon2",
     "dep:rand",
     "dep:dotenv",

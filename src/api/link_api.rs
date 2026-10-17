@@ -5,7 +5,7 @@ use dioxus::logger::tracing::info;
 use dioxus::prelude::{ServerFnError, server};
 
 use crate::domain::{
-    models::{Clicks, FullLink, Link},
+    models::{Clicks, FullLink, Link, LinkCheck},
     requests::{LinkDelta, LinkRequestForm},
 };
 
@@ -53,7 +53,9 @@ pub async fn create_link(mut data: LinkDelta) -> Result<Link, ServerFnError> {
     let new_link = NewLink::from_link_delta(data, user.id);
     new_link.insert(&state.db).await?;
 
-    db::get_link_by_code(&state.db, &code).await
+    let link = db::get_link_by_code(&state.db, &code).await?;
+    crate::server::checker::spawn_check(state, link.id, link.target.clone());
+    Ok(link)
 }
 
 #[server(endpoint = "save_link")]
@@ -88,11 +90,18 @@ pub async fn save_link(data: LinkDelta) -> Result<Link, ServerFnError> {
     // Allow empty code if editing the special "" root redirect link
     validate_link_code(&code, link.code.is_empty()).map_err(ServerFnError::new)?;
 
+    let target_changed = link.target != target;
     link.code = code;
     link.title = title;
     link.target = target;
 
     db::update_link(&state.db, &link).await?;
+
+    if target_changed {
+        // The old history describes a different url.
+        db::clear_link_checks(&state.db, link.id).await?;
+        crate::server::checker::spawn_check(state, link.id, link.target.clone());
+    }
 
     Ok(link)
 }
@@ -126,4 +135,48 @@ pub async fn get_link_statistics(link_id: i64) -> Result<Clicks, ServerFnError> 
     let state = crate::server::state::get_state().await?;
     let stats = crate::server::db::get_statistics(&state.db, link_id).await?;
     Ok(Clicks::Extended(stats))
+}
+
+/// Check a target url without storing the result (used for live feedback while editing a link).
+///
+/// # Errors
+/// Fails with [`ServerFnError`] if the user is not authenticated or the url is malformed.
+#[server(endpoint = "check_target")]
+pub async fn check_target(url: String) -> Result<LinkCheck, ServerFnError> {
+    use crate::{
+        domain::validation::validate_target_url,
+        server::{auth::require_user, checker, state::get_state},
+    };
+
+    let _user = require_user().await?;
+    let state = get_state().await?;
+    let url = url.trim().to_string();
+    validate_target_url(&url).map_err(ServerFnError::new)?;
+    Ok(checker::check_url(&state.http, &url).await)
+}
+
+/// Check the target of a stored link right now, store the result and return the check history
+/// (most recent first).
+///
+/// # Errors
+/// Fails with [`ServerFnError`] if the user is neither the author nor an admin or the database fails.
+#[server(endpoint = "check_link_now")]
+pub async fn check_link_now(link_id: i64) -> Result<Vec<LinkCheck>, ServerFnError> {
+    use crate::{
+        domain::models::Role,
+        server::{auth::require_user, checker, db, state::get_state},
+    };
+
+    let user = require_user().await?;
+    let state = get_state().await?;
+    let link = db::get_link_by_id(&state.db, link_id).await?;
+
+    if user.role != Role::Admin && link.author != user.id {
+        return Err(ServerFnError::new(
+            "Not authorized to check this link".to_owned(),
+        ));
+    }
+
+    checker::check_and_store(&state, link.id, &link.target).await;
+    db::list_link_checks(&state.db, link.id).await
 }

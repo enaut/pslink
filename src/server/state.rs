@@ -13,6 +13,8 @@ use crate::server::cli::ServerConfig;
 pub struct AppState {
     pub db: SqlitePool,
     pub config: Arc<ServerConfig>,
+    /// HTTP client used to check the link targets.
+    pub http: reqwest::Client,
 }
 
 impl AppState {
@@ -21,6 +23,7 @@ impl AppState {
         Self {
             db,
             config: Arc::new(config),
+            http: crate::server::checker::build_client(),
         }
     }
 }

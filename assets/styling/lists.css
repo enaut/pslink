@@ -113,3 +113,72 @@ print {
         flex-grow: 2 !important;
     }
 }
+
+/* Link target health check indicators */
+.check-dot {
+    display: inline-block;
+    width: 0.7em;
+    height: 0.7em;
+    border-radius: 50%;
+    margin-right: 0.4em;
+    vertical-align: baseline;
+    background-color: #b5b5b5;
+}
+
+.check-dot.check-ok {
+    background-color: #48c78e;
+}
+
+.check-dot.check-warning {
+    background-color: #ffe08a;
+    box-shadow: 0 0 0 1px #c9a227;
+}
+
+.check-dot.check-failed {
+    background-color: #f14668;
+}
+
+.check-line {
+    margin-bottom: 0.25em;
+}
+
+.check-line.check-failed {
+    color: #cc0f35;
+}
+
+.check-line .check-details {
+    color: #7a7a7a;
+    font-size: 0.85em;
+}
+
+.check-history {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+.check-history .check-dot {
+    width: 0.9em;
+    height: 0.9em;
+    border-radius: 2px;
+    margin-right: 0;
+}
+
+.check-history .check-history-label {
+    margin-right: 0.5em;
+    font-size: 0.85em;
+    color: #7a7a7a;
+}
+
+.table.is-striped tbody tr.link-failed td,
+.table tbody tr.link-failed td {
+    background-color: #feecf0;
+}
+
+iframe.link-preview {
+    width: 100%;
+    height: 260px;
+    border: 1px solid #dbdbdb;
+    background: white;
+}
