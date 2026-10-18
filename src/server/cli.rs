@@ -252,6 +252,12 @@ enum Commands {
     )]
     CreateAdmin,
     #[command(
+        name = "vacuum",
+        about = "Run SQLite VACUUM to reclaim disk space from deleted data and exit",
+        display_order = 2
+    )]
+    Vacuum,
+    #[command(
         hide = true,
         about = "Create a database and demo user.",
         display_order = 3
@@ -370,6 +376,10 @@ pub async fn setup() -> Result<Option<AppState>, ServerFnError> {
             let pool = apply_migrations(&server_config).await?;
             pool.close().await;
             info!("Successfully migrated the database.");
+            Ok(None)
+        }
+        Commands::Vacuum => {
+            vacuum_database(&server_config).await?;
             Ok(None)
         }
         Commands::Demo => {
@@ -536,6 +546,43 @@ pub async fn apply_migrations(config: &ServerConfig) -> Result<SqlitePool, Serve
     MIGRATOR.run(&pool).await.sfe()?;
     info!("Migrations applied successfully.");
     Ok(pool)
+}
+
+/// Reclaim unused disk space by running SQLite VACUUM on the database file.
+pub async fn vacuum_database(config: &ServerConfig) -> Result<(), ServerFnError> {
+    if !config.db.exists() {
+        let msg = format!(
+            "Database not found at {}! Create a new database with: `pslink migrate-database` or adjust the database path.",
+            config.db.display()
+        );
+        error!("{}", msg);
+        eprintln!("{}", msg);
+        return Ok(());
+    }
+    let size_before = std::fs::metadata(&config.db).map(|m| m.len()).unwrap_or(0);
+    info!(
+        "Running VACUUM on {} (current size: {:.2} MB)...",
+        config.db.display(),
+        size_before as f64 / 1_048_576.0
+    );
+    let pool = connect_db(&config.db, false).await?;
+    sqlx::query("VACUUM;").execute(&pool).await.sfe()?;
+    pool.close().await;
+
+    let size_after = std::fs::metadata(&config.db).map(|m| m.len()).unwrap_or(0);
+    info!(
+        "VACUUM completed. Reclaimed {:.2} MB. New size: {:.2} MB.",
+        size_before.saturating_sub(size_after) as f64 / 1_048_576.0,
+        size_after as f64 / 1_048_576.0
+    );
+    println!(
+        "VACUUM completed for {}. Size reduced from {:.2} MB to {:.2} MB (saved {:.2} MB).",
+        config.db.display(),
+        size_before as f64 / 1_048_576.0,
+        size_after as f64 / 1_048_576.0,
+        size_before.saturating_sub(size_after) as f64 / 1_048_576.0
+    );
+    Ok(())
 }
 
 /// Write a `.env` file with the current configuration if no non-empty `.env` file exists.

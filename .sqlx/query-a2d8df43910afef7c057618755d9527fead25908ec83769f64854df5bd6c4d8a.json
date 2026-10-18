@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE links SET total_clicks = total_clicks + 1 WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "a2d8df43910afef7c057618755d9527fead25908ec83769f64854df5bd6c4d8a"
+}

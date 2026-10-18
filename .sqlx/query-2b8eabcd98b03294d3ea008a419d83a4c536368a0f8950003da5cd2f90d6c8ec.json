@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO clicks (link, date, count)\n             VALUES (?, ?, 1)\n             ON CONFLICT(link, date) DO UPDATE SET count = count + 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "2b8eabcd98b03294d3ea008a419d83a4c536368a0f8950003da5cd2f90d6c8ec"
+}

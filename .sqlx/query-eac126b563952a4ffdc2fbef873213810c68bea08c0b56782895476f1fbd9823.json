@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "select total_clicks as number from links where id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "number",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "links",
+            "name": "total_clicks"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "eac126b563952a4ffdc2fbef873213810c68bea08c0b56782895476f1fbd9823"
+}

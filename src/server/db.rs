@@ -383,7 +383,7 @@ pub async fn list_links_filtered(
             users.email as uemail,
             users.role as urole,
             users.language as ulang,
-            COUNT(clicks.id) as counter,
+            links.total_clicks as counter,
             lc.checked_at as lc_at,
             lc.status as lc_status,
             lc.http_status as lc_http,
@@ -393,7 +393,6 @@ pub async fn list_links_filtered(
             lc.embeddable as lc_emb
         FROM links
         JOIN users ON links.author = users.id
-        LEFT JOIN clicks ON links.id = clicks.link
         LEFT JOIN link_checks lc ON lc.id = (
             SELECT id FROM link_checks
             WHERE link = links.id
@@ -407,7 +406,7 @@ pub async fn list_links_filtered(
         .iter()
         .filter_map(|(col, filter)| {
             let trimmed = filter.sieve.trim();
-            if trimmed.is_empty() || col == LinkOverviewColumns::Statistics {
+            if trimmed.is_empty() {
                 None
             } else {
                 Some((col, trimmed))
@@ -424,21 +423,13 @@ pub async fn list_links_filtered(
                 LinkOverviewColumns::Description => "links.title",
                 LinkOverviewColumns::Target => "links.target",
                 LinkOverviewColumns::Author => "users.username",
-                LinkOverviewColumns::Statistics => unreachable!(),
+                LinkOverviewColumns::Statistics => "CAST(links.total_clicks AS TEXT)",
             };
             separated
                 .push(col_sql)
                 .push_unseparated(" LIKE ")
                 .push_bind_unseparated(format!("%{}%", sieve));
         }
-    }
-
-    qb.push(" GROUP BY links.id");
-
-    let stats_filter = params.filter[LinkOverviewColumns::Statistics].sieve.trim();
-    if !stats_filter.is_empty() {
-        qb.push(" HAVING CAST(COUNT(clicks.id) AS TEXT) LIKE ")
-            .push_bind(format!("%{}%", stats_filter));
     }
 
     if let Some(order) = &params.order {
@@ -602,11 +593,6 @@ pub async fn list_link_targets(pool: &SqlitePool) -> Result<Vec<(i64, String)>, 
 /// # Errors
 /// Fails with [`ServerFnError`] if the database cannot be accessed or the link is not found.
 pub async fn get_statistics(pool: &SqlitePool, link_id: i64) -> Result<Statistics, ServerFnError> {
-    let link = sqlx::query!("select id,code from links where id=?", link_id)
-        .fetch_one(pool)
-        .await
-        .sfe()?;
-
     let qry = "WITH all_weeks AS (
   WITH RECURSIVE weeks(date_value) AS (
     SELECT date('now', 'start of month', '-1 year')
@@ -623,11 +609,11 @@ pub async fn get_statistics(pool: &SqlitePool, link_id: i64) -> Result<Statistic
 ),
 clicks_per_week AS (
   SELECT
-    strftime('%Y.%W', created_at) AS year_week,
-    COUNT(*) AS total
+    strftime('%Y.%W', date) AS year_week,
+    SUM(count) AS total
   FROM clicks
   WHERE link = ?
-    AND created_at > date('now', 'start of month', '-1 year')
+    AND date > date('now', 'start of month', '-1 year')
   GROUP BY year_week
 )
 SELECT
@@ -638,9 +624,8 @@ FROM all_weeks aw
 LEFT JOIN clicks_per_week cpw ON cpw.year_week = aw.year_week
 ORDER BY aw.full_date";
 
-    let code = link.code;
     let values: Vec<WeekCount> = sqlx::query(qry)
-        .bind(link.id)
+        .bind(link_id)
         .fetch_all(pool)
         .await
         .sfe()?
@@ -663,8 +648,8 @@ ORDER BY aw.full_date";
 
     let total = sqlx::query_as!(
         Count,
-        "select count(*) as number from clicks join links on clicks.link = links.id where links.code = ?",
-        code
+        "select total_clicks as number from links where id = ?",
+        link_id
     )
     .fetch_one(pool)
     .await
@@ -818,7 +803,7 @@ impl NewLink {
 #[derive(Serialize)]
 pub struct NewClick {
     pub link: i64,
-    pub created_at: NaiveDateTime,
+    pub date: NaiveDate,
 }
 
 impl NewClick {
@@ -826,21 +811,41 @@ impl NewClick {
     pub fn new(link_id: i64) -> Self {
         Self {
             link: link_id,
-            created_at: chrono::Local::now().naive_utc(),
+            date: chrono::Local::now().date_naive(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_date(link_id: i64, date: NaiveDate) -> Self {
+        Self {
+            link: link_id,
+            date,
         }
     }
 
     pub async fn insert_click(self, pool: &SqlitePool) -> Result<(), ServerFnError> {
+        let mut tx = pool.begin().await.sfe()?;
+        let date_str = self.date.to_string();
         sqlx::query!(
-            "Insert into clicks (
-            link,
-            created_at) VALUES (?,?)",
+            "INSERT INTO clicks (link, date, count)
+             VALUES (?, ?, 1)
+             ON CONFLICT(link, date) DO UPDATE SET count = count + 1",
             self.link,
-            self.created_at,
+            date_str,
         )
-        .execute(pool)
+        .execute(&mut *tx)
         .await
         .sfe()?;
+
+        sqlx::query!(
+            "UPDATE links SET total_clicks = total_clicks + 1 WHERE id = ?",
+            self.link,
+        )
+        .execute(&mut *tx)
+        .await
+        .sfe()?;
+
+        tx.commit().await.sfe()?;
         Ok(())
     }
 }
@@ -1048,5 +1053,108 @@ mod tests {
             .unwrap();
         delete_link_by_code(&pool, "ex").await.unwrap();
         assert!(list_link_checks(&pool, link.id).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_daily_click_aggregation_and_cascade() {
+        let pool = setup_test_db().await;
+        let secret = Secret::random();
+        let user = NewUser::new(
+            "click_tester".to_string(),
+            "clicker@example.org".to_string(),
+            "Password123!",
+            &secret,
+        )
+        .unwrap();
+        user.insert_user(&pool, Role::Regular).await.unwrap();
+        let user = get_user_by_name(&pool, "click_tester").await.unwrap();
+
+        NewLink {
+            title: "Daily Click Link".to_string(),
+            target: "https://example.com/clicks".to_string(),
+            code: "clicks1".to_string(),
+            author: user.id,
+            created_at: chrono::Local::now().naive_utc(),
+        }
+        .insert(&pool)
+        .await
+        .unwrap();
+
+        let link = get_link_by_code(&pool, "clicks1").await.unwrap();
+
+        // 1. Record 3 clicks on the same day (today)
+        let today = chrono::Local::now().date_naive();
+        NewClick::with_date(link.id, today)
+            .insert_click(&pool)
+            .await
+            .unwrap();
+        NewClick::with_date(link.id, today)
+            .insert_click(&pool)
+            .await
+            .unwrap();
+        NewClick::with_date(link.id, today)
+            .insert_click(&pool)
+            .await
+            .unwrap();
+
+        // 2. Record 2 clicks on yesterday
+        let yesterday = today - chrono::Duration::days(1);
+        NewClick::with_date(link.id, yesterday)
+            .insert_click(&pool)
+            .await
+            .unwrap();
+        NewClick::with_date(link.id, yesterday)
+            .insert_click(&pool)
+            .await
+            .unwrap();
+
+        // Verify only 2 rows in clicks table (aggregated by date)
+        let row_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM clicks WHERE link = ?")
+            .bind(link.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(row_count, 2);
+
+        // Verify counts per date
+        let today_count: i64 =
+            sqlx::query_scalar("SELECT count FROM clicks WHERE link = ? AND date = ?")
+                .bind(link.id)
+                .bind(today.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(today_count, 3);
+
+        let yesterday_count: i64 =
+            sqlx::query_scalar("SELECT count FROM clicks WHERE link = ? AND date = ?")
+                .bind(link.id)
+                .bind(yesterday.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(yesterday_count, 2);
+
+        // Verify total_clicks on links table
+        let total_clicks: i64 = sqlx::query_scalar("SELECT total_clicks FROM links WHERE id = ?")
+            .bind(link.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(total_clicks, 5);
+
+        // Verify statistics query
+        let stats = get_statistics(&pool, link.id).await.unwrap();
+        assert_eq!(stats.total.number, 5);
+
+        // Verify cascade delete
+        delete_link_by_code(&pool, "clicks1").await.unwrap();
+        let remaining_clicks: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM clicks WHERE link = ?")
+                .bind(link.id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(remaining_clicks, 0);
     }
 }
