@@ -39,6 +39,8 @@ web-sys = { version = "0.3", features = [
     "Url",
     "Document",
     "Window",
+    "Navigator",
+    "Clipboard",
     "HtmlAnchorElement",
     "Element",
     "HtmlElement",

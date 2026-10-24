@@ -27,6 +27,7 @@ pub fn LinkDisplay(
 ) -> Element {
     let ll = use_memo(move || links().get(&current_code).cloned());
     let mut nachricht: Signal<Option<String>> = use_signal(|| None);
+    let mut copied = use_signal(|| false);
     let PslinkContext {
         user,
         hostname,
@@ -42,12 +43,17 @@ pub fn LinkDisplay(
         }
     });
 
+    let short_url = use_memo(move || {
+        ll().map(|link_data| generate_url_for_code(&link_data.link.code, &base_url(), &hostname()))
+            .unwrap_or_default()
+    });
+
     let qr_code_svg = use_memo(move || {
-        if let Some(link_data) = ll() {
-            let url = generate_url_for_code(&link_data.link.code, &base_url(), &hostname());
-            generate_svg_qr_from_url(&url)
-        } else {
+        let url = short_url();
+        if url.is_empty() {
             String::new()
+        } else {
+            generate_svg_qr_from_url(&url)
         }
     });
 
@@ -88,15 +94,56 @@ pub fn LinkDisplay(
                     }
                 },
 
-                td { "{link_data.link.code}" }
+                td {
+                    div { class: "table-cell-with-action",
+                        span { "{link_data.link.code}" }
+                        button {
+                            class: "button is-light is-small table-action-btn",
+                            r#type: "button",
+                            title: t!("link-edit-copy"),
+                            onclick: move |e: Event<MouseData>| {
+                                e.stop_propagation();
+                                let url = short_url();
+                                async move {
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.navigator().clipboard().write_text(&url);
+                                    }
+                                    copied.set(true);
+                                    wasmtimer::tokio::sleep(std::time::Duration::from_secs(2)).await;
+                                    copied.set(false);
+                                }
+                            },
+                            if copied() {
+                                "✓"
+                            } else {
+                                "📋"
+                            }
+                        }
+                    }
+                }
                 td { "{link_data.link.title}" }
                 td {
                     style: "max-width:70%;word-wrap:anywhere;",
                     if let Some(msg) = nachricht() {
                         div { class: "is-danger notification vanishing-message", "{msg}" }
                     }
-                    CheckDot { check: link_data.last_check.clone() }
-                    "{link_data.link.target}"
+                    div { class: "table-cell-with-action",
+                        span {
+                            CheckDot { check: link_data.last_check.clone() }
+                            "{link_data.link.target}"
+                        }
+                        a {
+                            class: "button is-light is-small table-action-btn",
+                            href: "{link_data.link.target}",
+                            target: "_blank",
+                            rel: "noopener noreferrer",
+                            title: t!("link-preview-open"),
+                            onclick: move |e: Event<MouseData>| {
+                                e.stop_propagation();
+                            },
+                            "↗"
+                        }
+                    }
                 }
                 td { "{link_data.user.username}" }
                 td {

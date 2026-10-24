@@ -182,3 +182,19 @@ iframe.link-preview {
     border: 1px solid #dbdbdb;
     background: white;
 }
+
+input.shortlink-input {
+    user-select: all;
+    cursor: text;
+}
+
+.table-cell-with-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5em;
+}
+
+.table-action-btn {
+    flex-shrink: 0;
+}
