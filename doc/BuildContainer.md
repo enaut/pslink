@@ -39,6 +39,34 @@ podman run -d --name pslink_container \
 
 Replace `./links.db` and `./.env` with absolute paths if necessary. If SElinux is not used the `:Z` parameters can be omitted.
 
+### Running Behind a Reverse Proxy (e.g., systemd Quadlet)
+
+The container image includes a pre-generated `.env` file with `PSLINK_PUBLIC_URL="127.0.0.1:8080"` and `PSLINK_PROTOCOL="http"`. When hosting the container under a public domain or behind a reverse proxy without mounting a custom `.env` file, override `PSLINK_PUBLIC_URL` and `PSLINK_PROTOCOL` via environment variables so that generated short links, QR codes, and the navbar header reflect your public domain:
+
+```ini
+[Unit]
+Description=PSLink (Demo)
+After=network-online.target
+
+[Container]
+Image=ghcr.io/enaut/pslink:v0.6.2
+Environment=DIOXUS_ASSET_ROOT=app
+Environment=PSLINK_PUBLIC_URL=demo.pslink.teilgedanken.de
+Environment=PSLINK_PROTOCOL=https
+
+# Expose port (e.g., bind to localhost if behind reverse proxy, or specific port)
+PublishPort=127.0.0.1:30091:8080
+
+[Service]
+Restart=always
+# Systemd resource limits (equivalent to k8s limits)
+MemoryMax=256M
+CPUQuota=20%
+
+[Install]
+WantedBy=multi-user.target default.target
+```
+
 ### Configuration Options
 
 When starting the container, you can specify command line arguments:

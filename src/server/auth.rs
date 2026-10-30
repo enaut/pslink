@@ -60,17 +60,6 @@ pub async fn get_session() -> Result<Session, ServerFnError> {
         .map_err(|_| ServerFnError::new("AuthSessionLayer was not found"))
 }
 
-pub async fn get_hostname() -> Result<String, ServerFnError> {
-    let headers: axum::http::HeaderMap = FullstackContext::extract::<_, _>()
-        .await
-        .map_err(|_| ServerFnError::new("Headers were not found"))?;
-    headers
-        .get(axum::http::header::HOST)
-        .and_then(|v| v.to_str().ok())
-        .map(ToOwned::to_owned)
-        .ok_or_else(|| ServerFnError::new("Hostname was not found"))
-}
-
 /// Extract and verify an authenticated, active (non-disabled) user from the session.
 ///
 /// # Errors
