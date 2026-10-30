@@ -58,24 +58,19 @@ pub async fn logout() -> Result<(), ServerFnError> {
 pub async fn get_session_info() -> Result<SessionInfo, ServerFnError> {
     use crate::{
         domain::models::Role,
-        server::{
-            auth::{get_hostname, get_session},
-            state::get_state,
-        },
+        server::{auth::get_session, state::get_state},
     };
 
     let auth = get_session().await?;
     let state = get_state().await?;
-    let hostname = get_hostname()
-        .await
-        .unwrap_or_else(|_| state.config.public_url.clone());
+    let hostname = state.config.hostname();
 
     let user = auth
         .current_user
         .and_then(|aa| aa.get_user())
         .filter(|u| matches!(u.role, Role::Regular | Role::Admin));
 
-    let base_url = state.config.base_url(Some(&hostname));
+    let base_url = state.config.base_url();
 
     Ok(SessionInfo {
         user,
