@@ -198,3 +198,26 @@ input.shortlink-input {
 .table-action-btn {
     flex-shrink: 0;
 }
+
+.qr-edit-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.qr-preview-box {
+    width: 133px;
+    flex-shrink: 0;
+}
+
+.qr-preview-box svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.qr-download-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}

@@ -13,8 +13,7 @@ use crate::{
     ui::{
         PslinkContext,
         links::{
-            EditDialog, generate_png_download_from_url, generate_svg_qr_from_url,
-            generate_url_for_code,
+            EditDialog, generate_qr_downloads, generate_url_for_code,
             link_check::{CheckDot, CheckLine},
         },
     },
@@ -77,12 +76,11 @@ pub fn LinkEdit(
         })
     });
 
-    let qr_preview = use_memo(move || {
-        short_url().map(|url| {
-            let svg = generate_svg_qr_from_url(&url);
-            let png = generate_png_download_from_url(&url);
-            (svg, png)
-        })
+    let qr_downloads = use_memo(move || {
+        let code = edit_link()
+            .map(|d| d.link_delta.code.trim().to_string())
+            .unwrap_or_default();
+        short_url().and_then(|url| generate_qr_downloads(&url, &code))
     });
 
     // The check history of the link that is edited (`None` while it is loading).
@@ -160,7 +158,7 @@ pub fn LinkEdit(
         return rsx! {};
     };
 
-    let (qr_svg, png_qr_url) = qr_preview().unwrap_or_else(|| (String::new(), None));
+    let qr_downloads = qr_downloads();
 
     let is_edit = dialog.link_delta.edit == EditMode::Edit;
     let target_unchanged = dialog.link_delta.target.trim() == dialog.original_target.trim();
@@ -380,13 +378,32 @@ pub fn LinkEdit(
                         div { class: "field-label is-normal",
                             label { class: "label", {t!("link-edit-field-qrcode")} }
                         }
-                        if let Some((png_url, filename)) = png_qr_url {
-                            div { class: "field-body",
-                                div { width: "133px",
-                                    a {
-                                        href: png_url,
-                                        dangerous_inner_html: "{qr_svg}",
-                                        download: filename,
+                        div { class: "field-body",
+                            if let Some(qr) = qr_downloads {
+                                div { class: "qr-edit-container",
+                                    div {
+                                        class: "qr-preview-box",
+                                        dangerous_inner_html: "{qr.svg_preview}",
+                                    }
+                                    div { class: "qr-download-buttons",
+                                        a {
+                                            class: "button is-light is-small",
+                                            href: "{qr.png_200_data_url}",
+                                            download: "{qr.png_200_filename}",
+                                            {t!("link-edit-qr-download-png-200")}
+                                        }
+                                        a {
+                                            class: "button is-light is-small",
+                                            href: "{qr.png_1000_data_url}",
+                                            download: "{qr.png_1000_filename}",
+                                            {t!("link-edit-qr-download-png-1000")}
+                                        }
+                                        a {
+                                            class: "button is-light is-small",
+                                            href: "{qr.svg_data_url}",
+                                            download: "{qr.svg_filename}",
+                                            {t!("link-edit-qr-download-svg")}
+                                        }
                                     }
                                 }
                             }

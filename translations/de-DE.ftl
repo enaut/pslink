@@ -335,3 +335,7 @@ link-edit-field-shortlink = Kurzlink
 link-edit-placeholder-shortlink = Wird aus dem Code generiert…
 link-edit-copy = Kurzlink kopieren
 link-edit-copied = Kopiert!
+link-edit-qr-download-png-200 = PNG 200×200
+link-edit-qr-download-png-1000 = PNG 1000×1000
+link-edit-qr-download-svg = SVG
+

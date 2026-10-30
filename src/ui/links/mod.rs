@@ -340,6 +340,18 @@ pub fn generate_url_for_code(code: &str, base_url: &str, fallback_host: &str) ->
     format!("{}/{}", base, code)
 }
 
+/// Pre-rendered QR code preview and download payloads for the link edit modal.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QrDownloads {
+    pub svg_preview: String,
+    pub svg_data_url: String,
+    pub svg_filename: String,
+    pub png_200_data_url: String,
+    pub png_200_filename: String,
+    pub png_1000_data_url: String,
+    pub png_1000_filename: String,
+}
+
 /// Generate an SVG QR code string for a URL.
 #[must_use]
 pub fn generate_svg_qr_from_url(url: &str) -> String {
@@ -352,24 +364,81 @@ pub fn generate_svg_qr_from_url(url: &str) -> String {
     }
 }
 
-/// Generate a `(data_url, filename)` pair for downloading a PNG QR code of `url`.
-#[must_use]
-pub fn generate_png_download_from_url(url: &str) -> Option<(String, String)> {
-    let qrcode = QRBuilder::new(url).ecl(fast_qr::ECL::L).build().ok()?;
-    let size = (qrcode.size * 8).try_into().ok()?;
+/// Generate a PNG data URL (`data:image/png;base64,...`) of the given pixel dimensions for `qrcode`.
+fn generate_png_data_url(qrcode: &fast_qr::QRCode, dimension: u32) -> Option<String> {
     let png_bytes = ImageBuilder::default()
         .shape(Shape::Square)
-        .fit_height(size)
-        .fit_width(size)
-        .to_bytes(&qrcode)
+        .fit_height(dimension)
+        .fit_width(dimension)
+        .to_bytes(qrcode)
         .ok()?;
     let encoded = BASE64_STANDARD.encode(&png_bytes);
-    let data_url = format!("data:image/png;base64,{}", encoded);
-    let filename = format!(
-        "{}.png",
-        url.replace("https://", "")
-            .replace("http://", "")
-            .replace(['/', ':'], "_")
+    Some(format!("data:image/png;base64,{}", encoded))
+}
+
+/// Generate the SVG preview and all downloadable QR code variants (PNG 200x200, PNG 1000x1000, SVG).
+#[must_use]
+pub fn generate_qr_downloads(url: &str, code: &str) -> Option<QrDownloads> {
+    let qrcode = QRBuilder::new(url).ecl(fast_qr::ECL::L).build().ok()?;
+    let svg_preview = SvgBuilder::default().shape(Shape::Square).to_str(&qrcode);
+    let svg_data_url = format!(
+        "data:image/svg+xml;base64,{}",
+        BASE64_STANDARD.encode(svg_preview.as_bytes())
     );
-    Some((data_url, filename))
+    let png_200_data_url = generate_png_data_url(&qrcode, 200)?;
+    let png_1000_data_url = generate_png_data_url(&qrcode, 1000)?;
+
+    let base_name = if code.trim().is_empty() {
+        "root"
+    } else {
+        code.trim()
+    };
+
+    Some(QrDownloads {
+        svg_preview,
+        svg_data_url,
+        svg_filename: format!("{base_name}.svg"),
+        png_200_data_url,
+        png_200_filename: format!("{base_name}_200x200.png"),
+        png_1000_data_url,
+        png_1000_filename: format!("{base_name}_1000x1000.png"),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_qr_downloads_dimensions_and_filenames() {
+        let dl = generate_qr_downloads("https://example.com/mycode", "mycode")
+            .expect("QR generation should succeed");
+
+        assert!(dl.svg_preview.contains("<svg"));
+        assert!(dl.svg_data_url.starts_with("data:image/svg+xml;base64,"));
+        assert_eq!(dl.svg_filename, "mycode.svg");
+        assert_eq!(dl.png_200_filename, "mycode_200x200.png");
+        assert_eq!(dl.png_1000_filename, "mycode_1000x1000.png");
+
+        for (data_url, expected_dim) in [(&dl.png_200_data_url, 200u32), (&dl.png_1000_data_url, 1000u32)] {
+            let b64 = data_url
+                .strip_prefix("data:image/png;base64,")
+                .expect("PNG data URL prefix");
+            let bytes = BASE64_STANDARD.decode(b64).expect("valid base64");
+            assert_eq!(&bytes[0..8], b"\x89PNG\r\n\x1a\n");
+            let width = u32::from_be_bytes(bytes[16..20].try_into().unwrap());
+            let height = u32::from_be_bytes(bytes[20..24].try_into().unwrap());
+            assert_eq!(width, expected_dim);
+            assert_eq!(height, expected_dim);
+        }
+    }
+
+    #[test]
+    fn test_generate_qr_downloads_empty_code_fallback() {
+        let dl = generate_qr_downloads("https://example.com/", "")
+            .expect("QR generation should succeed");
+        assert_eq!(dl.svg_filename, "root.svg");
+        assert_eq!(dl.png_200_filename, "root_200x200.png");
+        assert_eq!(dl.png_1000_filename, "root_1000x1000.png");
+    }
 }
