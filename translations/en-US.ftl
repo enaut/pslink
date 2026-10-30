@@ -329,4 +329,13 @@ link-check-history = Last checks
 link-preview-label = Preview
 link-preview-show = Show preview
 link-preview-hide = Hide preview
+link-preview-open = Open target ↗
 link-preview-blocked = This site does not allow to be embedded in other pages.
+link-edit-field-shortlink = Short link
+link-edit-placeholder-shortlink = Generated from code…
+link-edit-copy = Copy short link
+link-edit-copied = Copied!
+link-edit-qr-download-png-200 = PNG 200×200
+link-edit-qr-download-png-1000 = PNG 1000×1000
+link-edit-qr-download-svg = SVG
+

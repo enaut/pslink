@@ -322,7 +322,7 @@ impl CliArgs {
             secret,
             data_download_secret,
             check_interval_hours: self.check_interval_hours,
-            check_history: 20,
+            check_history: 14,
         }
     }
 }
@@ -660,7 +660,7 @@ mod tests {
             secret: Secret::random(),
             data_download_secret: Secret::random(),
             check_interval_hours: 6,
-            check_history: 20,
+            check_history: 14,
         };
         assert!(config.secret.is_random);
 

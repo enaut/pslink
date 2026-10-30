@@ -13,8 +13,7 @@ use crate::{
     ui::{
         PslinkContext,
         links::{
-            EditDialog, generate_png_download_from_url, generate_svg_qr_from_url,
-            generate_url_for_code,
+            EditDialog, generate_qr_downloads, generate_url_for_code,
             link_check::{CheckDot, CheckLine},
         },
     },
@@ -66,19 +65,29 @@ pub fn LinkEdit(
         }
     });
 
-    let qr_preview = use_memo(move || {
-        edit_link().map(|dialog| {
-            let url = generate_url_for_code(&dialog.link_delta.code, &base_url(), &hostname());
-            let svg = generate_svg_qr_from_url(&url);
-            let png = generate_png_download_from_url(&url);
-            (svg, png)
+    let short_url = use_memo(move || {
+        edit_link().and_then(|dialog| {
+            let code = dialog.link_delta.code.trim();
+            if dialog.link_delta.edit == EditMode::Create && code.is_empty() {
+                None
+            } else {
+                Some(generate_url_for_code(code, &base_url(), &hostname()))
+            }
         })
+    });
+
+    let qr_downloads = use_memo(move || {
+        let code = edit_link()
+            .map(|d| d.link_delta.code.trim().to_string())
+            .unwrap_or_default();
+        short_url().and_then(|url| generate_qr_downloads(&url, &code))
     });
 
     // The check history of the link that is edited (`None` while it is loading).
     let mut history: Signal<Option<Vec<LinkCheck>>> = use_signal(|| None);
     let mut target_check = use_signal(|| TargetCheck::Idle);
     let mut show_preview = use_signal(|| false);
+    let mut copied = use_signal(|| false);
 
     // The id of the stored link that is edited. It only changes when a dialog is opened or closed.
     let open_id = use_memo(move || {
@@ -129,6 +138,7 @@ pub fn LinkEdit(
         let Some((target, original)) = typed_target() else {
             target_check.set(TargetCheck::Idle);
             show_preview.set(false);
+            copied.set(false);
             return;
         };
         if target == original || validate_target_url(&target).is_err() {
@@ -148,7 +158,7 @@ pub fn LinkEdit(
         return rsx! {};
     };
 
-    let (qr_svg, png_qr_url) = qr_preview().unwrap_or_else(|| (String::new(), None));
+    let qr_downloads = qr_downloads();
 
     let is_edit = dialog.link_delta.edit == EditMode::Edit;
     let target_unchanged = dialog.link_delta.target.trim() == dialog.original_target.trim();
@@ -297,6 +307,7 @@ pub fn LinkEdit(
                                         r#type: "text",
                                         class: "input",
                                         oninput: move |e| {
+                                            copied.set(false);
                                             if let Some(d) = edit_link.write().as_mut() {
                                                 d.link_delta.code = e.value();
                                                 d.error = None;
@@ -310,6 +321,7 @@ pub fn LinkEdit(
                                         r#type: "button",
                                         title: "Generate random short code",
                                         onclick: move |_| {
+                                            copied.set(false);
                                             if let Some(d) = edit_link.write().as_mut() {
                                                 d.link_delta.code = generate_random_client_code();
                                                 d.error = None;
@@ -323,15 +335,75 @@ pub fn LinkEdit(
                     }
                     div { class: "field is-horizontal is-wider",
                         div { class: "field-label is-normal",
+                            label { class: "label", {t!("link-edit-field-shortlink")} }
+                        }
+                        div { class: "field-body",
+                            div { class: "field has-addons",
+                                p { class: "control is-expanded",
+                                    input {
+                                        class: "input shortlink-input",
+                                        r#type: "text",
+                                        readonly: true,
+                                        placeholder: t!("link-edit-placeholder-shortlink"),
+                                        value: short_url().unwrap_or_default(),
+                                    }
+                                }
+                                p { class: "control",
+                                    button {
+                                        class: "button is-light",
+                                        r#type: "button",
+                                        disabled: short_url().is_none(),
+                                        title: t!("link-edit-copy"),
+                                        onclick: move |_| async move {
+                                            if let Some(url) = short_url() {
+                                                if let Some(window) = web_sys::window() {
+                                                    let _ = window.navigator().clipboard().write_text(&url);
+                                                }
+                                                copied.set(true);
+                                                wasmtimer::tokio::sleep(Duration::from_secs(2)).await;
+                                                copied.set(false);
+                                            }
+                                        },
+                                        if copied() {
+                                            "✓ {t!(\"link-edit-copied\")}"
+                                        } else {
+                                            "📋"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    div { class: "field is-horizontal is-wider",
+                        div { class: "field-label is-normal",
                             label { class: "label", {t!("link-edit-field-qrcode")} }
                         }
-                        if let Some((png_url, filename)) = png_qr_url {
-                            div { class: "field-body",
-                                div { width: "133px",
-                                    a {
-                                        href: png_url,
-                                        dangerous_inner_html: "{qr_svg}",
-                                        download: filename,
+                        div { class: "field-body",
+                            if let Some(qr) = qr_downloads {
+                                div { class: "qr-edit-container",
+                                    div {
+                                        class: "qr-preview-box",
+                                        dangerous_inner_html: "{qr.svg_preview}",
+                                    }
+                                    div { class: "qr-download-buttons",
+                                        a {
+                                            class: "button is-light is-small",
+                                            href: "{qr.png_200_data_url}",
+                                            download: "{qr.png_200_filename}",
+                                            {t!("link-edit-qr-download-png-200")}
+                                        }
+                                        a {
+                                            class: "button is-light is-small",
+                                            href: "{qr.png_1000_data_url}",
+                                            download: "{qr.png_1000_filename}",
+                                            {t!("link-edit-qr-download-png-1000")}
+                                        }
+                                        a {
+                                            class: "button is-light is-small",
+                                            href: "{qr.svg_data_url}",
+                                            download: "{qr.svg_filename}",
+                                            {t!("link-edit-qr-download-svg")}
+                                        }
                                     }
                                 }
                             }
@@ -344,14 +416,23 @@ pub fn LinkEdit(
                             }
                             div { class: "field-body",
                                 div { class: "field",
-                                    button {
-                                        class: "button is-light is-small",
-                                        r#type: "button",
-                                        onclick: move |_| show_preview.set(!show_preview()),
-                                        if show_preview() {
-                                            {t!("link-preview-hide")}
-                                        } else {
-                                            {t!("link-preview-show")}
+                                    div { class: "buttons mb-0",
+                                        button {
+                                            class: "button is-light is-small",
+                                            r#type: "button",
+                                            onclick: move |_| show_preview.set(!show_preview()),
+                                            if show_preview() {
+                                                {t!("link-preview-hide")}
+                                            } else {
+                                                {t!("link-preview-show")}
+                                            }
+                                        }
+                                        a {
+                                            class: "button is-light is-small",
+                                            href: "{url}",
+                                            target: "_blank",
+                                            rel: "noopener noreferrer",
+                                            {t!("link-preview-open")}
                                         }
                                     }
                                     if show_preview() {
