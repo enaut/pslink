@@ -29,10 +29,14 @@ pub fn LoginScreen() -> Element {
         }
     });
 
+    if user().is_some() {
+        info!("User already logged in, redirecting from login screen to links");
+        nav.replace(Route::Links {});
+    }
+
     trace!("Rendering login screen with username: {}", username);
     rsx! {
         div { class: "modal is-active",
-            document::Stylesheet { href: LOGIN_CSS }
             div { class: "modal-background" }
             div { class: "modal-card",
                 header { class: "modal-card-head",
@@ -115,6 +119,134 @@ pub fn LoginScreen() -> Element {
                     }
                 }
             }
+            document::Stylesheet { href: LOGIN_CSS }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        domain::models::{Lang, Role, User},
+        ui::translations,
+    };
+    use dioxus_core::{NoOpMutations, VNodeChild};
+    use dioxus_i18n::{prelude::use_init_i18n, unic_langid::langid};
+
+    #[derive(Debug, Clone, Routable, PartialEq)]
+    #[rustfmt::skip]
+    enum TestRoute {
+        #[route("/login")]
+        LoginScreen {},
+        #[route("/links")]
+        DummyLinks {},
+        #[route("/")]
+        DummyHome {},
+    }
+
+    #[component]
+    fn DummyLinks() -> Element {
+        rsx! { div { "links" } }
+    }
+
+    #[component]
+    fn DummyHome() -> Element {
+        rsx! { div { "home" } }
+    }
+
+    fn check_scope_root_anchors(scope: &dioxus_core::ScopeState, dom: &VirtualDom) {
+        let Some(mounted) = scope.try_mounted_root_node() else {
+            return;
+        };
+        for child in mounted.vnode().children() {
+            if let VNodeChild::Element(el) = child {
+                for anchor in el.dynamic_anchors() {
+                    assert!(
+                        anchor.static_path().is_root(),
+                        "Root element <{}> in scope {:?} has a non-root dynamic anchor, which overwrites root_id during hydration",
+                        el.tag(),
+                        scope.id()
+                    );
+                }
+            }
+        }
+        for anchor in mounted.vnode().dynamic_anchors() {
+            for slot in anchor.nodes() {
+                if let dioxus_core::DynamicNode::Component(comp) = &*slot
+                    && let Some(child_scope) = comp.mounted_scope(slot, mounted, dom)
+                {
+                    check_scope_root_anchors(child_scope, dom);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_login_screen_root_hydration_anchors_and_redirect_when_logged_in() {
+        #[component]
+        fn FullApp() -> Element {
+            use_init_i18n(|| translations::config(langid!("en-US")));
+            use_context_provider(PslinkContext::default);
+            rsx! {
+                Router::<Route> {}
+            }
+        }
+
+        // Verify `WebNavbar` / `Navbar` / `Home` root hydration anchors on initial build.
+        let mut full_vdom = VirtualDom::new(FullApp);
+        full_vdom.rebuild(&mut NoOpMutations);
+        check_scope_root_anchors(full_vdom.base_scope(), &full_vdom);
+
+        #[component]
+        fn TestApp() -> Element {
+            use_init_i18n(|| translations::config(langid!("en-US")));
+            use_context_provider(PslinkContext::default);
+            rsx! {
+                Router::<TestRoute> {}
+            }
+        }
+
+        let mut vdom = VirtualDom::new(TestApp);
+        vdom.rebuild(&mut NoOpMutations);
+
+        // Navigate to `/login` while logged out.
+        vdom.in_scope(ScopeId::APP, || {
+            let router = dioxus_router::root_router().expect("router should be initialized");
+            router.push(TestRoute::LoginScreen {});
+        });
+        vdom.render_immediate(&mut NoOpMutations);
+
+        let current_route: TestRoute = vdom.in_scope(ScopeId::APP, || {
+            dioxus_router::root_router()
+                .expect("router")
+                .current::<TestRoute>()
+        });
+        assert_eq!(current_route, TestRoute::LoginScreen {});
+
+        // Verify that `LoginScreen`'s root element only has dynamic anchors targeting itself.
+        check_scope_root_anchors(vdom.base_scope(), &vdom);
+
+        // Now simulate the user already being logged in (e.g., session loaded or existing user).
+        vdom.in_scope(ScopeId::APP, || {
+            let mut ctx = consume_context::<PslinkContext>();
+            ctx.user.set(Some(User {
+                id: 1,
+                username: "alice".to_string(),
+                email: "alice@example.com".to_string(),
+                role: Role::Regular,
+                language: Lang::EnUS,
+            }));
+        });
+
+        // Process the user signal update and verify redirect to `/links`.
+        vdom.render_immediate(&mut NoOpMutations);
+
+        let redirected_route: TestRoute = vdom.in_scope(ScopeId::APP, || {
+            dioxus_router::root_router()
+                .expect("router")
+                .current::<TestRoute>()
+        });
+        assert_eq!(redirected_route, TestRoute::DummyLinks {});
     }
 }

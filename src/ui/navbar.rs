@@ -69,10 +69,8 @@ pub fn Navbar(children: Element) -> Element {
 
     rsx!(
         nav {
-            document::Stylesheet { href: NAVBAR_CSS }
-            document::Stylesheet { href: BULMA_CSS }
-            if user_signal().is_some() {
-                ol {
+            ol {
+                if user_signal().is_some() {
                     li {
                         Link { to: Route::Links {}, {t!("short_urls")} }
                     }
@@ -80,8 +78,6 @@ pub fn Navbar(children: Element) -> Element {
                         Link { to: Route::Users {}, {t!("users")} }
                     }
                 }
-            } else {
-                ol {}
             }
             ol {
                 li {
@@ -91,7 +87,7 @@ pub fn Navbar(children: Element) -> Element {
             ol {
                 li {
                     div { class: "languageselector",
-                        {t!("language")}
+                        span { {t!("language")} }
                         a { onclick: change_to_german, "de" }
                         a { onclick: change_to_english, "en" }
                     }
@@ -120,6 +116,8 @@ pub fn Navbar(children: Element) -> Element {
                     }
                 }
             }
+            document::Stylesheet { href: NAVBAR_CSS }
+            document::Stylesheet { href: BULMA_CSS }
         }
     )
 }

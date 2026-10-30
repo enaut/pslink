@@ -12,7 +12,6 @@ const PLUS_ICON: Asset = asset!("/assets/plus.svg");
 pub fn NewUserButton(mut edit_dialog_signal: Signal<Option<EditDialog>>) -> Element {
     rsx! {
         div { class: "fixed-button",
-            document::Stylesheet { href: FLOATING_BUTTON_STYLES }
             button {
                 class: "button is-primary is-floating",
                 onclick: move |_| {
@@ -27,6 +26,7 @@ pub fn NewUserButton(mut edit_dialog_signal: Signal<Option<EditDialog>>) -> Elem
                 },
                 img { style: "max-width: 300%", src: PLUS_ICON }
             }
+            document::Stylesheet { href: FLOATING_BUTTON_STYLES }
         }
     }
 }
