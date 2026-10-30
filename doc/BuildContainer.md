@@ -56,6 +56,7 @@ Commands:
   migrate-database  Apply any pending migrations and exit
   generate-env      Generate an .env file template using default settings and exit
   create-admin      Create an admin user.
+  vacuum            Run SQLite VACUUM to reclaim disk space from deleted data and exit
   help              Print this message or the help of the given subcommand(s)
 
 Options:

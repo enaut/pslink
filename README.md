@@ -23,9 +23,11 @@ The Username and Password are both `demo`. Do not use this for any production us
 * **Users (regular account):**
 
   * view all existing links
+  * open and copy shortened and target links directly from list and edit views
   * modify all own links
   * create new links
-  * download qr-codes of the links
+  * download qr-codes of the links (PNG 200x200, PNG 1000x1000, or SVG)
+  * inspect link target health status, check history, and live preview
   * modify own "profile" settings
 
 * **Admins (privileged account):**
@@ -37,6 +39,7 @@ The Username and Password are both `demo`. Do not use this for any production us
   * create new users
   * make users administrators
   * make administrators normal users
+  * export the SQLite database backup
 
 ## What the program can do
 
@@ -45,12 +48,14 @@ The Username and Password are both `demo`. Do not use this for any production us
 
     * create and read from a `.env` file in the current directory
     * create and migrate the database
+    * vacuum the database to reclaim disk space (`pslink vacuum`)
     * create an admin user
     * run the webserver
 
 * **Service**
 
     * redirect according to the database
+    * periodic and on-demand health checks of link targets (keeping the last 14 checks per link)
     * admin interface via wasm
     
 
