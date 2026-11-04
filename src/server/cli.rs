@@ -74,11 +74,27 @@ pub struct ServerConfig {
 }
 
 impl ServerConfig {
+    /// Return the configured public host/domain (without scheme or trailing slash) for display.
+    #[must_use]
+    pub fn hostname(&self) -> String {
+        let trimmed = self.public_url.trim().trim_end_matches('/');
+        let without_scheme = trimmed
+            .strip_prefix("https://")
+            .or_else(|| trimmed.strip_prefix("http://"))
+            .unwrap_or(trimmed)
+            .trim_end_matches('/');
+        if without_scheme.is_empty() {
+            "127.0.0.1:8080".to_string()
+        } else {
+            without_scheme.to_string()
+        }
+    }
+
     /// Format the configured base URL (`{protocol}://{public_url}`).
     #[must_use]
-    pub fn base_url(&self, fallback_host: Option<&str>) -> String {
+    pub fn base_url(&self) -> String {
         let host = if self.public_url.trim().is_empty() {
-            fallback_host.unwrap_or("localhost:8080")
+            "127.0.0.1:8080"
         } else {
             self.public_url.trim().trim_end_matches('/')
         };
@@ -669,5 +685,34 @@ mod tests {
 
         let demo = config.to_env_strings(true);
         assert!(demo.iter().any(|line| line == "DEMO=\"true\"\n"));
+    }
+
+    #[test]
+    fn test_hostname_and_base_url_from_public_url() {
+        let mut config = ServerConfig {
+            db: "links.db".into(),
+            public_url: "127.0.0.1:8080".into(),
+            empty_forward_url: "https://example.com".into(),
+            brand_name: "Pslink".into(),
+            internal_ip: "127.0.0.1".into(),
+            port: 8080,
+            protocol: Protocol::Http,
+            secret: Secret::random(),
+            data_download_secret: Secret::random(),
+            check_interval_hours: 6,
+            check_history: 14,
+        };
+        assert_eq!(config.hostname(), "127.0.0.1:8080");
+        assert_eq!(config.base_url(), "http://127.0.0.1:8080");
+
+        config.public_url = "demo.pslink.teilgedanken.de/".into();
+        config.protocol = Protocol::Https;
+        assert_eq!(config.hostname(), "demo.pslink.teilgedanken.de");
+        assert_eq!(config.base_url(), "https://demo.pslink.teilgedanken.de");
+
+        config.public_url = "https://demo.pslink.teilgedanken.de/".into();
+        config.protocol = Protocol::Http;
+        assert_eq!(config.hostname(), "demo.pslink.teilgedanken.de");
+        assert_eq!(config.base_url(), "https://demo.pslink.teilgedanken.de");
     }
 }

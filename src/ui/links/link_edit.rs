@@ -48,9 +48,7 @@ pub fn LinkEdit(
     reload_trigger: Signal<u32>,
     mut links: Signal<IndexMap<String, FullLink>>,
 ) -> Element {
-    let PslinkContext {
-        hostname, base_url, ..
-    } = use_context::<PslinkContext>();
+    let PslinkContext { base_url, .. } = use_context::<PslinkContext>();
 
     let on_esc_event = move |evt: KeyboardEvent| {
         if evt.key() == Key::Named(NamedKey::Escape) {
@@ -71,7 +69,7 @@ pub fn LinkEdit(
             if dialog.link_delta.edit == EditMode::Create && code.is_empty() {
                 None
             } else {
-                Some(generate_url_for_code(code, &base_url(), &hostname()))
+                Some(generate_url_for_code(code, &base_url()))
             }
         })
     });

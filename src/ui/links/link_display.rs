@@ -30,7 +30,6 @@ pub fn LinkDisplay(
     let mut copied = use_signal(|| false);
     let PslinkContext {
         user,
-        hostname,
         base_url,
         ..
     } = use_context::<PslinkContext>();
@@ -44,7 +43,7 @@ pub fn LinkDisplay(
     });
 
     let short_url = use_memo(move || {
-        ll().map(|link_data| generate_url_for_code(&link_data.link.code, &base_url(), &hostname()))
+        ll().map(|link_data| generate_url_for_code(&link_data.link.code, &base_url()))
             .unwrap_or_default()
     });
 

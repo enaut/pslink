@@ -327,15 +327,13 @@ async fn load_links(
     }
 }
 
-/// Format a full short URL for `code` using the configured `base_url` (or `fallback_host`).
+/// Format a full short URL for `code` using the configured `base_url`.
 #[must_use]
-pub fn generate_url_for_code(code: &str, base_url: &str, fallback_host: &str) -> String {
+pub fn generate_url_for_code(code: &str, base_url: &str) -> String {
     let base = if !base_url.trim().is_empty() {
-        base_url.trim().trim_end_matches('/').to_string()
-    } else if !fallback_host.trim().is_empty() {
-        format!("https://{}", fallback_host.trim().trim_end_matches('/'))
+        base_url.trim().trim_end_matches('/')
     } else {
-        "http://localhost:8080".to_string()
+        "http://127.0.0.1:8080"
     };
     format!("{}/{}", base, code)
 }
@@ -440,5 +438,17 @@ mod tests {
         assert_eq!(dl.svg_filename, "root.svg");
         assert_eq!(dl.png_200_filename, "root_200x200.png");
         assert_eq!(dl.png_1000_filename, "root_1000x1000.png");
+    }
+
+    #[test]
+    fn test_generate_url_for_code_uses_base_url_or_default() {
+        assert_eq!(
+            generate_url_for_code("pslink", "https://demo.pslink.teilgedanken.de/"),
+            "https://demo.pslink.teilgedanken.de/pslink"
+        );
+        assert_eq!(
+            generate_url_for_code("pslink", ""),
+            "http://127.0.0.1:8080/pslink"
+        );
     }
 }
