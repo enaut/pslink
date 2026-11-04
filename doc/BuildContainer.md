@@ -49,7 +49,7 @@ Description=PSLink (Demo)
 After=network-online.target
 
 [Container]
-Image=ghcr.io/enaut/pslink:v0.6.2
+Image=ghcr.io/enaut/pslink:latest
 Environment=DIOXUS_ASSET_ROOT=app
 Environment=PSLINK_PUBLIC_URL=demo.pslink.teilgedanken.de
 Environment=PSLINK_PROTOCOL=https
