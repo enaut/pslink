@@ -603,7 +603,7 @@ pub async fn get_statistics(pool: &SqlitePool, link_id: i64) -> Result<Statistic
     FROM weeks
     WHERE date_value < date('now')
   )
-  SELECT 
+  SELECT
     date_value AS full_date,
     strftime('%Y.%W', date_value) AS year_week,
     strftime('%W', date_value) AS week
@@ -676,7 +676,7 @@ pub async fn get_link_by_code(pool: &SqlitePool, code: &str) -> Result<Link, Ser
     )
     .fetch_one(pool)
     .await;
-    info!("Found link: {:?}", &link);
+    trace!("Found link: {:?}", &link);
     link.sfe()
 }
 
@@ -692,7 +692,7 @@ pub async fn get_link_by_id(pool: &SqlitePool, id: i64) -> Result<Link, ServerFn
     )
     .fetch_one(pool)
     .await;
-    info!("Found link: {:?}", &link);
+    trace!("Found link: {:?}", &link);
     link.sfe()
 }
 
@@ -713,7 +713,7 @@ pub async fn delete_link_by_code(pool: &SqlitePool, code: &str) -> Result<(), Se
 /// # Errors
 /// Fails with [`ServerFnError`] if constraints are violated or the database cannot be accessed.
 pub async fn update_link(pool: &SqlitePool, link: &Link) -> Result<(), ServerFnError> {
-    info!("{:?}", link);
+    trace!("Update link: {:?}", link);
     let qry = sqlx::query!(
         "UPDATE links SET
         title = ?,
