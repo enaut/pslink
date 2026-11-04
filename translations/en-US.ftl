@@ -88,6 +88,9 @@ link-edit-field-code = Code
 # Source: ./ui/src/links/link_edit.rs:52
 link-edit-field-description = Description
 
+# Label for comment field
+link-edit-field-comment = Comment
+
 # Label for QR code field
 # Source: ./ui/src/links/link_edit.rs:116
 link-edit-field-qrcode = QR Code
@@ -107,6 +110,9 @@ link-edit-placeholder-code = Code
 # Placeholder for description input
 # Source: ./ui/src/links/link_edit.rs:62
 link-edit-placeholder-description = Description
+
+# Placeholder for comment input
+link-edit-placeholder-comment = Comment (optional)
 
 # Placeholder for target input
 # Source: ./ui/src/links/link_edit.rs:82

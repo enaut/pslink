@@ -433,7 +433,14 @@ pub async fn setup() -> Result<Option<AppState>, ServerFnError> {
                 }
             }
 
-            if !server_config.db.exists() {
+            let is_missing_or_empty = !server_config.db.exists()
+                || server_config
+                    .db
+                    .metadata()
+                    .map(|m| m.len() == 0)
+                    .unwrap_or(true);
+
+            if is_missing_or_empty {
                 let msg = format!(
                     "Database not found at {}! Create a new database with: `pslink migrate-database` or adjust the database path.",
                     server_config.db.display()
@@ -447,7 +454,7 @@ pub async fn setup() -> Result<Option<AppState>, ServerFnError> {
                 };
             }
 
-            let pool = connect_db(&server_config.db, false).await?;
+            let pool = apply_migrations(&server_config).await?;
             let num_users = db::count_admins(&pool).await?;
 
             if num_users.number < 1 {
@@ -485,6 +492,7 @@ async fn add_example_links(pool: &SqlitePool) -> Result<(), ServerFnError> {
     for (title, code, url) in links {
         NewLink {
             title: title.to_owned(),
+            comment: String::new(),
             target: url.to_owned(),
             code: code.to_owned(),
             author: 1,
@@ -714,5 +722,37 @@ mod tests {
         config.protocol = Protocol::Http;
         assert_eq!(config.hostname(), "demo.pslink.teilgedanken.de");
         assert_eq!(config.base_url(), "https://demo.pslink.teilgedanken.de");
+    }
+
+    #[tokio::test]
+    async fn test_apply_migrations_creates_file_and_applies_schema() {
+        let rand_id: u64 = rand::Rng::r#gen(&mut rand::thread_rng());
+        let db_path = std::env::temp_dir().join(format!("test_auto_mig_{rand_id}.db"));
+
+        let config = ServerConfig {
+            db: db_path.clone(),
+            public_url: "localhost:8080".into(),
+            empty_forward_url: "https://example.com".into(),
+            brand_name: "Pslink".into(),
+            internal_ip: "127.0.0.1".into(),
+            port: 8080,
+            protocol: Protocol::Http,
+            secret: Secret::random(),
+            data_download_secret: Secret::random(),
+            check_interval_hours: 6,
+            check_history: 14,
+        };
+
+        let pool = apply_migrations(&config).await.unwrap();
+        assert!(db_path.exists());
+
+        let count: i64 = sqlx::query_scalar("SELECT count(*) FROM links")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 0);
+
+        pool.close().await;
+        let _ = std::fs::remove_file(db_path);
     }
 }

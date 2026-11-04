@@ -82,6 +82,7 @@ pub struct User {
 pub struct Link {
     pub id: i64,
     pub title: String,
+    pub comment: String,
     pub target: String,
     pub code: String,
     pub author: i64,

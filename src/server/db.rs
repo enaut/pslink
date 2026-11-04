@@ -374,6 +374,7 @@ pub async fn list_links_filtered(
         "SELECT
             links.id as lid,
             links.title as ltitle,
+            links.comment as lcomment,
             links.target as ltarget,
             links.code as lcode,
             links.author as lauthor,
@@ -459,6 +460,7 @@ pub async fn list_links_filtered(
             link: Link {
                 id: v.get("lid"),
                 title: v.get("ltitle"),
+                comment: v.get("lcomment"),
                 target: v.get("ltarget"),
                 code: v.get("lcode"),
                 author: v.get("lauthor"),
@@ -669,7 +671,7 @@ ORDER BY aw.full_date";
 pub async fn get_link_by_code(pool: &SqlitePool, code: &str) -> Result<Link, ServerFnError> {
     let link = sqlx::query_as!(
         Link,
-        "Select id, title, target, code, author, created_at as \"created_at: NaiveDateTime\" from links where code = ? COLLATE NOCASE",
+        "Select id, title, comment, target, code, author, created_at as \"created_at: NaiveDateTime\" from links where code = ? COLLATE NOCASE",
         code
     )
     .fetch_one(pool)
@@ -685,7 +687,7 @@ pub async fn get_link_by_code(pool: &SqlitePool, code: &str) -> Result<Link, Ser
 pub async fn get_link_by_id(pool: &SqlitePool, id: i64) -> Result<Link, ServerFnError> {
     let link = sqlx::query_as!(
         Link,
-        "Select id, title, target, code, author, created_at as \"created_at: NaiveDateTime\" from links where id = ? ",
+        "Select id, title, comment, target, code, author, created_at as \"created_at: NaiveDateTime\" from links where id = ? ",
         id
     )
     .fetch_one(pool)
@@ -715,11 +717,13 @@ pub async fn update_link(pool: &SqlitePool, link: &Link) -> Result<(), ServerFnE
     let qry = sqlx::query!(
         "UPDATE links SET
         title = ?,
+        comment = ?,
         target = ?,
         code = ?,
         author = ?,
         created_at = ? where id = ?",
         link.title,
+        link.comment,
         link.target,
         link.code,
         link.author,
@@ -755,6 +759,7 @@ pub async fn generate_unique_code(pool: &SqlitePool) -> Result<String, ServerFnE
 #[derive(Serialize, Debug)]
 pub struct NewLink {
     pub title: String,
+    pub comment: String,
     pub target: String,
     pub code: String,
     pub author: i64,
@@ -767,6 +772,7 @@ impl NewLink {
     pub fn from_link_delta(link: LinkDelta, uid: i64) -> Self {
         Self {
             title: link.title,
+            comment: link.comment,
             target: link.target,
             code: link.code,
             author: uid,
@@ -782,11 +788,13 @@ impl NewLink {
         sqlx::query!(
             "Insert into links (
                 title,
+                comment,
                 target,
                 code,
                 author,
-                created_at) VALUES (?,?,?,?,?)",
+                created_at) VALUES (?,?,?,?,?,?)",
             self.title,
+            self.comment,
             self.target,
             self.code,
             self.author,
@@ -919,6 +927,7 @@ mod tests {
 
         NewLink {
             title: "Rust & Dioxus Guide".to_string(),
+            comment: String::new(),
             target: "https://dioxuslabs.com/learn/0.6/".to_string(),
             code: "dx-guide".to_string(),
             author: alice.id,
@@ -1001,6 +1010,7 @@ mod tests {
 
         NewLink {
             title: "Example".to_string(),
+            comment: String::new(),
             target: "https://example.com/".to_string(),
             code: "ex".to_string(),
             author: 1,
@@ -1071,6 +1081,7 @@ mod tests {
 
         NewLink {
             title: "Daily Click Link".to_string(),
+            comment: String::new(),
             target: "https://example.com/clicks".to_string(),
             code: "clicks1".to_string(),
             author: user.id,
@@ -1156,5 +1167,55 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(remaining_clicks, 0);
+    }
+
+    #[tokio::test]
+    async fn test_link_comment_lifecycle() {
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        MIGRATOR.run(&pool).await.unwrap();
+
+        let secret = Secret::new("test-secret-key".to_string());
+        let admin = NewUser::new(
+            "admin".to_string(),
+            "admin@test.org".to_string(),
+            "adminpass",
+            &secret,
+        )
+        .unwrap();
+        create_admin(&pool, &admin).await.unwrap();
+
+        // 1. Create a link with a comment
+        NewLink {
+            title: "Test Link".to_string(),
+            comment: "Initial internal comment".to_string(),
+            target: "https://example.com/test".to_string(),
+            code: "comment-test".to_string(),
+            author: 1,
+            created_at: chrono::Local::now().naive_utc(),
+        }
+        .insert(&pool)
+        .await
+        .unwrap();
+
+        // 2. Fetch by code and verify comment
+        let mut link = get_link_by_code(&pool, "comment-test").await.unwrap();
+        assert_eq!(link.comment, "Initial internal comment");
+
+        // 3. Fetch by id and verify comment
+        let link_by_id = get_link_by_id(&pool, link.id).await.unwrap();
+        assert_eq!(link_by_id.comment, "Initial internal comment");
+
+        // 4. Verify list_links_filtered includes comment
+        let listed = list_links_filtered(&pool, &LinkRequestForm::default())
+            .await
+            .unwrap();
+        assert_eq!(listed[0].link.comment, "Initial internal comment");
+
+        // 5. Update comment and verify
+        link.comment = "Updated note".to_string();
+        update_link(&pool, &link).await.unwrap();
+
+        let updated = get_link_by_id(&pool, link.id).await.unwrap();
+        assert_eq!(updated.comment, "Updated note");
     }
 }

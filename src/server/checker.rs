@@ -602,6 +602,7 @@ mod tests {
         for (code, path) in [("good", "ok"), ("bad", "missing")] {
             NewLink {
                 title: code.to_string(),
+                comment: String::new(),
                 target: format!("{base}/{path}"),
                 code: code.to_string(),
                 author: 1,

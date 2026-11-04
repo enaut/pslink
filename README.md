@@ -24,8 +24,7 @@ The Username and Password are both `demo`. Do not use this for any production us
 
   * view all existing links
   * open and copy shortened and target links directly from list and edit views
-  * modify all own links
-  * create new links
+  * create and modify own links (including an optional internal comment)
   * download qr-codes of the links (PNG 200x200, PNG 1000x1000, or SVG)
   * inspect link target health status, check history, and live preview
   * modify own "profile" settings
@@ -138,12 +137,11 @@ If everything is already correctly set up just do `pslink runserver` to launch t
 
 ### Update
 
-To update to a newer version execute the commands in the following order
+To update to a newer version:
 
 1. stop the service
 2. download and install or build the new binary
-3. run `pslink migrate-database`
-4. run the server again `pslink runserver`
+3. run the server again `pslink runserver` (pending database migrations on an existing database are applied automatically on startup; running `pslink migrate-database` manually beforehand is optional)
 
 ### Help
 
