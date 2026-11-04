@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "Insert into links (\n                title,\n                comment,\n                target,\n                code,\n                author,\n                created_at) VALUES (?,?,?,?,?,?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "329559201cc9affd671383d3578edc54f462cdc94a4020a084f6b56e5e59b287"
+}

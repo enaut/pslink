@@ -46,6 +46,22 @@ database-export-success-message = Datenbank erfolgreich exportiert! Klicken Sie 
 # Source: ./ui/src/users/database_export.rs:53
 database-export-title = Datenbank Export
 
+# Links export
+links-export-title = Link-Export
+links-export-subtitle = Alle Links als CSV-Datei für LibreOffice Calc und Microsoft Excel exportieren
+links-export-label-delimiter = CSV-Trennzeichen
+links-export-delimiter-comma = Komma (,)
+links-export-delimiter-semicolon = Semikolon (;)
+links-export-delimiter-pipe = Pipe (|)
+links-export-button-export = 📥 Links exportieren (CSV)
+links-export-button-exporting = Exportiere Links...
+links-export-button-download = 📥 Links-CSV herunterladen
+links-export-button-clear = Löschen
+links-export-success-message = Links erfolgreich exportiert! Der Download sollte automatisch starten.
+links-export-error-failed = Export fehlgeschlagen
+links-export-ready = Link-Export bereit!
+links-export-count = {$count} Links exportiert
+
 # Source: ./ui/src/navbar.rs:160
 demo-warning = Diese Instanz ist nicht für dauerhaftes Speichern konfiguriert... Die eingegebenen Daten werden nur bis zum Neustart gespeichert.
 
@@ -88,6 +104,9 @@ link-edit-field-code = Code
 # Source: ./ui/src/links/link_edit.rs:52
 link-edit-field-description = Beschreibung
 
+# Label for comment field
+link-edit-field-comment = Kommentar
+
 # Label for QR code field
 # Source: ./ui/src/links/link_edit.rs:116
 link-edit-field-qrcode = QR-Code
@@ -107,6 +126,9 @@ link-edit-placeholder-code = Code
 # Placeholder for description input
 # Source: ./ui/src/links/link_edit.rs:62
 link-edit-placeholder-description = Beschreibung
+
+# Placeholder for comment input
+link-edit-placeholder-comment = Kommentar (optional)
 
 # Placeholder for target input
 # Source: ./ui/src/links/link_edit.rs:82

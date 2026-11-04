@@ -240,6 +240,29 @@ pub fn LinkEdit(
                     }
                     div { class: "field is-horizontal is-wider",
                         div { class: "field-label is-normal",
+                            label { class: "label", {t!("link-edit-field-comment")} }
+                        }
+                        div { class: "field-body",
+                            div { class: "field",
+                                p { class: "control",
+                                    input {
+                                        placeholder: t!("link-edit-placeholder-comment"),
+                                        value: "{dialog.link_delta.comment}",
+                                        r#type: "text",
+                                        class: "input",
+                                        oninput: move |e| {
+                                            if let Some(d) = edit_link.write().as_mut() {
+                                                d.link_delta.comment = e.value();
+                                                d.error = None;
+                                            }
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    div { class: "field is-horizontal is-wider",
+                        div { class: "field-label is-normal",
                             label { class: "label", {t!("link-edit-field-target")} }
                         }
                         div { class: "field-body",

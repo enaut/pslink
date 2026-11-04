@@ -1,4 +1,5 @@
 mod database_export;
+mod links_export;
 mod new_user_button;
 mod user_display;
 mod user_edit;
@@ -8,6 +9,7 @@ use dioxus_i18n::t;
 use indexmap::IndexMap;
 
 use database_export::DatabaseExport;
+use links_export::LinksExport;
 use new_user_button::NewUserButton;
 use user_display::UserDisplay;
 use user_edit::UserEdit;
@@ -232,6 +234,8 @@ pub fn Users() -> Element {
                                 img { src: RELOAD_SVG, class: "reloadicon" }
                                 {t!("users-button-load-more")}
                             }
+                            hr {}
+                            LinksExport {}
                             hr {}
                             DatabaseExport {}
                         }

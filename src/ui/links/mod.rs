@@ -51,6 +51,7 @@ impl EditDialog {
         id: Option<i64>,
         code: String,
         title: String,
+        comment: String,
         target: String,
         author: Option<i64>,
         edit: EditMode,
@@ -61,6 +62,7 @@ impl EditDialog {
                 edit,
                 id,
                 title,
+                comment,
                 target,
                 code,
                 author,
@@ -418,7 +420,10 @@ mod tests {
         assert_eq!(dl.png_200_filename, "mycode_200x200.png");
         assert_eq!(dl.png_1000_filename, "mycode_1000x1000.png");
 
-        for (data_url, expected_dim) in [(&dl.png_200_data_url, 200u32), (&dl.png_1000_data_url, 1000u32)] {
+        for (data_url, expected_dim) in [
+            (&dl.png_200_data_url, 200u32),
+            (&dl.png_1000_data_url, 1000u32),
+        ] {
             let b64 = data_url
                 .strip_prefix("data:image/png;base64,")
                 .expect("PNG data URL prefix");

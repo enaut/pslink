@@ -24,8 +24,7 @@ The Username and Password are both `demo`. Do not use this for any production us
 
   * view all existing links
   * open and copy shortened and target links directly from list and edit views
-  * modify all own links
-  * create new links
+  * create and modify own links (including an optional internal comment)
   * download qr-codes of the links (PNG 200x200, PNG 1000x1000, or SVG)
   * inspect link target health status, check history, and live preview
   * modify own "profile" settings
@@ -102,6 +101,16 @@ $ dx bundle --release --platform web
 
 If that succeeds you should now be able to call Pslink. The binary is located at `target/dx/pslink/release/web/pslink` (or `server`). The directory `target/dx/pslink/release/web/` can be moved wherever you want it to be.
 
+SQLx uses the committed `.sqlx` query metadata during builds, independently of any `DATABASE_URL` in `.env`. After changing a checked SQL query or a migration, regenerate the metadata against a separate, freshly migrated development database using a matching version of `sqlx-cli`:
+
+```bash
+DATABASE_URL=sqlite:target/sqlx-prepare.db sqlx database create
+DATABASE_URL=sqlite:target/sqlx-prepare.db sqlx migrate run
+DATABASE_URL=sqlite:target/sqlx-prepare.db SQLX_OFFLINE=false cargo sqlx prepare -- --features server
+```
+
+Remove the temporary database before repeating this process so all migrations run on a fresh schema. Commit the resulting `.sqlx` changes along with the query or migration changes. Runtime databases still need their migrations applied; the server applies pending migrations at startup.
+
 **In the binary releases and in this README the server binary is named `pslink`.**
 
 ### Configuration and setup
@@ -138,12 +147,11 @@ If everything is already correctly set up just do `pslink runserver` to launch t
 
 ### Update
 
-To update to a newer version execute the commands in the following order
+To update to a newer version:
 
 1. stop the service
 2. download and install or build the new binary
-3. run `pslink migrate-database`
-4. run the server again `pslink runserver`
+3. run the server again `pslink runserver` (pending database migrations on an existing database are applied automatically on startup; running `pslink migrate-database` manually beforehand is optional)
 
 ### Help
 

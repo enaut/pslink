@@ -17,6 +17,7 @@ pub fn NewLinkButton(mut edit_link: Signal<Option<EditDialog>>) -> Element {
                         String::new(),
                         String::new(),
                         String::new(),
+                        String::new(),
                         None,
                         EditMode::Create,
                     )));

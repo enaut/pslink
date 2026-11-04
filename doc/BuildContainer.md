@@ -49,10 +49,11 @@ Description=PSLink (Demo)
 After=network-online.target
 
 [Container]
-Image=ghcr.io/enaut/pslink:v0.6.2
+Image=ghcr.io/enaut/pslink:latest
 Environment=DIOXUS_ASSET_ROOT=app
 Environment=PSLINK_PUBLIC_URL=demo.pslink.teilgedanken.de
 Environment=PSLINK_PROTOCOL=https
+AutoUpdate=registry
 
 # Expose port (e.g., bind to localhost if behind reverse proxy, or specific port)
 PublishPort=127.0.0.1:30091:8080
@@ -66,6 +67,8 @@ CPUQuota=20%
 [Install]
 WantedBy=multi-user.target default.target
 ```
+
+When combining `AutoUpdate=registry` with mounted persistent data, container restarts after auto-updates will automatically and safely apply pending database migrations to the existing database on startup.
 
 ### Configuration Options
 
@@ -151,6 +154,7 @@ To start with a fresh config and database intended for production use:
       ghcr.io/enaut/pslink:latest /app/pslink generate-env
     ```
 4. bring the database up to date
+    This initial migration is required to initialize the empty database file (`runserver` intentionally refuses to start on empty or missing files). Once initialized, future upgrades will apply pending migrations automatically on startup.
     ```bash
     podman run --replace -it --name  pslink_container \
       -v ./links.db:/app/links.db:Z \

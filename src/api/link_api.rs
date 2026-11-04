@@ -36,6 +36,7 @@ pub async fn create_link(mut data: LinkDelta) -> Result<Link, ServerFnError> {
 
     data.target = data.target.trim().to_string();
     data.title = data.title.trim().to_string();
+    data.comment = data.comment.trim().to_string();
     data.code = data.code.trim().to_string();
 
     validate_target_url(&data.target).map_err(ServerFnError::new)?;
@@ -83,6 +84,7 @@ pub async fn save_link(data: LinkDelta) -> Result<Link, ServerFnError> {
     let target = data.target.trim().to_string();
     let code = data.code.trim().to_string();
     let title = data.title.trim().to_string();
+    let comment = data.comment.trim().to_string();
 
     validate_target_url(&target).map_err(ServerFnError::new)?;
     // Allow empty code if editing the special "" root redirect link
@@ -91,6 +93,7 @@ pub async fn save_link(data: LinkDelta) -> Result<Link, ServerFnError> {
     let target_changed = link.target != target;
     link.code = code;
     link.title = title;
+    link.comment = comment;
     link.target = target;
 
     db::update_link(&state.db, &link).await?;

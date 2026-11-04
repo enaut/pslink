@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "Select id, title, target, code, author, created_at as \"created_at: NaiveDateTime\" from links where code = ? COLLATE NOCASE",
+  "query": "Select id, title, comment, target, code, author, created_at as \"created_at: NaiveDateTime\" from links where id = ? ",
   "describe": {
     "columns": [
       {
@@ -26,8 +26,19 @@
         }
       },
       {
-        "name": "target",
+        "name": "comment",
         "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "links",
+            "name": "comment"
+          }
+        }
+      },
+      {
+        "name": "target",
+        "ordinal": 3,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -38,7 +49,7 @@
       },
       {
         "name": "code",
-        "ordinal": 3,
+        "ordinal": 4,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -49,7 +60,7 @@
       },
       {
         "name": "author",
-        "ordinal": 4,
+        "ordinal": 5,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -60,7 +71,7 @@
       },
       {
         "name": "created_at: NaiveDateTime",
-        "ordinal": 5,
+        "ordinal": 6,
         "type_info": "Datetime",
         "origin": {
           "Table": {
@@ -79,8 +90,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "f53f36e4fd7ae5e251c116c077f8a9042b7a40804f055f5c7cc6ba0b3b0e1d9c"
+  "hash": "c3ccf68d5f9067f121fedea3a9380ae95a049f9f841d309e3cafa59346f4dcb7"
 }
