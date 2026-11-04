@@ -101,6 +101,16 @@ $ dx bundle --release --platform web
 
 If that succeeds you should now be able to call Pslink. The binary is located at `target/dx/pslink/release/web/pslink` (or `server`). The directory `target/dx/pslink/release/web/` can be moved wherever you want it to be.
 
+SQLx uses the committed `.sqlx` query metadata during builds, independently of any `DATABASE_URL` in `.env`. After changing a checked SQL query or a migration, regenerate the metadata against a separate, freshly migrated development database using a matching version of `sqlx-cli`:
+
+```bash
+DATABASE_URL=sqlite:target/sqlx-prepare.db sqlx database create
+DATABASE_URL=sqlite:target/sqlx-prepare.db sqlx migrate run
+DATABASE_URL=sqlite:target/sqlx-prepare.db SQLX_OFFLINE=false cargo sqlx prepare -- --features server
+```
+
+Remove the temporary database before repeating this process so all migrations run on a fresh schema. Commit the resulting `.sqlx` changes along with the query or migration changes. Runtime databases still need their migrations applied; the server applies pending migrations at startup.
+
 **In the binary releases and in this README the server binary is named `pslink`.**
 
 ### Configuration and setup

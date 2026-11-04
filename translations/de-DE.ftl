@@ -46,6 +46,22 @@ database-export-success-message = Datenbank erfolgreich exportiert! Klicken Sie 
 # Source: ./ui/src/users/database_export.rs:53
 database-export-title = Datenbank Export
 
+# Links export
+links-export-title = Link-Export
+links-export-subtitle = Alle Links als CSV-Datei für LibreOffice Calc und Microsoft Excel exportieren
+links-export-label-delimiter = CSV-Trennzeichen
+links-export-delimiter-comma = Komma (,)
+links-export-delimiter-semicolon = Semikolon (;)
+links-export-delimiter-pipe = Pipe (|)
+links-export-button-export = 📥 Links exportieren (CSV)
+links-export-button-exporting = Exportiere Links...
+links-export-button-download = 📥 Links-CSV herunterladen
+links-export-button-clear = Löschen
+links-export-success-message = Links erfolgreich exportiert! Der Download sollte automatisch starten.
+links-export-error-failed = Export fehlgeschlagen
+links-export-ready = Link-Export bereit!
+links-export-count = {$count} Links exportiert
+
 # Source: ./ui/src/navbar.rs:160
 demo-warning = Diese Instanz ist nicht für dauerhaftes Speichern konfiguriert... Die eingegebenen Daten werden nur bis zum Neustart gespeichert.
 

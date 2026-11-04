@@ -5,7 +5,7 @@ use std::str::FromStr;
 use argon2::{PasswordHasher as _, PasswordVerifier as _};
 use chrono::{NaiveDate, NaiveDateTime};
 use dioxus::{
-    logger::tracing::{error, info},
+    logger::tracing::{error, info, trace},
     prelude::ServerFnError,
 };
 use serde::{Deserialize, Serialize};
@@ -454,6 +454,76 @@ pub async fn list_links_filtered(
         .push_bind(params.offset as i64);
 
     let rows = qb.build().fetch_all(pool).await.sfe()?;
+    let links = rows
+        .into_iter()
+        .map(|v| FullLink {
+            link: Link {
+                id: v.get("lid"),
+                title: v.get("ltitle"),
+                comment: v.get("lcomment"),
+                target: v.get("ltarget"),
+                code: v.get("lcode"),
+                author: v.get("lauthor"),
+                created_at: v.get("ldate"),
+            },
+            user: User {
+                id: v.get("usid"),
+                username: v.get("usern"),
+                email: v.get("uemail"),
+                role: Role::convert(v.get("urole")),
+                language: Lang::from_str(v.get("ulang")).unwrap_or_default(),
+            },
+            clicks: Clicks::Count(Count {
+                number: v.get("counter"),
+            }),
+            last_check: check_from_row(&v),
+        })
+        .collect();
+
+    Ok(links)
+}
+
+/// Query all links with author info, click counts, and latest health check for export.
+///
+/// # Errors
+/// Fails with [`ServerFnError`] if the database query fails.
+pub async fn get_all_links_for_export(pool: &SqlitePool) -> Result<Vec<FullLink>, ServerFnError> {
+    let rows = sqlx::query(
+        "SELECT
+            links.id as lid,
+            links.title as ltitle,
+            links.comment as lcomment,
+            links.target as ltarget,
+            links.code as lcode,
+            links.author as lauthor,
+            links.created_at as ldate,
+            users.id as usid,
+            users.username as usern,
+            users.email as uemail,
+            users.role as urole,
+            users.language as ulang,
+            links.total_clicks as counter,
+            lc.checked_at as lc_at,
+            lc.status as lc_status,
+            lc.http_status as lc_http,
+            lc.error as lc_err,
+            lc.final_url as lc_url,
+            lc.duration_ms as lc_dur,
+            lc.embeddable as lc_emb
+        FROM links
+        JOIN users ON links.author = users.id
+        LEFT JOIN link_checks lc ON lc.id = (
+            SELECT id FROM link_checks
+            WHERE link = links.id
+            ORDER BY checked_at DESC, id DESC
+            LIMIT 1
+        )
+        ORDER BY links.id ASC",
+    )
+    .fetch_all(pool)
+    .await
+    .sfe()?;
+
     let links = rows
         .into_iter()
         .map(|v| FullLink {
@@ -1217,5 +1287,51 @@ mod tests {
 
         let updated = get_link_by_id(&pool, link.id).await.unwrap();
         assert_eq!(updated.comment, "Updated note");
+    }
+
+    #[tokio::test]
+    async fn test_get_all_links_for_export() {
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        MIGRATOR.run(&pool).await.unwrap();
+
+        let secret = Secret::new("test-secret-key".to_string());
+        let admin = NewUser::new(
+            "export_admin".to_string(),
+            "admin@export.org".to_string(),
+            "adminpass",
+            &secret,
+        )
+        .unwrap();
+        create_admin(&pool, &admin).await.unwrap();
+
+        NewLink {
+            title: "Export Link 1".to_string(),
+            comment: "Comment 1".to_string(),
+            target: "https://example.com/1".to_string(),
+            code: "exp1".to_string(),
+            author: 1,
+            created_at: chrono::Local::now().naive_utc(),
+        }
+        .insert(&pool)
+        .await
+        .unwrap();
+
+        NewLink {
+            title: "Export Link 2".to_string(),
+            comment: "Comment 2".to_string(),
+            target: "https://example.com/2".to_string(),
+            code: "exp2".to_string(),
+            author: 1,
+            created_at: chrono::Local::now().naive_utc(),
+        }
+        .insert(&pool)
+        .await
+        .unwrap();
+
+        let all_links = get_all_links_for_export(&pool).await.unwrap();
+        assert_eq!(all_links.len(), 2);
+        assert_eq!(all_links[0].link.code, "exp1");
+        assert_eq!(all_links[0].user.username, "export_admin");
+        assert_eq!(all_links[1].link.code, "exp2");
     }
 }

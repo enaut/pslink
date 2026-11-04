@@ -46,6 +46,22 @@ database-export-success-message = Database exported successfully! Click the down
 # Source: ./ui/src/users/database_export.rs:53
 database-export-title = Database Export
 
+# Links export
+links-export-title = Links Export
+links-export-subtitle = Export all links to a CSV file readable by LibreOffice Calc and Microsoft Excel
+links-export-label-delimiter = CSV Delimiter
+links-export-delimiter-comma = Comma (,)
+links-export-delimiter-semicolon = Semicolon (;)
+links-export-delimiter-pipe = Pipe (|)
+links-export-button-export = 📥 Export Links (CSV)
+links-export-button-exporting = Exporting Links...
+links-export-button-download = 📥 Download Links CSV
+links-export-button-clear = Clear
+links-export-success-message = Links exported successfully! Download should start automatically.
+links-export-error-failed = Export failed
+links-export-ready = Links export ready!
+links-export-count = {$count} links exported
+
 # Source: ./ui/src/navbar.rs:160
 demo-warning = This instance is not created with a persistent storage. So all the links and useraccounts are lost on restart.
 

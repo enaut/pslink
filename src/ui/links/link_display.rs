@@ -28,11 +28,7 @@ pub fn LinkDisplay(
     let ll = use_memo(move || links().get(&current_code).cloned());
     let mut nachricht: Signal<Option<String>> = use_signal(|| None);
     let mut copied = use_signal(|| false);
-    let PslinkContext {
-        user,
-        base_url,
-        ..
-    } = use_context::<PslinkContext>();
+    let PslinkContext { user, base_url, .. } = use_context::<PslinkContext>();
 
     let mut timer = use_resource(move || {
         let delay = std::time::Duration::from_secs(3);
